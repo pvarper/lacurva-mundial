@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 const SESSION_MAX_AGE_MS = 5 * 60 * 1000;
 const PREDICTION_LOCK_MS = 10 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
+const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
 
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
@@ -113,6 +114,12 @@ function calculatePredictionPoints(prediction, match) {
   const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
   const actualOutcome = getOutcome(match.homeScore, match.awayScore);
   return predictedOutcome === actualOutcome ? 3 : 0;
+}
+
+function parseFixtureScore(value) {
+  if (value === null || value === '') return null;
+  const score = Number(value);
+  return Number.isInteger(score) && score >= 0 ? score : NaN;
 }
 
 app.post('/api/login', async (req, res) => {
@@ -259,6 +266,42 @@ app.get('/api/fixtures', requireAuth, async (req, res) => {
     return matchesDate && matchesTeam && matchesPhase;
   });
   res.json(filtered.map((match) => ({ ...match, locked: isPredictionLocked(match) })));
+});
+
+app.put('/api/fixtures/:id', requireAdmin, async (req, res) => {
+  const matchId = String(req.params.id || '');
+  const status = String(req.body.status || '').trim();
+  const homeScore = parseFixtureScore(req.body.homeScore);
+  const awayScore = parseFixtureScore(req.body.awayScore);
+
+  if (!FIXTURE_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'Invalid fixture status.' });
+  }
+  if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
+    return res.status(400).json({ error: 'Scores must be non-negative integers.' });
+  }
+  if ((status === 'live' || status === 'final') && (homeScore === null || awayScore === null)) {
+    return res.status(400).json({ error: 'Live and final matches require both scores.' });
+  }
+
+  const fixtures = await readJson('fixtures.json');
+  const match = fixtures.find((candidate) => candidate.id === matchId);
+  if (!match) return res.status(404).json({ error: 'Match not found.' });
+
+  match.status = status;
+  match.homeScore = homeScore;
+  match.awayScore = awayScore;
+  await writeJson('fixtures.json', fixtures);
+  await recordAuditLog(req, 'fixture_updated', {
+    matchId,
+    matchNumber: match.matchNumber,
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    homeScore,
+    awayScore,
+    status
+  });
+  res.json({ match: { ...match, locked: isPredictionLocked(match) } });
 });
 
 app.get('/api/predictions', requireAuth, async (req, res) => {

@@ -179,10 +179,24 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
 .teams { display: grid; gap: 0.4rem; margin: 1rem 0; font-size: 1.1rem; font-weight: 900; }
 .score { color: var(--accent); }
 .status { display: inline-flex; border-radius: 999px; padding: 0.3rem 0.65rem; background: #edf5ef; color: var(--accent); font-weight: 800; }
+.fixture-status { margin-top: 0.75rem; }
+.scheduled-status { color: var(--muted); background: #eef0eb; }
+.live-status { color: #fff; background: #c62828; }
+.final-status { color: #fff; background: #16834f; }
 .venue { margin: 0.35rem 0; color: var(--muted); }
 .muted-text { color: var(--muted); }
 .locked { color: var(--danger); font-weight: 800; }
 .prediction-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.6rem; align-items: end; }
+.fixture-update-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.fixture-update-form button { white-space: nowrap; }
 
 .table-wrap { overflow-x: auto; }
 .users-panel { margin-top: 1rem; }
@@ -209,5 +223,5 @@ th { color: var(--muted); }
   .sidebar { position: static; }
   .content { padding: 1rem; }
   .topbar, .section-heading, .topbar-actions, .detail-heading { align-items: stretch; flex-direction: column; }
-  .filters, .form-grid, .prediction-form { grid-template-columns: 1fr; }
+  .filters, .form-grid, .prediction-form, .fixture-update-form { grid-template-columns: 1fr; }
 }

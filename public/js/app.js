@@ -2,8 +2,18 @@ const state = {
   user: null,
   inactivityLimitMs: 5 * 60 * 1000,
   inactivityTimer: null,
+  fixtureRefreshTimer: null,
+  currentView: null,
   predictions: [],
   auditLogs: []
+};
+
+const FIXTURE_REFRESH_MS = 30 * 1000;
+
+const fixtureStatusLabels = {
+  scheduled: 'Programado',
+  live: 'EN VIVO',
+  final: 'FINALIZADO'
 };
 
 const elements = {
@@ -80,10 +90,16 @@ function resetInactivityTimer() {
 }
 
 function showView(viewId) {
+  state.currentView = viewId;
   elements.views.forEach((view) => view.classList.toggle('hidden', view.id !== viewId));
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
-  if (viewId === 'fixturesView') loadFixtures();
+  if (viewId === 'fixturesView') {
+    loadFixtures();
+    startFixtureAutoRefresh();
+  } else {
+    stopFixtureAutoRefresh();
+  }
   if (viewId === 'usersView') loadUsers();
   if (viewId === 'predictionsView') loadPredictions();
   if (viewId === 'standingsView') loadStandings();
@@ -109,7 +125,9 @@ function showAuthenticatedApp(user) {
 
 function showLogin(message = '') {
   state.user = null;
+  state.currentView = null;
   clearTimeout(state.inactivityTimer);
+  stopFixtureAutoRefresh();
   elements.appView.classList.add('hidden');
   elements.loginView.classList.remove('hidden');
   setMessage(elements.loginMessage, message);
@@ -124,11 +142,50 @@ async function logout(message = '') {
   showLogin(message);
 }
 
+function startFixtureAutoRefresh() {
+  stopFixtureAutoRefresh();
+  state.fixtureRefreshTimer = setInterval(() => {
+    if (state.currentView !== 'fixturesView') return;
+    if (document.activeElement?.closest('.fixture-update-form')) return;
+    loadFixtures().catch(() => {});
+  }, FIXTURE_REFRESH_MS);
+}
+
+function stopFixtureAutoRefresh() {
+  clearInterval(state.fixtureRefreshTimer);
+  state.fixtureRefreshTimer = null;
+}
+
+function fixtureStatusBadge(match) {
+  const status = match.status || 'scheduled';
+  return `<span class="status fixture-status ${status}-status">${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
+}
+
+function renderFixtureAdminForm(match) {
+  if (state.user?.role !== 'admin') return '';
+  const status = match.status || 'scheduled';
+  return `
+    <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
+      <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
+      <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
+      <label>Estado
+        <select name="status">
+          <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
+          <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
+          <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
+        </select>
+      </label>
+      <button type="submit">Guardar resultado</button>
+    </form>
+  `;
+}
+
 function renderFixtureCard(match) {
   const score = match.homeScore === null || match.awayScore === null ? 'vs' : `${match.homeScore} - ${match.awayScore}`;
   return `
     <article class="match-card">
       <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
+      ${fixtureStatusBadge(match)}
       <div class="teams">
         <span>${escapeHtml(match.homeTeam)}</span>
         <span class="score">${score}</span>
@@ -138,6 +195,7 @@ function renderFixtureCard(match) {
       <p class="venue"><i class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
       <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
       <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
+      ${renderFixtureAdminForm(match)}
     </article>
   `;
 }
@@ -156,6 +214,18 @@ function clearFixtureFilters() {
   elements.fixtureTeamFilter.value = '';
   elements.fixturePhaseFilter.value = '';
   loadFixtures();
+}
+
+async function updateFixtureResult(form) {
+  const matchId = form.dataset.matchId;
+  const homeScore = form.elements.homeScore.value === '' ? null : Number(form.elements.homeScore.value);
+  const awayScore = form.elements.awayScore.value === '' ? null : Number(form.elements.awayScore.value);
+  const status = form.elements.status.value;
+  await api(`/api/fixtures/${encodeURIComponent(matchId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ homeScore, awayScore, status })
+  });
+  await loadFixtures();
 }
 
 async function loadUsers() {
@@ -453,6 +523,21 @@ elements.auditDateFilter.addEventListener('change', renderAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
+
+elements.fixturesList.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  if (!form.classList.contains('fixture-update-form')) return;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await updateFixtureResult(form);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 elements.predictionsList.addEventListener('submit', async (event) => {
   event.preventDefault();
