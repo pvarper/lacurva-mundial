@@ -89,6 +89,14 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function setMessage(element, message, success = false) {
   element.textContent = message;
   element.classList.toggle('success', success);
@@ -603,7 +611,7 @@ elements.standingDetail.addEventListener('click', (event) => {
   elements.standingDetail.innerHTML = '';
 });
 elements.fixtureDateFilter.addEventListener('change', loadFixtures);
-elements.fixtureTeamFilter.addEventListener('input', loadFixtures);
+elements.fixtureTeamFilter.addEventListener('input', debounce(loadFixtures, 300));
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
 elements.predictionDateFilter.addEventListener('change', renderPredictions);
