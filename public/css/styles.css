@@ -126,7 +126,8 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
   border-radius: 10px;
 }
 .sidebar-user .eyebrow { color: #a0c4b1; }
-.sidebar-user h3 { margin: 0.2rem 0 0.6rem; font-size: 0.95rem; color: #fff; }
+.sidebar-user h3,
+.sidebar-username { margin: 0.2rem 0 0.6rem; font-size: 0.95rem; color: #fff; font-weight: 700; }
 .sidebar-logout { width: 100%; justify-content: center; font-size: 0.85rem; padding: 0.4rem 0.75rem; }
 
 .menu { display: grid; gap: 0.6rem; }
