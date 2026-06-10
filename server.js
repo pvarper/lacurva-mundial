@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 const SESSION_MAX_AGE_MS = 5 * 60 * 1000;
 const PREDICTION_LOCK_MS = 10 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
+const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
 
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
@@ -42,7 +43,18 @@ async function readJson(fileName) {
 
 async function writeJson(fileName, data) {
   const filePath = path.join(DATA_DIR, fileName);
-  await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`);
+  const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+  await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
+  await fs.rename(tempPath, filePath);
+}
+
+async function readAuditLogs() {
+  try {
+    return await readJson('audit-log.json');
+  } catch (error) {
+    console.error('Could not read audit log:', error.message);
+    return [];
+  }
 }
 
 function hashPassword(password) {
@@ -65,7 +77,7 @@ function sanitizeUser(user) {
 
 async function recordAuditLog(req, action, detail = {}) {
   try {
-    const logs = await readJson('audit-log.json');
+    const logs = await readAuditLogs();
     logs.push({
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -115,6 +127,12 @@ function calculatePredictionPoints(prediction, match) {
   return predictedOutcome === actualOutcome ? 3 : 0;
 }
 
+function parseFixtureScore(value) {
+  if (value === null || value === '') return null;
+  const score = Number(value);
+  return Number.isInteger(score) && score >= 0 ? score : NaN;
+}
+
 app.post('/api/login', async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
@@ -160,7 +178,7 @@ app.post('/api/audit/navigation', requireAuth, async (req, res) => {
 });
 
 app.get('/api/audit-log', requireAdmin, async (req, res) => {
-  const logs = await readJson('audit-log.json');
+  const logs = await readAuditLogs();
   res.json(logs.slice().reverse());
 });
 
@@ -261,6 +279,42 @@ app.get('/api/fixtures', requireAuth, async (req, res) => {
   res.json(filtered.map((match) => ({ ...match, locked: isPredictionLocked(match) })));
 });
 
+app.put('/api/fixtures/:id', requireAdmin, async (req, res) => {
+  const matchId = String(req.params.id || '');
+  const status = String(req.body.status || '').trim();
+  const homeScore = parseFixtureScore(req.body.homeScore);
+  const awayScore = parseFixtureScore(req.body.awayScore);
+
+  if (!FIXTURE_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'Invalid fixture status.' });
+  }
+  if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
+    return res.status(400).json({ error: 'Scores must be non-negative integers.' });
+  }
+  if ((status === 'live' || status === 'final') && (homeScore === null || awayScore === null)) {
+    return res.status(400).json({ error: 'Live and final matches require both scores.' });
+  }
+
+  const fixtures = await readJson('fixtures.json');
+  const match = fixtures.find((candidate) => candidate.id === matchId);
+  if (!match) return res.status(404).json({ error: 'Match not found.' });
+
+  match.status = status;
+  match.homeScore = homeScore;
+  match.awayScore = awayScore;
+  await writeJson('fixtures.json', fixtures);
+  await recordAuditLog(req, 'fixture_updated', {
+    matchId,
+    matchNumber: match.matchNumber,
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    homeScore,
+    awayScore,
+    status
+  });
+  res.json({ match: { ...match, locked: isPredictionLocked(match) } });
+});
+
 app.get('/api/predictions', requireAuth, async (req, res) => {
   const [fixtures, predictions] = await Promise.all([readJson('fixtures.json'), readJson('predictions.json')]);
   const userPredictions = predictions.filter((prediction) => prediction.userId === req.session.user.id);
@@ -326,6 +380,36 @@ app.get('/api/standings', requireAuth, async (req, res) => {
     return { userId: user.id, username: user.username, points };
   }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
   res.json(standings);
+});
+
+app.get('/api/prize-pool', requireAuth, async (req, res) => {
+  const prizePool = await readJson('prize-pool.json');
+  res.json(prizePool);
+});
+
+app.put('/api/prize-pool', requireAdmin, async (req, res) => {
+  const amount = Number(req.body.amount);
+  const payouts = Array.isArray(req.body.payouts) ? req.body.payouts : [];
+  const normalizedPayouts = [1, 2, 3].map((place) => {
+    const payout = payouts.find((candidate) => Number(candidate.place) === place) || {};
+    return { place, percent: Number(payout.percent) };
+  });
+  const totalPercent = normalizedPayouts.reduce((total, payout) => total + payout.percent, 0);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return res.status(400).json({ error: 'Prize amount must be a non-negative number.' });
+  }
+  if (normalizedPayouts.some((payout) => !Number.isFinite(payout.percent) || payout.percent < 0 || payout.percent > 100)) {
+    return res.status(400).json({ error: 'Prize percentages must be numbers between 0 and 100.' });
+  }
+  if (totalPercent !== 100) {
+    return res.status(400).json({ error: 'Prize percentages must add up to 100.' });
+  }
+
+  const prizePool = { amount, currency: 'Bs', payouts: normalizedPayouts };
+  await writeJson('prize-pool.json', prizePool);
+  await recordAuditLog(req, 'prize_pool_updated', prizePool);
+  res.json(prizePool);
 });
 
 app.get('/api/standings/:userId', requireAuth, async (req, res) => {

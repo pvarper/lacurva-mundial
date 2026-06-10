@@ -1,0 +1,9 @@
+{
+  "amount": 1000,
+  "currency": "Bs",
+  "payouts": [
+    { "place": 1, "percent": 60 },
+    { "place": 2, "percent": 25 },
+    { "place": 3, "percent": 15 }
+  ]
+}

@@ -81,6 +81,9 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
   grid-template-columns: 280px 1fr;
   min-height: 100vh;
 }
+.dashboard.sidebar-collapsed { grid-template-columns: 1fr; }
+.dashboard.sidebar-collapsed .sidebar { display: none; }
+.dashboard.topbar-collapsed .topbar { display: none; }
 
 .sidebar {
   display: flex;
@@ -97,6 +100,14 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
   align-items: center;
   font-weight: 900;
   font-size: 1.1rem;
+}
+.layout-toggle {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  color: #d9eee6;
+  background: rgb(255 255 255 / 10%);
 }
 
 .menu { display: grid; gap: 0.6rem; }
@@ -122,6 +133,15 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
 .logout:hover { filter: brightness(0.95); }
 
 .content { padding: 2rem; overflow-x: hidden; }
+.content-tools {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.layout-restore-button { display: none; background: #41514a; }
+.dashboard.sidebar-collapsed #showSidebarButton,
+.dashboard.topbar-collapsed #showTopbarButton { display: inline-flex; }
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -179,14 +199,84 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
 .teams { display: grid; gap: 0.4rem; margin: 1rem 0; font-size: 1.1rem; font-weight: 900; }
 .score { color: var(--accent); }
 .status { display: inline-flex; border-radius: 999px; padding: 0.3rem 0.65rem; background: #edf5ef; color: var(--accent); font-weight: 800; }
+.fixture-status { margin-top: 0.75rem; }
+.scheduled-status { color: var(--muted); background: #eef0eb; }
+.live-status { color: #fff; background: #c62828; }
+.final-status { color: #fff; background: #16834f; }
 .venue { margin: 0.35rem 0; color: var(--muted); }
 .muted-text { color: var(--muted); }
 .locked { color: var(--danger); font-weight: 800; }
 .prediction-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.6rem; align-items: end; }
+.fixture-update-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.fixture-score-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.fixture-status-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+.fixture-update-form button { white-space: nowrap; }
 
 .table-wrap { overflow-x: auto; }
 .users-panel { margin-top: 1rem; }
 .users-panel h3 { margin-top: 0; }
+.prize-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) 2fr;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1.25rem;
+  border-radius: 28px;
+  color: #fff;
+  background: linear-gradient(135deg, #102119, #0d6b4f 55%, #f2b705);
+  box-shadow: 0 18px 45px rgb(13 107 79 / 22%);
+}
+.prize-hero strong {
+  display: block;
+  margin: 0.3rem 0;
+  font-size: clamp(2rem, 5vw, 3.3rem);
+  line-height: 1;
+}
+.prize-hero p { margin: 0; color: rgb(255 255 255 / 78%); }
+.prize-panel .eyebrow { color: rgb(255 255 255 / 72%); }
+.prize-split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.prize-split article {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 14%);
+  backdrop-filter: blur(8px);
+}
+.prize-split span { color: rgb(255 255 255 / 76%); font-weight: 800; }
+.prize-split strong { font-size: 1.7rem; }
+.prize-split small { color: rgb(255 255 255 / 82%); font-weight: 800; }
+.prize-edit-form {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+.prize-edit-form input { border: 0; }
+.prize-edit-form button { background: #102119; white-space: nowrap; }
 .standings-detail { margin-top: 1rem; }
 .detail-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1rem; }
 .detail-heading h3, .detail-heading p { margin: 0; }
@@ -209,5 +299,5 @@ th { color: var(--muted); }
   .sidebar { position: static; }
   .content { padding: 1rem; }
   .topbar, .section-heading, .topbar-actions, .detail-heading { align-items: stretch; flex-direction: column; }
-  .filters, .form-grid, .prediction-form { grid-template-columns: 1fr; }
+  .prize-panel, .prize-split, .prize-edit-form, .filters, .form-grid, .prediction-form, .fixture-score-row, .fixture-status-row { grid-template-columns: 1fr; }
 }

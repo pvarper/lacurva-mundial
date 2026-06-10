@@ -2,8 +2,19 @@ const state = {
   user: null,
   inactivityLimitMs: 5 * 60 * 1000,
   inactivityTimer: null,
+  fixtureRefreshTimer: null,
+  currentView: null,
   predictions: [],
+  prizePool: null,
   auditLogs: []
+};
+
+const FIXTURE_REFRESH_MS = 30 * 1000;
+
+const fixtureStatusLabels = {
+  scheduled: 'Programado',
+  live: 'EN VIVO',
+  final: 'FINALIZADO'
 };
 
 const elements = {
@@ -13,7 +24,11 @@ const elements = {
   loginMessage: document.querySelector('#loginMessage'),
   currentUser: document.querySelector('#currentUser'),
   logoutButton: document.querySelector('#logoutButton'),
-  menuButtons: document.querySelectorAll('.menu button'),
+  hideSidebarButton: document.querySelector('#hideSidebarButton'),
+  showSidebarButton: document.querySelector('#showSidebarButton'),
+  hideTopbarButton: document.querySelector('#hideTopbarButton'),
+  showTopbarButton: document.querySelector('#showTopbarButton'),
+  menuButtons: document.querySelectorAll('.menu button[data-view]'),
   views: document.querySelectorAll('.view'),
   usersMenu: document.querySelector('#usersMenu'),
   auditMenu: document.querySelector('#auditMenu'),
@@ -32,6 +47,7 @@ const elements = {
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
+  prizePoolPanel: document.querySelector('#prizePoolPanel'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -73,6 +89,14 @@ function setMessage(element, message, success = false) {
   element.classList.toggle('success', success);
 }
 
+function setSidebarVisible(visible) {
+  elements.appView.classList.toggle('sidebar-collapsed', !visible);
+}
+
+function setTopbarVisible(visible) {
+  elements.appView.classList.toggle('topbar-collapsed', !visible);
+}
+
 function resetInactivityTimer() {
   clearTimeout(state.inactivityTimer);
   if (!state.user) return;
@@ -80,10 +104,16 @@ function resetInactivityTimer() {
 }
 
 function showView(viewId) {
+  state.currentView = viewId;
   elements.views.forEach((view) => view.classList.toggle('hidden', view.id !== viewId));
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
-  if (viewId === 'fixturesView') loadFixtures();
+  if (viewId === 'fixturesView') {
+    loadFixtures();
+    startFixtureAutoRefresh();
+  } else {
+    stopFixtureAutoRefresh();
+  }
   if (viewId === 'usersView') loadUsers();
   if (viewId === 'predictionsView') loadPredictions();
   if (viewId === 'standingsView') loadStandings();
@@ -109,7 +139,9 @@ function showAuthenticatedApp(user) {
 
 function showLogin(message = '') {
   state.user = null;
+  state.currentView = null;
   clearTimeout(state.inactivityTimer);
+  stopFixtureAutoRefresh();
   elements.appView.classList.add('hidden');
   elements.loginView.classList.remove('hidden');
   setMessage(elements.loginMessage, message);
@@ -124,11 +156,54 @@ async function logout(message = '') {
   showLogin(message);
 }
 
+function startFixtureAutoRefresh() {
+  stopFixtureAutoRefresh();
+  state.fixtureRefreshTimer = setInterval(() => {
+    if (state.currentView !== 'fixturesView') return;
+    if (document.activeElement?.closest('.fixture-update-form')) return;
+    loadFixtures().catch(() => {});
+  }, FIXTURE_REFRESH_MS);
+}
+
+function stopFixtureAutoRefresh() {
+  clearInterval(state.fixtureRefreshTimer);
+  state.fixtureRefreshTimer = null;
+}
+
+function fixtureStatusBadge(match) {
+  const status = match.status || 'scheduled';
+  return `<span class="status fixture-status ${status}-status">${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
+}
+
+function renderFixtureAdminForm(match) {
+  if (state.user?.role !== 'admin') return '';
+  const status = match.status || 'scheduled';
+  return `
+    <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
+      <div class="fixture-score-row">
+        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
+        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
+      </div>
+      <div class="fixture-status-row">
+        <label>Estado
+          <select name="status">
+            <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
+            <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
+            <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
+          </select>
+        </label>
+        <button type="submit">Guardar resultado</button>
+      </div>
+    </form>
+  `;
+}
+
 function renderFixtureCard(match) {
   const score = match.homeScore === null || match.awayScore === null ? 'vs' : `${match.homeScore} - ${match.awayScore}`;
   return `
     <article class="match-card">
       <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
+      ${fixtureStatusBadge(match)}
       <div class="teams">
         <span>${escapeHtml(match.homeTeam)}</span>
         <span class="score">${score}</span>
@@ -138,6 +213,7 @@ function renderFixtureCard(match) {
       <p class="venue"><i class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
       <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
       <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
+      ${renderFixtureAdminForm(match)}
     </article>
   `;
 }
@@ -156,6 +232,18 @@ function clearFixtureFilters() {
   elements.fixtureTeamFilter.value = '';
   elements.fixturePhaseFilter.value = '';
   loadFixtures();
+}
+
+async function updateFixtureResult(form) {
+  const matchId = form.dataset.matchId;
+  const homeScore = form.elements.homeScore.value === '' ? null : Number(form.elements.homeScore.value);
+  const awayScore = form.elements.awayScore.value === '' ? null : Number(form.elements.awayScore.value);
+  const status = form.elements.status.value;
+  await api(`/api/fixtures/${encodeURIComponent(matchId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ homeScore, awayScore, status })
+  });
+  await loadFixtures();
 }
 
 async function loadUsers() {
@@ -247,7 +335,9 @@ async function loadPredictions() {
 }
 
 async function loadStandings() {
-  const standings = await api('/api/standings');
+  const [standings, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  state.prizePool = prizePool;
+  renderPrizePool();
   elements.standingDetail.classList.add('hidden');
   elements.standingDetail.innerHTML = '';
   elements.standingsBody.innerHTML = standings.map((row, index) => `
@@ -258,6 +348,58 @@ async function loadStandings() {
       <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}">Ver detalle</button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
     </tr>
   `).join('');
+}
+
+function formatPrizeAmount(amount, currency = 'Bs') {
+  return `${Number(amount).toLocaleString('es-BO', { maximumFractionDigits: 2 })} ${escapeHtml(currency)}`;
+}
+
+function prizeAmountFor(payout) {
+  return (Number(state.prizePool.amount) * Number(payout.percent)) / 100;
+}
+
+function renderPrizePool() {
+  const prizePool = state.prizePool;
+  const adminFields = state.user?.role === 'admin' ? `
+    <form class="prize-edit-form" id="prizePoolForm">
+      <label>Monto total <input name="amount" type="number" min="0" step="0.01" value="${prizePool.amount}" required></label>
+      ${prizePool.payouts.map((payout) => `
+        <label>${payout.place}° lugar (%) <input name="place${payout.place}" type="number" min="0" max="100" step="1" value="${payout.percent}" required></label>
+      `).join('')}
+      <button type="submit">Guardar premios</button>
+    </form>
+  ` : '';
+
+  elements.prizePoolPanel.innerHTML = `
+    <div class="prize-hero">
+      <span class="eyebrow">Bolsa acumulada</span>
+      <strong>${formatPrizeAmount(prizePool.amount, prizePool.currency)}</strong>
+      <p>Premios para el podio final de La Curva Mundial.</p>
+    </div>
+    <div class="prize-split">
+      ${prizePool.payouts.map((payout) => `
+        <article>
+          <span>${payout.place}° Lugar</span>
+          <strong>${payout.percent}%</strong>
+          <small>${formatPrizeAmount(prizeAmountFor(payout), prizePool.currency)}</small>
+        </article>
+      `).join('')}
+    </div>
+    ${adminFields}
+  `;
+}
+
+async function updatePrizePool(form) {
+  const amount = Number(form.elements.amount.value);
+  const payouts = [1, 2, 3].map((place) => ({
+    place,
+    percent: Number(form.elements[`place${place}`].value)
+  }));
+  state.prizePool = await api('/api/prize-pool', {
+    method: 'PUT',
+    body: JSON.stringify({ amount, payouts })
+  });
+  renderPrizePool();
 }
 
 function canViewStandingDetail(row) {
@@ -324,6 +466,7 @@ function actionLabel(action) {
     user_deactivated: 'Usuario desactivado',
     prediction_created: 'Predicción creada',
     prediction_updated: 'Predicción editada',
+    prize_pool_updated: 'Premios actualizados',
     standing_detail_viewed: 'Detalle de tabla visto'
   };
   return labels[action] || action;
@@ -415,6 +558,10 @@ elements.menuButtons.forEach((button) => {
   button.addEventListener('click', () => showView(button.dataset.view));
 });
 
+elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
+elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
+elements.hideTopbarButton.addEventListener('click', () => setTopbarVisible(false));
+elements.showTopbarButton.addEventListener('click', () => setTopbarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
@@ -435,6 +582,20 @@ elements.standingsBody.addEventListener('click', async (event) => {
     alert(error.message);
   }
 });
+elements.prizePoolPanel.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  if (!form.classList.contains('prize-edit-form')) return;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await updatePrizePool(form);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
 elements.standingDetail.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-action="close-standing-detail"]');
   if (!button) return;
@@ -453,6 +614,21 @@ elements.auditDateFilter.addEventListener('change', renderAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
+
+elements.fixturesList.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  if (!form.classList.contains('fixture-update-form')) return;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await updateFixtureResult(form);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 elements.predictionsList.addEventListener('submit', async (event) => {
   event.preventDefault();
