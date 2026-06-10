@@ -48,11 +48,23 @@ async function readJson(fileName) {
   return JSON.parse(content);
 }
 
+const writeLocks = new Map();
+
 async function writeJson(fileName, data) {
-  const filePath = path.join(DATA_DIR, fileName);
-  const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
-  await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
-  await fs.rename(tempPath, filePath);
+  const pending = writeLocks.get(fileName) ?? Promise.resolve();
+  let releaseLock;
+  const acquired = new Promise((resolve) => { releaseLock = resolve; });
+  writeLocks.set(fileName, pending.then(() => acquired));
+
+  await pending;
+  try {
+    const filePath = path.join(DATA_DIR, fileName);
+    const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+    await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
+    await fs.rename(tempPath, filePath);
+  } finally {
+    releaseLock();
+  }
 }
 
 async function readAuditLogs() {
@@ -332,6 +344,7 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
   const match = fixtures.find((candidate) => candidate.id === matchId);
   if (!match) return res.status(404).json({ error: 'Match not found.' });
 
+  const previousValue = { status: match.status, homeScore: match.homeScore, awayScore: match.awayScore };
   match.status = status;
   match.homeScore = homeScore;
   match.awayScore = awayScore;
@@ -341,6 +354,7 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
     matchNumber: match.matchNumber,
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
+    previousValue,
     homeScore,
     awayScore,
     status
