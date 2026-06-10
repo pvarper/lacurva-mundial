@@ -4,13 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>La Curva Mundial</title>
+    <meta name="description" content="Pronósticos del Mundial de Fútbol 2026. Predecí resultados, seguí la tabla acumulada y competí con tus amigos.">
+    <link rel="canonical" href="https://lacurvamundial.com/">
+    <meta property="og:title" content="La Curva Mundial">
+    <meta property="og:description" content="Pronósticos del Mundial de Fútbol 2026. Predecí resultados, seguí la tabla acumulada y competí con tus amigos.">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
     <main class="app-shell">
       <section id="loginView" class="login-card">
-        <div class="brand-mark"><i class="bi bi-trophy-fill"></i></div>
+        <div class="brand-mark"><i aria-hidden="true" class="bi bi-trophy-fill"></i></div>
         <h1>La Curva Mundial</h1>
         <p>Ingresá para ver fixtures, predicciones y tabla acumulada.</p>
         <form id="loginForm" class="form-stack">
@@ -22,7 +28,7 @@
             Contraseña
             <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
           </label>
-          <button type="submit"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>
+          <button type="submit"><i aria-hidden="true" class="bi bi-box-arrow-in-right"></i> Entrar</button>
         </form>
         <p id="loginMessage" class="message"></p>
       </section>
@@ -30,28 +36,28 @@
       <section id="appView" class="dashboard hidden">
         <aside class="sidebar">
           <div class="sidebar-brand">
-            <i class="bi bi-globe-americas"></i>
+            <i aria-hidden="true" class="bi bi-globe-americas"></i>
             <span>La Curva Mundial</span>
-            <button id="hideSidebarButton" class="sidebar-collapse-btn" type="button" title="Ocultar menú"><i class="bi bi-chevron-double-left"></i></button>
+            <button id="hideSidebarButton" class="sidebar-collapse-btn" type="button" title="Ocultar menú"><i aria-hidden="true" class="bi bi-chevron-double-left"></i></button>
           </div>
           <div class="sidebar-user">
             <span class="eyebrow">Usuario activo</span>
-            <h3 id="sidebarCurrentUser">-</h3>
-            <button id="logoutButton" class="logout sidebar-logout"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
+            <p id="sidebarCurrentUser" class="sidebar-username">-</p>
+            <button id="logoutButton" class="logout sidebar-logout"><i aria-hidden="true" class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
           </div>
           <nav class="menu" aria-label="Menú principal">
-            <button data-view="usersView" id="usersMenu" class="admin-only"><i class="bi bi-person-plus"></i> Crear Usuario</button>
-            <button data-view="fixturesView" class="active"><i class="bi bi-calendar-event"></i> Fixture Mundial</button>
-            <button data-view="predictionsView"><i class="bi bi-pencil-square"></i> Predicciones</button>
-            <button data-view="standingsView"><i class="bi bi-table"></i> Tabla Acumulada</button>
-            <button data-view="rulesView"><i class="bi bi-info-circle"></i> Reglas</button>
-            <button data-view="auditView" id="auditMenu" class="admin-only"><i class="bi bi-journal-text"></i> Bitácora</button>
+            <button data-view="usersView" id="usersMenu" class="admin-only"><i aria-hidden="true" class="bi bi-person-plus"></i> Crear Usuario</button>
+            <button data-view="fixturesView" class="active"><i aria-hidden="true" class="bi bi-calendar-event"></i> Fixture Mundial</button>
+            <button data-view="predictionsView"><i aria-hidden="true" class="bi bi-pencil-square"></i> Predicciones</button>
+            <button data-view="standingsView"><i aria-hidden="true" class="bi bi-table"></i> Tabla Acumulada</button>
+            <button data-view="rulesView"><i aria-hidden="true" class="bi bi-info-circle"></i> Reglas</button>
+            <button data-view="auditView" id="auditMenu" class="admin-only"><i aria-hidden="true" class="bi bi-journal-text"></i> Bitácora</button>
           </nav>
         </aside>
 
         <section class="content">
           <div class="content-tools">
-            <button id="showSidebarButton" class="layout-restore-button" type="button"><i class="bi bi-layout-sidebar"></i> Mostrar menú</button>
+            <button id="showSidebarButton" class="layout-restore-button" type="button"><i aria-hidden="true" class="bi bi-layout-sidebar"></i> Mostrar menú</button>
           </div>
 
           <section id="usersView" class="view hidden">
@@ -65,7 +71,7 @@
                   <option value="admin">Admin</option>
                 </select>
               </label>
-              <button type="submit"><i class="bi bi-person-plus"></i> Crear</button>
+              <button type="submit"><i aria-hidden="true" class="bi bi-person-plus"></i> Crear</button>
             </form>
             <p id="createUserMessage" class="message"></p>
             <div class="panel table-wrap users-panel">
@@ -94,11 +100,11 @@
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Final</option>
                 </select>
-                <button id="clearFixtureFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+                <button id="clearFixtureFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
               </div>
             </div>
             <p id="fixturesMessage" class="message"></p>
-            <div id="fixturesList" class="cards-grid"></div>
+            <div id="fixturesList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
           </section>
 
           <section id="predictionsView" class="view hidden">
@@ -116,11 +122,11 @@
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Final</option>
                 </select>
-                <button id="clearPredictionFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+                <button id="clearPredictionFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
               </div>
             </div>
             <p id="predictionsMessage" class="message"></p>
-            <div id="predictionsList" class="cards-grid"></div>
+            <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
           </section>
 
           <section id="standingsView" class="view hidden">
@@ -132,7 +138,7 @@
                 <thead>
                   <tr><th>Posición</th><th>Usuario</th><th>Puntos</th><th>Opciones</th></tr>
                 </thead>
-                <tbody id="standingsBody"></tbody>
+                <tbody id="standingsBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
             <div id="standingDetail" class="panel table-wrap standings-detail hidden"></div>
@@ -161,14 +167,14 @@
                 <option value="prediction_updated">Predicción editada</option>
                 <option value="standing_detail_viewed">Detalle de tabla visto</option>
               </select>
-              <button id="clearAuditFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+              <button id="clearAuditFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
             </div>
             <div class="panel table-wrap">
               <table>
                 <thead>
                   <tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr>
                 </thead>
-                <tbody id="auditLogBody"></tbody>
+                <tbody id="auditLogBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
           </section>
