@@ -344,6 +344,7 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
   const match = fixtures.find((candidate) => candidate.id === matchId);
   if (!match) return res.status(404).json({ error: 'Match not found.' });
 
+  const previousValue = { status: match.status, homeScore: match.homeScore, awayScore: match.awayScore };
   match.status = status;
   match.homeScore = homeScore;
   match.awayScore = awayScore;
@@ -353,6 +354,7 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
     matchNumber: match.matchNumber,
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
+    previousValue,
     homeScore,
     awayScore,
     status
