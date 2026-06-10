@@ -48,11 +48,23 @@ async function readJson(fileName) {
   return JSON.parse(content);
 }
 
+const writeLocks = new Map();
+
 async function writeJson(fileName, data) {
-  const filePath = path.join(DATA_DIR, fileName);
-  const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
-  await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
-  await fs.rename(tempPath, filePath);
+  const pending = writeLocks.get(fileName) ?? Promise.resolve();
+  let releaseLock;
+  const acquired = new Promise((resolve) => { releaseLock = resolve; });
+  writeLocks.set(fileName, pending.then(() => acquired));
+
+  await pending;
+  try {
+    const filePath = path.join(DATA_DIR, fileName);
+    const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+    await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
+    await fs.rename(tempPath, filePath);
+  } finally {
+    releaseLock();
+  }
 }
 
 async function readAuditLogs() {
