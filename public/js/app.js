@@ -46,6 +46,9 @@ const elements = {
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
   prizePoolPanel: document.querySelector('#prizePoolPanel'),
+  fixturesMessage: document.querySelector('#fixturesMessage'),
+  predictionsMessage: document.querySelector('#predictionsMessage'),
+  standingsMessage: document.querySelector('#standingsMessage'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -576,7 +579,7 @@ elements.standingsBody.addEventListener('click', async (event) => {
   try {
     await loadStandingDetail(button.dataset.userId);
   } catch (error) {
-    alert(error.message);
+    setMessage(elements.standingsMessage, error.message);
   }
 });
 elements.prizePoolPanel.addEventListener('submit', async (event) => {
@@ -588,7 +591,7 @@ elements.prizePoolPanel.addEventListener('submit', async (event) => {
   try {
     await updatePrizePool(form);
   } catch (error) {
-    alert(error.message);
+    setMessage(elements.standingsMessage, error.message);
   } finally {
     button.disabled = false;
   }
@@ -621,7 +624,7 @@ elements.fixturesList.addEventListener('submit', async (event) => {
   try {
     await updateFixtureResult(form);
   } catch (error) {
-    alert(error.message);
+    setMessage(elements.fixturesMessage, error.message);
   } finally {
     button.disabled = false;
   }
@@ -637,7 +640,7 @@ elements.predictionsList.addEventListener('submit', async (event) => {
     await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore }) });
     await loadPredictions();
   } catch (error) {
-    alert(error.message);
+    setMessage(elements.predictionsMessage, error.message);
   }
 });
 
