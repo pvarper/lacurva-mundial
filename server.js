@@ -25,7 +25,13 @@ const rules = [
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
 ];
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...(process.env.NODE_ENV !== 'production' && { 'upgrade-insecure-requests': null })
+    }
+  }
+}));
 app.use(express.json());
 app.use(session({
   name: 'lacurva.sid',
