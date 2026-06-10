@@ -32,8 +32,13 @@
           <div class="sidebar-brand">
             <i class="bi bi-globe-americas"></i>
             <span>La Curva Mundial</span>
+            <button id="hideSidebarButton" class="sidebar-collapse-btn" type="button" title="Ocultar menú"><i class="bi bi-chevron-double-left"></i></button>
           </div>
-          <button id="hideSidebarButton" class="layout-toggle" type="button"><i class="bi bi-layout-sidebar-inset"></i> Ocultar menú</button>
+          <div class="sidebar-user">
+            <span class="eyebrow">Usuario activo</span>
+            <h3 id="sidebarCurrentUser">-</h3>
+            <button id="logoutButton" class="logout sidebar-logout"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
+          </div>
           <nav class="menu" aria-label="Menú principal">
             <button data-view="usersView" id="usersMenu" class="admin-only"><i class="bi bi-person-plus"></i> Crear Usuario</button>
             <button data-view="fixturesView" class="active"><i class="bi bi-calendar-event"></i> Fixture Mundial</button>
@@ -47,19 +52,7 @@
         <section class="content">
           <div class="content-tools">
             <button id="showSidebarButton" class="layout-restore-button" type="button"><i class="bi bi-layout-sidebar"></i> Mostrar menú</button>
-            <button id="showTopbarButton" class="layout-restore-button" type="button"><i class="bi bi-window-stack"></i> Mostrar barra superior</button>
           </div>
-          <header class="topbar">
-            <div>
-              <span class="eyebrow">Usuario activo</span>
-              <h2 id="currentUser">-</h2>
-            </div>
-            <div class="topbar-actions">
-              <p>La sesión se cierra tras 5 minutos de inactividad.</p>
-              <button id="hideTopbarButton" class="secondary-button" type="button"><i class="bi bi-eye-slash"></i> Ocultar barra</button>
-              <button id="logoutButton" class="logout"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
-            </div>
-          </header>
 
           <section id="usersView" class="view hidden">
             <h2>Crear Usuario</h2>
