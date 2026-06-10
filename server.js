@@ -43,7 +43,18 @@ async function readJson(fileName) {
 
 async function writeJson(fileName, data) {
   const filePath = path.join(DATA_DIR, fileName);
-  await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`);
+  const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+  await fs.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`);
+  await fs.rename(tempPath, filePath);
+}
+
+async function readAuditLogs() {
+  try {
+    return await readJson('audit-log.json');
+  } catch (error) {
+    console.error('Could not read audit log:', error.message);
+    return [];
+  }
 }
 
 function hashPassword(password) {
@@ -66,7 +77,7 @@ function sanitizeUser(user) {
 
 async function recordAuditLog(req, action, detail = {}) {
   try {
-    const logs = await readJson('audit-log.json');
+    const logs = await readAuditLogs();
     logs.push({
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -167,7 +178,7 @@ app.post('/api/audit/navigation', requireAuth, async (req, res) => {
 });
 
 app.get('/api/audit-log', requireAdmin, async (req, res) => {
-  const logs = await readJson('audit-log.json');
+  const logs = await readAuditLogs();
   res.json(logs.slice().reverse());
 });
 
@@ -369,6 +380,36 @@ app.get('/api/standings', requireAuth, async (req, res) => {
     return { userId: user.id, username: user.username, points };
   }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
   res.json(standings);
+});
+
+app.get('/api/prize-pool', requireAuth, async (req, res) => {
+  const prizePool = await readJson('prize-pool.json');
+  res.json(prizePool);
+});
+
+app.put('/api/prize-pool', requireAdmin, async (req, res) => {
+  const amount = Number(req.body.amount);
+  const payouts = Array.isArray(req.body.payouts) ? req.body.payouts : [];
+  const normalizedPayouts = [1, 2, 3].map((place) => {
+    const payout = payouts.find((candidate) => Number(candidate.place) === place) || {};
+    return { place, percent: Number(payout.percent) };
+  });
+  const totalPercent = normalizedPayouts.reduce((total, payout) => total + payout.percent, 0);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return res.status(400).json({ error: 'Prize amount must be a non-negative number.' });
+  }
+  if (normalizedPayouts.some((payout) => !Number.isFinite(payout.percent) || payout.percent < 0 || payout.percent > 100)) {
+    return res.status(400).json({ error: 'Prize percentages must be numbers between 0 and 100.' });
+  }
+  if (totalPercent !== 100) {
+    return res.status(400).json({ error: 'Prize percentages must add up to 100.' });
+  }
+
+  const prizePool = { amount, currency: 'Bs', payouts: normalizedPayouts };
+  await writeJson('prize-pool.json', prizePool);
+  await recordAuditLog(req, 'prize_pool_updated', prizePool);
+  res.json(prizePool);
 });
 
 app.get('/api/standings/:userId', requireAuth, async (req, res) => {

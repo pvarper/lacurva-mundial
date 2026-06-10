@@ -5,6 +5,7 @@ const state = {
   fixtureRefreshTimer: null,
   currentView: null,
   predictions: [],
+  prizePool: null,
   auditLogs: []
 };
 
@@ -23,7 +24,11 @@ const elements = {
   loginMessage: document.querySelector('#loginMessage'),
   currentUser: document.querySelector('#currentUser'),
   logoutButton: document.querySelector('#logoutButton'),
-  menuButtons: document.querySelectorAll('.menu button'),
+  hideSidebarButton: document.querySelector('#hideSidebarButton'),
+  showSidebarButton: document.querySelector('#showSidebarButton'),
+  hideTopbarButton: document.querySelector('#hideTopbarButton'),
+  showTopbarButton: document.querySelector('#showTopbarButton'),
+  menuButtons: document.querySelectorAll('.menu button[data-view]'),
   views: document.querySelectorAll('.view'),
   usersMenu: document.querySelector('#usersMenu'),
   auditMenu: document.querySelector('#auditMenu'),
@@ -42,6 +47,7 @@ const elements = {
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
+  prizePoolPanel: document.querySelector('#prizePoolPanel'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -81,6 +87,14 @@ function escapeHtml(value) {
 function setMessage(element, message, success = false) {
   element.textContent = message;
   element.classList.toggle('success', success);
+}
+
+function setSidebarVisible(visible) {
+  elements.appView.classList.toggle('sidebar-collapsed', !visible);
+}
+
+function setTopbarVisible(visible) {
+  elements.appView.classList.toggle('topbar-collapsed', !visible);
 }
 
 function resetInactivityTimer() {
@@ -166,16 +180,20 @@ function renderFixtureAdminForm(match) {
   const status = match.status || 'scheduled';
   return `
     <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
-      <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
-      <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
-      <label>Estado
-        <select name="status">
-          <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
-          <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
-          <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
-        </select>
-      </label>
-      <button type="submit">Guardar resultado</button>
+      <div class="fixture-score-row">
+        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
+        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
+      </div>
+      <div class="fixture-status-row">
+        <label>Estado
+          <select name="status">
+            <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
+            <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
+            <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
+          </select>
+        </label>
+        <button type="submit">Guardar resultado</button>
+      </div>
     </form>
   `;
 }
@@ -317,7 +335,9 @@ async function loadPredictions() {
 }
 
 async function loadStandings() {
-  const standings = await api('/api/standings');
+  const [standings, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  state.prizePool = prizePool;
+  renderPrizePool();
   elements.standingDetail.classList.add('hidden');
   elements.standingDetail.innerHTML = '';
   elements.standingsBody.innerHTML = standings.map((row, index) => `
@@ -328,6 +348,58 @@ async function loadStandings() {
       <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}">Ver detalle</button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
     </tr>
   `).join('');
+}
+
+function formatPrizeAmount(amount, currency = 'Bs') {
+  return `${Number(amount).toLocaleString('es-BO', { maximumFractionDigits: 2 })} ${escapeHtml(currency)}`;
+}
+
+function prizeAmountFor(payout) {
+  return (Number(state.prizePool.amount) * Number(payout.percent)) / 100;
+}
+
+function renderPrizePool() {
+  const prizePool = state.prizePool;
+  const adminFields = state.user?.role === 'admin' ? `
+    <form class="prize-edit-form" id="prizePoolForm">
+      <label>Monto total <input name="amount" type="number" min="0" step="0.01" value="${prizePool.amount}" required></label>
+      ${prizePool.payouts.map((payout) => `
+        <label>${payout.place}° lugar (%) <input name="place${payout.place}" type="number" min="0" max="100" step="1" value="${payout.percent}" required></label>
+      `).join('')}
+      <button type="submit">Guardar premios</button>
+    </form>
+  ` : '';
+
+  elements.prizePoolPanel.innerHTML = `
+    <div class="prize-hero">
+      <span class="eyebrow">Bolsa acumulada</span>
+      <strong>${formatPrizeAmount(prizePool.amount, prizePool.currency)}</strong>
+      <p>Premios para el podio final de La Curva Mundial.</p>
+    </div>
+    <div class="prize-split">
+      ${prizePool.payouts.map((payout) => `
+        <article>
+          <span>${payout.place}° Lugar</span>
+          <strong>${payout.percent}%</strong>
+          <small>${formatPrizeAmount(prizeAmountFor(payout), prizePool.currency)}</small>
+        </article>
+      `).join('')}
+    </div>
+    ${adminFields}
+  `;
+}
+
+async function updatePrizePool(form) {
+  const amount = Number(form.elements.amount.value);
+  const payouts = [1, 2, 3].map((place) => ({
+    place,
+    percent: Number(form.elements[`place${place}`].value)
+  }));
+  state.prizePool = await api('/api/prize-pool', {
+    method: 'PUT',
+    body: JSON.stringify({ amount, payouts })
+  });
+  renderPrizePool();
 }
 
 function canViewStandingDetail(row) {
@@ -394,6 +466,7 @@ function actionLabel(action) {
     user_deactivated: 'Usuario desactivado',
     prediction_created: 'Predicción creada',
     prediction_updated: 'Predicción editada',
+    prize_pool_updated: 'Premios actualizados',
     standing_detail_viewed: 'Detalle de tabla visto'
   };
   return labels[action] || action;
@@ -485,6 +558,10 @@ elements.menuButtons.forEach((button) => {
   button.addEventListener('click', () => showView(button.dataset.view));
 });
 
+elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
+elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
+elements.hideTopbarButton.addEventListener('click', () => setTopbarVisible(false));
+elements.showTopbarButton.addEventListener('click', () => setTopbarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
@@ -503,6 +580,20 @@ elements.standingsBody.addEventListener('click', async (event) => {
     await loadStandingDetail(button.dataset.userId);
   } catch (error) {
     alert(error.message);
+  }
+});
+elements.prizePoolPanel.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  if (!form.classList.contains('prize-edit-form')) return;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await updatePrizePool(form);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
   }
 });
 elements.standingDetail.addEventListener('click', (event) => {

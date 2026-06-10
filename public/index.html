@@ -33,6 +33,7 @@
             <i class="bi bi-globe-americas"></i>
             <span>La Curva Mundial</span>
           </div>
+          <button id="hideSidebarButton" class="layout-toggle" type="button"><i class="bi bi-layout-sidebar-inset"></i> Ocultar menú</button>
           <nav class="menu" aria-label="Menú principal">
             <button data-view="usersView" id="usersMenu" class="admin-only"><i class="bi bi-person-plus"></i> Crear Usuario</button>
             <button data-view="fixturesView" class="active"><i class="bi bi-calendar-event"></i> Fixture Mundial</button>
@@ -44,6 +45,10 @@
         </aside>
 
         <section class="content">
+          <div class="content-tools">
+            <button id="showSidebarButton" class="layout-restore-button" type="button"><i class="bi bi-layout-sidebar"></i> Mostrar menú</button>
+            <button id="showTopbarButton" class="layout-restore-button" type="button"><i class="bi bi-window-stack"></i> Mostrar barra superior</button>
+          </div>
           <header class="topbar">
             <div>
               <span class="eyebrow">Usuario activo</span>
@@ -51,6 +56,7 @@
             </div>
             <div class="topbar-actions">
               <p>La sesión se cierra tras 5 minutos de inactividad.</p>
+              <button id="hideTopbarButton" class="secondary-button" type="button"><i class="bi bi-eye-slash"></i> Ocultar barra</button>
               <button id="logoutButton" class="logout"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
             </div>
           </header>
@@ -124,6 +130,7 @@
 
           <section id="standingsView" class="view hidden">
             <h2>Tabla Acumulada</h2>
+            <div id="prizePoolPanel" class="prize-panel"></div>
             <div class="panel table-wrap">
               <table>
                 <thead>
