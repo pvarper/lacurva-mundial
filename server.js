@@ -458,6 +458,25 @@ app.get('/api/rules', requireAuth, (req, res) => {
   res.json({ rules });
 });
 
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || err.status || 500;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (statusCode >= 500) {
+    console.error({
+      error: err.message,
+      stack: err.stack,
+      method: req.method,
+      url: req.url,
+      userId: req.session?.user?.id ?? null,
+    });
+  }
+
+  const message = statusCode >= 500 && isProduction ? 'Internal server error.' : err.message;
+  res.status(statusCode).json({ error: message });
+});
+
 app.listen(PORT, () => {
   console.log(`La Curva Mundial running at http://localhost:${PORT}`);
 });
