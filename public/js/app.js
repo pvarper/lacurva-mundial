@@ -272,28 +272,47 @@ async function loadUsers() {
 }
 
 async function editUser(userId) {
+  const existingRow = elements.usersTableBody.querySelector(`.user-edit-row[data-user-id="${CSS.escape(userId)}"]`);
+  if (existingRow) { existingRow.remove(); return; }
   const users = await api('/api/users');
   const user = users.find((candidate) => candidate.id === userId);
   if (!user) return;
-  const username = prompt('Nuevo usuario', user.username);
-  if (username === null) return;
-  const role = prompt('Rol: user o admin', user.role);
-  if (role === null) return;
-  const password = prompt('Nueva contraseña opcional. Dejá vacío para mantener la actual.', '');
-  if (password === null) return;
-  await api(`/api/users/${encodeURIComponent(userId)}`, {
-    method: 'PUT',
-    body: JSON.stringify({ username, role, password, active: user.active })
-  });
-  await loadUsers();
-  setMessage(elements.createUserMessage, 'Usuario actualizado correctamente.', true);
+  const row = elements.usersTableBody.querySelector(`tr[data-user-id="${CSS.escape(userId)}"]`);
+  const editRow = document.createElement('tr');
+  editRow.className = 'user-edit-row';
+  editRow.dataset.userId = userId;
+  editRow.innerHTML = `<td colspan="4">
+    <form class="user-edit-form" data-user-id="${escapeHtml(userId)}">
+      <label>Usuario <input name="username" value="${escapeHtml(user.username)}" required maxlength="64"></label>
+      <label>Rol
+        <select name="role">
+          <option value="user"${user.role === 'user' ? ' selected' : ''}>user</option>
+          <option value="admin"${user.role === 'admin' ? ' selected' : ''}>admin</option>
+        </select>
+      </label>
+      <label>Nueva contraseña <input name="password" type="password" autocomplete="new-password" maxlength="128" placeholder="Dejar vacío para mantener"></label>
+      <div class="form-actions">
+        <button type="submit">Guardar</button>
+        <button type="button" class="secondary-button" data-action="cancel-edit" data-user-id="${escapeHtml(userId)}">Cancelar</button>
+      </div>
+    </form>
+  </td>`;
+  row.after(editRow);
 }
 
-async function deactivateUser(userId) {
-  if (!confirm('¿Desactivar este usuario? No podrá iniciar sesión.')) return;
-  await api(`/api/users/${encodeURIComponent(userId)}/deactivate`, { method: 'PATCH' });
-  await loadUsers();
-  setMessage(elements.createUserMessage, 'Usuario desactivado correctamente.', true);
+function deactivateUser(userId) {
+  const existingRow = elements.usersTableBody.querySelector(`.user-confirm-row[data-user-id="${CSS.escape(userId)}"]`);
+  if (existingRow) { existingRow.remove(); return; }
+  const row = elements.usersTableBody.querySelector(`tr[data-user-id="${CSS.escape(userId)}"]`);
+  const confirmRow = document.createElement('tr');
+  confirmRow.className = 'user-confirm-row';
+  confirmRow.dataset.userId = userId;
+  confirmRow.innerHTML = `<td colspan="4" class="confirm-deactivate-cell">
+    <span>¿Desactivar este usuario? No podrá iniciar sesión.</span>
+    <button type="button" class="danger-button" data-action="confirm-deactivate" data-user-id="${escapeHtml(userId)}">Desactivar</button>
+    <button type="button" class="secondary-button" data-action="cancel-edit" data-user-id="${escapeHtml(userId)}">Cancelar</button>
+  </td>`;
+  row.after(confirmRow);
 }
 
 function filteredPredictions() {
@@ -574,11 +593,40 @@ elements.logoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
+  const { action, userId } = button.dataset;
   try {
-    if (button.dataset.action === 'edit-user') await editUser(button.dataset.userId);
-    if (button.dataset.action === 'deactivate-user') await deactivateUser(button.dataset.userId);
+    if (action === 'edit-user') await editUser(userId);
+    if (action === 'deactivate-user') deactivateUser(userId);
+    if (action === 'cancel-edit') button.closest('.user-edit-row, .user-confirm-row')?.remove();
+    if (action === 'confirm-deactivate') {
+      await api(`/api/users/${encodeURIComponent(userId)}/deactivate`, { method: 'PATCH' });
+      await loadUsers();
+      setMessage(elements.createUserMessage, 'Usuario desactivado correctamente.', true);
+    }
   } catch (error) {
     setMessage(elements.createUserMessage, error.message);
+  }
+});
+elements.usersTableBody.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target.closest('.user-edit-form');
+  if (!form) return;
+  const userId = form.dataset.userId;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const users = await api('/api/users');
+    const user = users.find((candidate) => candidate.id === userId);
+    if (!user) return;
+    await api(`/api/users/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ username: form.elements.username.value.trim(), role: form.elements.role.value, password: form.elements.password.value, active: user.active })
+    });
+    await loadUsers();
+    setMessage(elements.createUserMessage, 'Usuario actualizado correctamente.', true);
+  } catch (error) {
+    setMessage(elements.createUserMessage, error.message);
+    button.disabled = false;
   }
 });
 elements.standingsBody.addEventListener('click', async (event) => {
