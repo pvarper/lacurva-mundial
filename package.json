@@ -1,0 +1,15 @@
+{
+  "name": "lacurva-mundial",
+  "version": "1.0.0",
+  "private": true,
+  "description": "World Cup fixture and prediction app with JSON persistence.",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "start": "PORT=3001 node server.js",
+    "dev": "PORT=3001 node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0"
+  }
+}

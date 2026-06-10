@@ -1,0 +1,9 @@
+[
+  {
+    "id": "u-admin",
+    "username": "admin",
+    "role": "admin",
+    "active": true,
+    "passwordHash": "c77daf66b4758672a9c5e4dd0818b9a7:5811c29f4c117fb788887f0f4133678f2d4217be5548dc9aa728a993b720e141e88f94393a4745892bb2064b457a50228bf0e4747f52374d5e6f4814b04e2d78"
+  }
+]

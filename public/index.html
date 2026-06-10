@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>La Curva Mundial</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="loginView" class="login-card">
+        <div class="brand-mark"><i class="bi bi-trophy-fill"></i></div>
+        <h1>La Curva Mundial</h1>
+        <p>Ingresá para ver fixtures, predicciones y tabla acumulada.</p>
+        <form id="loginForm" class="form-stack">
+          <label>
+            Usuario
+            <input id="loginUsername" name="username" autocomplete="username" required>
+          </label>
+          <label>
+            Contraseña
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>
+        </form>
+        <p id="loginMessage" class="message"></p>
+      </section>
+
+      <section id="appView" class="dashboard hidden">
+        <aside class="sidebar">
+          <div class="sidebar-brand">
+            <i class="bi bi-globe-americas"></i>
+            <span>La Curva Mundial</span>
+          </div>
+          <nav class="menu" aria-label="Menú principal">
+            <button data-view="usersView" id="usersMenu" class="admin-only"><i class="bi bi-person-plus"></i> Crear Usuario</button>
+            <button data-view="fixturesView" class="active"><i class="bi bi-calendar-event"></i> Fixture Mundial</button>
+            <button data-view="predictionsView"><i class="bi bi-pencil-square"></i> Predicciones</button>
+            <button data-view="standingsView"><i class="bi bi-table"></i> Tabla Acumulada</button>
+            <button data-view="rulesView"><i class="bi bi-info-circle"></i> Reglas</button>
+            <button data-view="auditView" id="auditMenu" class="admin-only"><i class="bi bi-journal-text"></i> Bitácora</button>
+          </nav>
+        </aside>
+
+        <section class="content">
+          <header class="topbar">
+            <div>
+              <span class="eyebrow">Usuario activo</span>
+              <h2 id="currentUser">-</h2>
+            </div>
+            <div class="topbar-actions">
+              <p>La sesión se cierra tras 5 minutos de inactividad.</p>
+              <button id="logoutButton" class="logout"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
+            </div>
+          </header>
+
+          <section id="usersView" class="view hidden">
+            <h2>Crear Usuario</h2>
+            <form id="createUserForm" class="panel form-grid">
+              <label>Usuario <input id="newUsername" required minlength="3"></label>
+              <label>Contraseña <input id="newPassword" type="password" required minlength="6"></label>
+              <label>Rol
+                <select id="newRole">
+                  <option value="user">Usuario</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <button type="submit"><i class="bi bi-person-plus"></i> Crear</button>
+            </form>
+            <p id="createUserMessage" class="message"></p>
+            <div class="panel table-wrap users-panel">
+              <h3>Usuarios creados</h3>
+              <table>
+                <thead>
+                  <tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Opciones</th></tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="fixturesView" class="view">
+            <div class="section-heading">
+              <h2>Fixture Mundial</h2>
+              <div class="filters">
+                <input id="fixtureDateFilter" type="date" aria-label="Filtrar fixture por fecha">
+                <input id="fixtureTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar fixture por equipo">
+                <select id="fixturePhaseFilter" aria-label="Filtrar fixture por fase">
+                  <option value="">Todas las fases</option>
+                  <option value="Fase de Grupos">Fase de Grupos</option>
+                  <option value="16vos">16vos</option>
+                  <option value="8vos">8vos</option>
+                  <option value="4vos">4vos</option>
+                  <option value="Semifinal">Semifinal</option>
+                  <option value="Final">Final</option>
+                </select>
+                <button id="clearFixtureFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+              </div>
+            </div>
+            <div id="fixturesList" class="cards-grid"></div>
+          </section>
+
+          <section id="predictionsView" class="view hidden">
+            <div class="section-heading">
+              <h2>Predicciones</h2>
+              <div class="filters">
+                <input id="predictionDateFilter" type="date" aria-label="Filtrar predicciones por fecha">
+                <input id="predictionTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar predicciones por equipo">
+                <select id="predictionPhaseFilter" aria-label="Filtrar predicciones por fase">
+                  <option value="">Todas las fases</option>
+                  <option value="Fase de Grupos">Fase de Grupos</option>
+                  <option value="16vos">16vos</option>
+                  <option value="8vos">8vos</option>
+                  <option value="4vos">4vos</option>
+                  <option value="Semifinal">Semifinal</option>
+                  <option value="Final">Final</option>
+                </select>
+                <button id="clearPredictionFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+              </div>
+            </div>
+            <div id="predictionsList" class="cards-grid"></div>
+          </section>
+
+          <section id="standingsView" class="view hidden">
+            <h2>Tabla Acumulada</h2>
+            <div class="panel table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Posición</th><th>Usuario</th><th>Puntos</th><th>Opciones</th></tr>
+                </thead>
+                <tbody id="standingsBody"></tbody>
+              </table>
+            </div>
+            <div id="standingDetail" class="panel table-wrap standings-detail hidden"></div>
+          </section>
+
+          <section id="rulesView" class="view hidden">
+            <h2>Reglas</h2>
+            <div id="rulesList" class="rules-list"></div>
+          </section>
+
+          <section id="auditView" class="view hidden">
+            <h2>Bitácora</h2>
+            <div class="filters audit-filters">
+              <input id="auditDateFilter" type="date" aria-label="Filtrar bitácora por fecha">
+              <input id="auditUserFilter" placeholder="Filtrar por usuario" aria-label="Filtrar bitácora por usuario">
+              <select id="auditActionFilter" aria-label="Filtrar bitácora por acción">
+                <option value="">Todas las acciones</option>
+                <option value="login_success">Login correcto</option>
+                <option value="login_failed">Login fallido</option>
+                <option value="logout">Logout</option>
+                <option value="menu_viewed">Menú visitado</option>
+                <option value="user_created">Usuario creado</option>
+                <option value="user_updated">Usuario editado</option>
+                <option value="user_deactivated">Usuario desactivado</option>
+                <option value="prediction_created">Predicción creada</option>
+                <option value="prediction_updated">Predicción editada</option>
+                <option value="standing_detail_viewed">Detalle de tabla visto</option>
+              </select>
+              <button id="clearAuditFilters" class="secondary-button filter-clear-button" type="button"><i class="bi bi-x-circle"></i> Limpiar filtros</button>
+            </div>
+            <div class="panel table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr>
+                </thead>
+                <tbody id="auditLogBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/js/app.js"></script>
+  </body>
+</html>
