@@ -385,6 +385,20 @@ app.patch('/api/users/:id/deactivate', requireAdmin, asyncHandler(async (req, re
   return res.json({ user: sanitizeUser(user) });
 }));
 
+app.patch('/api/users/:id/unblock', requireAdmin, asyncHandler(async (req, res) => {
+  const userId = String(req.params.id || '');
+  const users = await readJson('users.json');
+  const user = users.find((candidate) => candidate.id === userId);
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+  user.permanentlyBlocked = false;
+  user.lockedUntil = null;
+  user.failedAttempts = 0;
+  user.temporaryLockoutCount = 0;
+  await writeJson('users.json', users);
+  await recordAuditLog(req, 'user_unblocked', { targetUserId: user.id, targetUsername: user.username });
+  return res.json({ user: sanitizeUser(user) });
+}));
+
 app.get('/api/fixtures', requireAuth, asyncHandler(async (req, res) => {
   const fixtures = await readJson('fixtures.json');
   const date = String(req.query.date || '').trim();
