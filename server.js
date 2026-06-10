@@ -3,6 +3,12 @@ const fs = require('fs/promises');
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is required in production.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +25,7 @@ const rules = [
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
 ];
 
+app.use(helmet());
 app.use(express.json());
 app.use(session({
   name: 'lacurva.sid',
@@ -57,16 +64,25 @@ async function readAuditLogs() {
   }
 }
 
-function hashPassword(password) {
+function scrypt(password, salt, keylen) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, keylen, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey);
+    });
+  });
+}
+
+async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  const hash = (await scrypt(password, salt, 64)).toString('hex');
   return `${salt}:${hash}`;
 }
 
-function verifyPassword(password, storedHash) {
+async function verifyPassword(password, storedHash) {
   const [salt, hash] = storedHash.split(':');
   if (!salt || !hash) return false;
-  const attemptedHash = crypto.scryptSync(password, salt, 64);
+  const attemptedHash = await scrypt(password, salt, 64);
   const savedHash = Buffer.from(hash, 'hex');
   return savedHash.length === attemptedHash.length && crypto.timingSafeEqual(savedHash, attemptedHash);
 }
@@ -137,13 +153,26 @@ function parseFixtureScore(value) {
   return Number.isInteger(score) && score >= 0 ? score : NaN;
 }
 
-app.post('/api/login', asyncHandler(async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
+
+app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
+
+  if (username.length === 0 || username.length > 64 || password.length === 0 || password.length > 128) {
+    return res.status(400).json({ error: 'Invalid credentials format.' });
+  }
+
   const users = await readJson('users.json');
   const user = users.find((candidate) => candidate.username.toLowerCase() === username.toLowerCase());
 
-  if (!user || user.active === false || !verifyPassword(password, user.passwordHash)) {
+  if (!user || user.active === false || !(await verifyPassword(password, user.passwordHash))) {
     await recordAuditLog(req, 'login_failed', { username });
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
@@ -213,7 +242,7 @@ app.post('/api/users', requireAdmin, asyncHandler(async (req, res) => {
     username,
     role,
     active: true,
-    passwordHash: hashPassword(password)
+    passwordHash: await hashPassword(password)
   };
   users.push(user);
   await writeJson('users.json', users);
@@ -248,7 +277,7 @@ app.put('/api/users/:id', requireAdmin, asyncHandler(async (req, res) => {
   user.username = username;
   user.role = role;
   user.active = active;
-  if (password) user.passwordHash = hashPassword(password);
+  if (password) user.passwordHash = await hashPassword(password);
   await writeJson('users.json', users);
   if (user.id === req.session.user.id) req.session.user = sanitizeUser(user);
   await recordAuditLog(req, 'user_updated', { targetUserId: user.id, targetUsername: user.username, targetRole: user.role, active: user.active !== false, passwordChanged: Boolean(password) });
