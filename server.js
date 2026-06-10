@@ -3,6 +3,12 @@ const fs = require('fs/promises');
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is required in production.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +25,7 @@ const rules = [
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
 ];
 
+app.use(helmet());
 app.use(express.json());
 app.use(session({
   name: 'lacurva.sid',
