@@ -22,12 +22,10 @@ const elements = {
   appView: document.querySelector('#appView'),
   loginForm: document.querySelector('#loginForm'),
   loginMessage: document.querySelector('#loginMessage'),
-  currentUser: document.querySelector('#currentUser'),
+  sidebarCurrentUser: document.querySelector('#sidebarCurrentUser'),
   logoutButton: document.querySelector('#logoutButton'),
   hideSidebarButton: document.querySelector('#hideSidebarButton'),
   showSidebarButton: document.querySelector('#showSidebarButton'),
-  hideTopbarButton: document.querySelector('#hideTopbarButton'),
-  showTopbarButton: document.querySelector('#showTopbarButton'),
   menuButtons: document.querySelectorAll('.menu button[data-view]'),
   views: document.querySelectorAll('.view'),
   usersMenu: document.querySelector('#usersMenu'),
@@ -93,9 +91,6 @@ function setSidebarVisible(visible) {
   elements.appView.classList.toggle('sidebar-collapsed', !visible);
 }
 
-function setTopbarVisible(visible) {
-  elements.appView.classList.toggle('topbar-collapsed', !visible);
-}
 
 function resetInactivityTimer() {
   clearTimeout(state.inactivityTimer);
@@ -130,7 +125,7 @@ function showAuthenticatedApp(user) {
   state.user = user;
   elements.loginView.classList.add('hidden');
   elements.appView.classList.remove('hidden');
-  elements.currentUser.textContent = `${user.username} (${user.role})`;
+  elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
   elements.usersMenu.classList.toggle('hidden', user.role !== 'admin');
   elements.auditMenu.classList.toggle('hidden', user.role !== 'admin');
   showView('fixturesView');
@@ -560,8 +555,6 @@ elements.menuButtons.forEach((button) => {
 
 elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
 elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
-elements.hideTopbarButton.addEventListener('click', () => setTopbarVisible(false));
-elements.showTopbarButton.addEventListener('click', () => setTopbarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
