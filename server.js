@@ -164,6 +164,11 @@ const loginLimiter = rateLimit({
 app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
+
+  if (username.length === 0 || username.length > 64 || password.length === 0 || password.length > 128) {
+    return res.status(400).json({ error: 'Invalid credentials format.' });
+  }
+
   const users = await readJson('users.json');
   const user = users.find((candidate) => candidate.username.toLowerCase() === username.toLowerCase());
 
