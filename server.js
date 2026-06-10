@@ -64,16 +64,25 @@ async function readAuditLogs() {
   }
 }
 
-function hashPassword(password) {
+function scrypt(password, salt, keylen) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, keylen, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey);
+    });
+  });
+}
+
+async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  const hash = (await scrypt(password, salt, 64)).toString('hex');
   return `${salt}:${hash}`;
 }
 
-function verifyPassword(password, storedHash) {
+async function verifyPassword(password, storedHash) {
   const [salt, hash] = storedHash.split(':');
   if (!salt || !hash) return false;
-  const attemptedHash = crypto.scryptSync(password, salt, 64);
+  const attemptedHash = await scrypt(password, salt, 64);
   const savedHash = Buffer.from(hash, 'hex');
   return savedHash.length === attemptedHash.length && crypto.timingSafeEqual(savedHash, attemptedHash);
 }
@@ -158,7 +167,7 @@ app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
   const users = await readJson('users.json');
   const user = users.find((candidate) => candidate.username.toLowerCase() === username.toLowerCase());
 
-  if (!user || user.active === false || !verifyPassword(password, user.passwordHash)) {
+  if (!user || user.active === false || !(await verifyPassword(password, user.passwordHash))) {
     await recordAuditLog(req, 'login_failed', { username });
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
@@ -228,7 +237,7 @@ app.post('/api/users', requireAdmin, asyncHandler(async (req, res) => {
     username,
     role,
     active: true,
-    passwordHash: hashPassword(password)
+    passwordHash: await hashPassword(password)
   };
   users.push(user);
   await writeJson('users.json', users);
@@ -263,7 +272,7 @@ app.put('/api/users/:id', requireAdmin, asyncHandler(async (req, res) => {
   user.username = username;
   user.role = role;
   user.active = active;
-  if (password) user.passwordHash = hashPassword(password);
+  if (password) user.passwordHash = await hashPassword(password);
   await writeJson('users.json', users);
   if (user.id === req.session.user.id) req.session.user = sanitizeUser(user);
   await recordAuditLog(req, 'user_updated', { targetUserId: user.id, targetUsername: user.username, targetRole: user.role, active: user.active !== false, passwordChanged: Boolean(password) });
