@@ -60,6 +60,10 @@ async function api(path, options = {}) {
     ...options
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    logout('Tu sesión expiró. Iniciá sesión nuevamente.');
+    throw new Error('Session expired.');
+  }
   if (!response.ok) throw new Error(data.error || 'Unexpected error.');
   return data;
 }
@@ -104,7 +108,7 @@ function showView(viewId) {
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
   if (viewId === 'fixturesView') {
-    loadFixtures();
+    loadFixtures().catch(() => {});
     startFixtureAutoRefresh();
   } else {
     stopFixtureAutoRefresh();
