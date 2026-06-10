@@ -106,7 +106,14 @@ async function verifyPassword(password, storedHash) {
 }
 
 function sanitizeUser(user) {
-  return { id: user.id, username: user.username, role: user.role, active: user.active !== false };
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    active: user.active !== false,
+    permanentlyBlocked: user.permanentlyBlocked === true,
+    lockedUntil: user.lockedUntil || null
+  };
 }
 
 async function recordAuditLog(req, action, detail = {}) {
@@ -260,7 +267,11 @@ app.post('/api/users', requireAdmin, asyncHandler(async (req, res) => {
     username,
     role,
     active: true,
-    passwordHash: await hashPassword(password)
+    passwordHash: await hashPassword(password),
+    failedAttempts: 0,
+    lockedUntil: null,
+    temporaryLockoutCount: 0,
+    permanentlyBlocked: false
   };
   users.push(user);
   await writeJson('users.json', users);
