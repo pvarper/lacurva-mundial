@@ -288,6 +288,8 @@ th { color: var(--muted); }
 .secondary-button { background: #41514a; }
 .danger-button { background: var(--danger); }
 .inactive-status { color: var(--danger); background: #fff1ef; }
+.locked-status { color: #b45309; background: #fef3c7; }
+.blocked-status { color: #fff; background: var(--danger); font-weight: 700; }
 
 .rules-list { display: grid; gap: 1rem; margin-top: 1rem; }
 .rule-card { padding: 1rem; border-left: 6px solid var(--accent-2); }
