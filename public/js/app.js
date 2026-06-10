@@ -219,8 +219,8 @@ function renderFixtureCard(match) {
         <span class="score">${score}</span>
         <span>${escapeHtml(match.awayTeam)}</span>
       </div>
-      <p class="venue"><i class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
+      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
+      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
       <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
       <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
       ${renderFixtureAdminForm(match)}
@@ -334,8 +334,8 @@ function renderPredictionCard(match) {
     <article class="match-card">
       <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
       <div class="teams"><span>${escapeHtml(match.homeTeam)}</span><span>vs</span><span>${escapeHtml(match.awayTeam)}</span></div>
-      <p class="venue"><i class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
+      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
+      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
       <form class="prediction-form" data-match-id="${match.id}">
         <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${prediction.homeScore ?? ''}" ${disabled} required></label>
         <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${prediction.awayScore ?? ''}" ${disabled} required></label>
