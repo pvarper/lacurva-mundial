@@ -94,6 +94,10 @@ async function recordAuditLog(req, action, detail = {}) {
   }
 }
 
+function asyncHandler(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Authentication required.' });
@@ -133,7 +137,7 @@ function parseFixtureScore(value) {
   return Number.isInteger(score) && score >= 0 ? score : NaN;
 }
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', asyncHandler(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
   const users = await readJson('users.json');
@@ -150,7 +154,7 @@ app.post('/api/login', async (req, res) => {
     recordAuditLog(req, 'login_success', { userId: user.id, username: user.username, role: user.role });
     return res.json({ user: req.session.user });
   });
-});
+}));
 
 app.post('/api/logout', requireAuth, (req, res) => {
   const user = req.session.user;
@@ -163,7 +167,7 @@ app.post('/api/logout', requireAuth, (req, res) => {
   });
 });
 
-app.post('/api/audit/navigation', requireAuth, async (req, res) => {
+app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
   const publicViews = ['fixturesView', 'predictionsView', 'standingsView', 'rulesView'];
   const adminViews = ['usersView', 'auditView'];
@@ -175,23 +179,23 @@ app.post('/api/audit/navigation', requireAuth, async (req, res) => {
   }
   await recordAuditLog(req, 'menu_viewed', { view });
   res.json({ ok: true });
-});
+}));
 
-app.get('/api/audit-log', requireAdmin, async (req, res) => {
+app.get('/api/audit-log', requireAdmin, asyncHandler(async (req, res) => {
   const logs = await readAuditLogs();
   res.json(logs.slice().reverse());
-});
+}));
 
 app.get('/api/session', (req, res) => {
   res.json({ user: req.session.user || null, inactivityLimitMs: SESSION_MAX_AGE_MS });
 });
 
-app.get('/api/users', requireAdmin, async (req, res) => {
+app.get('/api/users', requireAdmin, asyncHandler(async (req, res) => {
   const users = await readJson('users.json');
   res.json(users.map(sanitizeUser));
-});
+}));
 
-app.post('/api/users', requireAdmin, async (req, res) => {
+app.post('/api/users', requireAdmin, asyncHandler(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
   const role = req.body.role === 'admin' ? 'admin' : 'user';
@@ -215,9 +219,9 @@ app.post('/api/users', requireAdmin, async (req, res) => {
   await writeJson('users.json', users);
   await recordAuditLog(req, 'user_created', { targetUserId: user.id, targetUsername: user.username, targetRole: user.role });
   return res.status(201).json({ user: sanitizeUser(user) });
-});
+}));
 
-app.put('/api/users/:id', requireAdmin, async (req, res) => {
+app.put('/api/users/:id', requireAdmin, asyncHandler(async (req, res) => {
   const userId = String(req.params.id || '');
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
@@ -249,9 +253,9 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
   if (user.id === req.session.user.id) req.session.user = sanitizeUser(user);
   await recordAuditLog(req, 'user_updated', { targetUserId: user.id, targetUsername: user.username, targetRole: user.role, active: user.active !== false, passwordChanged: Boolean(password) });
   return res.json({ user: sanitizeUser(user) });
-});
+}));
 
-app.patch('/api/users/:id/deactivate', requireAdmin, async (req, res) => {
+app.patch('/api/users/:id/deactivate', requireAdmin, asyncHandler(async (req, res) => {
   const userId = String(req.params.id || '');
   const users = await readJson('users.json');
   const user = users.find((candidate) => candidate.id === userId);
@@ -263,9 +267,9 @@ app.patch('/api/users/:id/deactivate', requireAdmin, async (req, res) => {
   await writeJson('users.json', users);
   await recordAuditLog(req, 'user_deactivated', { targetUserId: user.id, targetUsername: user.username });
   return res.json({ user: sanitizeUser(user) });
-});
+}));
 
-app.get('/api/fixtures', requireAuth, async (req, res) => {
+app.get('/api/fixtures', requireAuth, asyncHandler(async (req, res) => {
   const fixtures = await readJson('fixtures.json');
   const date = String(req.query.date || '').trim();
   const team = String(req.query.team || '').trim().toLowerCase();
@@ -277,9 +281,9 @@ app.get('/api/fixtures', requireAuth, async (req, res) => {
     return matchesDate && matchesTeam && matchesPhase;
   });
   res.json(filtered.map((match) => ({ ...match, locked: isPredictionLocked(match) })));
-});
+}));
 
-app.put('/api/fixtures/:id', requireAdmin, async (req, res) => {
+app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
   const matchId = String(req.params.id || '');
   const status = String(req.body.status || '').trim();
   const homeScore = parseFixtureScore(req.body.homeScore);
@@ -313,9 +317,9 @@ app.put('/api/fixtures/:id', requireAdmin, async (req, res) => {
     status
   });
   res.json({ match: { ...match, locked: isPredictionLocked(match) } });
-});
+}));
 
-app.get('/api/predictions', requireAuth, async (req, res) => {
+app.get('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   const [fixtures, predictions] = await Promise.all([readJson('fixtures.json'), readJson('predictions.json')]);
   const userPredictions = predictions.filter((prediction) => prediction.userId === req.session.user.id);
   const merged = fixtures.map((match) => ({
@@ -324,9 +328,9 @@ app.get('/api/predictions', requireAuth, async (req, res) => {
     prediction: userPredictions.find((prediction) => prediction.matchId === match.id) || null
   }));
   res.json(merged);
-});
+}));
 
-app.post('/api/predictions', requireAuth, async (req, res) => {
+app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   const matchId = String(req.body.matchId || '');
   const homeScore = Number(req.body.homeScore);
   const awayScore = Number(req.body.awayScore);
@@ -363,9 +367,9 @@ app.post('/api/predictions', requireAuth, async (req, res) => {
   await writeJson('predictions.json', predictions);
   await recordAuditLog(req, action, { matchId, matchNumber: match.matchNumber, homeTeam: match.homeTeam, awayTeam: match.awayTeam, homeScore, awayScore });
   res.json({ ok: true });
-});
+}));
 
-app.get('/api/standings', requireAuth, async (req, res) => {
+app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
@@ -380,14 +384,14 @@ app.get('/api/standings', requireAuth, async (req, res) => {
     return { userId: user.id, username: user.username, points };
   }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
   res.json(standings);
-});
+}));
 
-app.get('/api/prize-pool', requireAuth, async (req, res) => {
+app.get('/api/prize-pool', requireAuth, asyncHandler(async (req, res) => {
   const prizePool = await readJson('prize-pool.json');
   res.json(prizePool);
-});
+}));
 
-app.put('/api/prize-pool', requireAdmin, async (req, res) => {
+app.put('/api/prize-pool', requireAdmin, asyncHandler(async (req, res) => {
   const amount = Number(req.body.amount);
   const payouts = Array.isArray(req.body.payouts) ? req.body.payouts : [];
   const normalizedPayouts = [1, 2, 3].map((place) => {
@@ -410,9 +414,9 @@ app.put('/api/prize-pool', requireAdmin, async (req, res) => {
   await writeJson('prize-pool.json', prizePool);
   await recordAuditLog(req, 'prize_pool_updated', prizePool);
   res.json(prizePool);
-});
+}));
 
-app.get('/api/standings/:userId', requireAuth, async (req, res) => {
+app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
   if (req.session.user.role !== 'admin' && req.session.user.id !== userId) {
     return res.status(403).json({ error: 'You can only view your own standing detail.' });
@@ -448,7 +452,7 @@ app.get('/api/standings/:userId', requireAuth, async (req, res) => {
   const totalPoints = details.reduce((total, detail) => total + detail.points, 0);
   await recordAuditLog(req, 'standing_detail_viewed', { targetUserId: user.id, targetUsername: user.username });
   res.json({ user: sanitizeUser(user), totalPoints, details });
-});
+}));
 
 app.get('/api/rules', requireAuth, (req, res) => {
   res.json({ rules });
