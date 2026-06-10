@@ -63,7 +63,7 @@ async function api(path, options = {}) {
     ...options
   });
   const data = await response.json().catch(() => ({}));
-  if (response.status === 401) {
+  if (response.status === 401 && state.user) {
     logout('Tu sesión expiró. Iniciá sesión nuevamente.');
     throw new Error('Session expired.');
   }
