@@ -144,7 +144,15 @@ function parseFixtureScore(value) {
   return Number.isInteger(score) && score >= 0 ? score : NaN;
 }
 
-app.post('/api/login', asyncHandler(async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
+
+app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
   const users = await readJson('users.json');
