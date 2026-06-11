@@ -606,6 +606,17 @@ elements.menuButtons.forEach((button) => {
   button.addEventListener('click', () => showView(button.dataset.view));
 });
 
+document.querySelectorAll('.password-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    const icon = btn.querySelector('i');
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    icon.className = isHidden ? 'bi bi-eye-slash' : 'bi bi-eye';
+    btn.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  });
+});
+
 elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
 elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
