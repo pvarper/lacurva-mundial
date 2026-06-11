@@ -359,6 +359,7 @@ function renderPredictionCard(match) {
         <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${prediction.homeScore ?? ''}" ${disabled} required></label>
         <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${prediction.awayScore ?? ''}" ${disabled} required></label>
         <button type="submit" ${disabled}>Guardar</button>
+        <p class="save-feedback hidden" aria-live="polite">Predicción Guardada</p>
       </form>
       <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Este partido ya está cerrado.' : 'Podés editar tu predicción.'}</p>
     </article>
@@ -729,7 +730,9 @@ elements.predictionsList.addEventListener('submit', async (event) => {
   const awayScore = Number(form.elements.awayScore.value);
   try {
     await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore }) });
-    await loadPredictions();
+    const feedback = form.querySelector('.save-feedback');
+    feedback.classList.remove('hidden');
+    setTimeout(async () => { await loadPredictions(); }, 1000);
   } catch (error) {
     setMessage(elements.predictionsMessage, error.message);
   }
