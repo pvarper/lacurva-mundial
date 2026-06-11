@@ -106,7 +106,14 @@ async function verifyPassword(password, storedHash) {
 }
 
 function sanitizeUser(user) {
-  return { id: user.id, username: user.username, role: user.role, active: user.active !== false };
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    active: user.active !== false,
+    permanentlyBlocked: user.permanentlyBlocked === true,
+    lockedUntil: user.lockedUntil || null
+  };
 }
 
 async function recordAuditLog(req, action, detail = {}) {
@@ -144,6 +151,52 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ error: 'Admin access required.' });
   }
   return next();
+}
+
+const LOCKOUT_ATTEMPTS = 3;
+const LOCKOUT_DURATION_MS = 10 * 60 * 1000;
+const MAX_TEMPORARY_LOCKOUTS = 3;
+const LOCKOUT_RESET_MS = 60 * 60 * 1000;
+
+function getLockoutStatus(user) {
+  if (user.permanentlyBlocked) return { blocked: true, permanent: true, remainingMs: null };
+  if (user.lockedUntil) {
+    const remainingMs = new Date(user.lockedUntil).getTime() - Date.now();
+    if (remainingMs > 0) return { blocked: true, permanent: false, remainingMs };
+  }
+  return { blocked: false };
+}
+
+function resetStaleCounters(user) {
+  if (user.permanentlyBlocked) return false;
+  const lastFailed = user.lastFailedAt ? new Date(user.lastFailedAt).getTime() : null;
+  if (!lastFailed) return false;
+  if (Date.now() - lastFailed < LOCKOUT_RESET_MS) return false;
+  user.failedAttempts = 0;
+  user.lockedUntil = null;
+  user.temporaryLockoutCount = 0;
+  user.lastFailedAt = null;
+  return true;
+}
+
+async function recordFailedAttempt(user, users) {
+  user.lastFailedAt = new Date().toISOString();
+  user.failedAttempts = (user.failedAttempts || 0) + 1;
+  if (user.failedAttempts >= LOCKOUT_ATTEMPTS) {
+    user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString();
+    user.failedAttempts = 0;
+    user.temporaryLockoutCount = (user.temporaryLockoutCount || 0) + 1;
+    if (user.temporaryLockoutCount >= MAX_TEMPORARY_LOCKOUTS) {
+      user.permanentlyBlocked = true;
+    }
+  }
+  await writeJson('users.json', users);
+}
+
+async function clearFailedAttempts(user, users) {
+  user.failedAttempts = 0;
+  user.lockedUntil = null;
+  await writeJson('users.json', users);
 }
 
 function isPredictionLocked(match) {
@@ -190,11 +243,39 @@ app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
   const users = await readJson('users.json');
   const user = users.find((candidate) => candidate.username.toLowerCase() === username.toLowerCase());
 
-  if (!user || user.active === false || !(await verifyPassword(password, user.passwordHash))) {
+  if (!user || user.active === false) {
     await recordAuditLog(req, 'login_failed', { username });
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
+  if (resetStaleCounters(user)) await writeJson('users.json', users);
+
+  const lockout = getLockoutStatus(user);
+  if (lockout.blocked) {
+    if (lockout.permanent) {
+      await recordAuditLog(req, 'login_blocked_permanent', { username });
+      return res.status(423).json({ error: 'Your account has been permanently blocked. Contact an administrator.' });
+    }
+    const remainingSecs = Math.ceil(lockout.remainingMs / 1000);
+    await recordAuditLog(req, 'login_blocked_temporary', { username, remainingSecs });
+    return res.status(423).json({ error: `Account temporarily locked. Try again in ${remainingSecs} seconds.`, remainingSecs });
+  }
+
+  const passwordOk = await verifyPassword(password, user.passwordHash);
+  if (!passwordOk) {
+    await recordFailedAttempt(user, users);
+    const lockoutAfter = getLockoutStatus(user);
+    await recordAuditLog(req, 'login_failed', { username, failedAttempts: user.failedAttempts, temporaryLockoutCount: user.temporaryLockoutCount });
+    if (lockoutAfter.blocked && lockoutAfter.permanent) {
+      return res.status(423).json({ error: 'Your account has been permanently blocked. Contact an administrator.' });
+    }
+    if (lockoutAfter.blocked) {
+      return res.status(423).json({ error: `Account temporarily locked for ${LOCKOUT_DURATION_MS / 60000} minutes due to repeated failed attempts.`, remainingSecs: Math.ceil(LOCKOUT_DURATION_MS / 1000) });
+    }
+    return res.status(401).json({ error: 'Invalid username or password.' });
+  }
+
+  await clearFailedAttempts(user, users);
   req.session.regenerate((error) => {
     if (error) return res.status(500).json({ error: 'Could not create session.' });
     req.session.user = sanitizeUser(user);
@@ -260,7 +341,11 @@ app.post('/api/users', requireAdmin, asyncHandler(async (req, res) => {
     username,
     role,
     active: true,
-    passwordHash: await hashPassword(password)
+    passwordHash: await hashPassword(password),
+    failedAttempts: 0,
+    lockedUntil: null,
+    temporaryLockoutCount: 0,
+    permanentlyBlocked: false
   };
   users.push(user);
   await writeJson('users.json', users);
@@ -313,6 +398,20 @@ app.patch('/api/users/:id/deactivate', requireAdmin, asyncHandler(async (req, re
   user.active = false;
   await writeJson('users.json', users);
   await recordAuditLog(req, 'user_deactivated', { targetUserId: user.id, targetUsername: user.username });
+  return res.json({ user: sanitizeUser(user) });
+}));
+
+app.patch('/api/users/:id/unblock', requireAdmin, asyncHandler(async (req, res) => {
+  const userId = String(req.params.id || '');
+  const users = await readJson('users.json');
+  const user = users.find((candidate) => candidate.id === userId);
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+  user.permanentlyBlocked = false;
+  user.lockedUntil = null;
+  user.failedAttempts = 0;
+  user.temporaryLockoutCount = 0;
+  await writeJson('users.json', users);
+  await recordAuditLog(req, 'user_unblocked', { targetUserId: user.id, targetUsername: user.username });
   return res.json({ user: sanitizeUser(user) });
 }));
 

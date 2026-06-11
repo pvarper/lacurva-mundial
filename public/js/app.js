@@ -63,7 +63,7 @@ async function api(path, options = {}) {
     ...options
   });
   const data = await response.json().catch(() => ({}));
-  if (response.status === 401) {
+  if (response.status === 401 && state.user) {
     logout('Tu sesión expiró. Iniciá sesión nuevamente.');
     throw new Error('Session expired.');
   }
@@ -258,17 +258,36 @@ async function updateFixtureResult(form) {
 
 async function loadUsers() {
   const users = await api('/api/users');
-  elements.usersTableBody.innerHTML = users.map((user) => `
+  elements.usersTableBody.innerHTML = users.map((user) => {
+    let statusLabel, statusClass;
+    if (user.permanentlyBlocked) {
+      statusLabel = 'Bloqueado';
+      statusClass = 'blocked-status';
+    } else if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      statusLabel = 'Bloqueado temp.';
+      statusClass = 'locked-status';
+    } else if (!user.active) {
+      statusLabel = 'Inactivo';
+      statusClass = 'inactive-status';
+    } else {
+      statusLabel = 'Activo';
+      statusClass = '';
+    }
+    const unblockButton = (user.permanentlyBlocked || (user.lockedUntil && new Date(user.lockedUntil) > new Date()))
+      ? `<button type="button" class="secondary-button" data-action="unblock-user" data-user-id="${escapeHtml(user.id)}">Desbloquear</button>`
+      : '';
+    return `
     <tr data-user-id="${escapeHtml(user.id)}">
       <td>${escapeHtml(user.username)}</td>
       <td>${escapeHtml(user.role)}</td>
-      <td><span class="status ${user.active ? '' : 'inactive-status'}">${user.active ? 'Activo' : 'Inactivo'}</span></td>
+      <td><span class="status ${statusClass}">${statusLabel}</span></td>
       <td class="actions-cell">
         <button type="button" class="secondary-button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">Editar</button>
-        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active ? '' : 'disabled'}>Desactivar</button>
+        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active && !user.permanentlyBlocked ? '' : 'disabled'}>Desactivar</button>
+        ${unblockButton}
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function editUser(userId) {
@@ -602,6 +621,11 @@ elements.usersTableBody.addEventListener('click', async (event) => {
       await api(`/api/users/${encodeURIComponent(userId)}/deactivate`, { method: 'PATCH' });
       await loadUsers();
       setMessage(elements.createUserMessage, 'Usuario desactivado correctamente.', true);
+    }
+    if (action === 'unblock-user') {
+      await api(`/api/users/${encodeURIComponent(userId)}/unblock`, { method: 'PATCH' });
+      await loadUsers();
+      setMessage(elements.createUserMessage, 'Usuario desbloqueado correctamente.', true);
     }
   } catch (error) {
     setMessage(elements.createUserMessage, error.message);
