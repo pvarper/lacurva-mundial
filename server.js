@@ -156,6 +156,7 @@ function requireAdmin(req, res, next) {
 const LOCKOUT_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 10 * 60 * 1000;
 const MAX_TEMPORARY_LOCKOUTS = 3;
+const LOCKOUT_RESET_MS = 60 * 60 * 1000;
 
 function getLockoutStatus(user) {
   if (user.permanentlyBlocked) return { blocked: true, permanent: true, remainingMs: null };
@@ -166,7 +167,20 @@ function getLockoutStatus(user) {
   return { blocked: false };
 }
 
+function resetStaleCounters(user) {
+  if (user.permanentlyBlocked) return false;
+  const lastFailed = user.lastFailedAt ? new Date(user.lastFailedAt).getTime() : null;
+  if (!lastFailed) return false;
+  if (Date.now() - lastFailed < LOCKOUT_RESET_MS) return false;
+  user.failedAttempts = 0;
+  user.lockedUntil = null;
+  user.temporaryLockoutCount = 0;
+  user.lastFailedAt = null;
+  return true;
+}
+
 async function recordFailedAttempt(user, users) {
+  user.lastFailedAt = new Date().toISOString();
   user.failedAttempts = (user.failedAttempts || 0) + 1;
   if (user.failedAttempts >= LOCKOUT_ATTEMPTS) {
     user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString();
@@ -233,6 +247,8 @@ app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
     await recordAuditLog(req, 'login_failed', { username });
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
+
+  if (resetStaleCounters(user)) await writeJson('users.json', users);
 
   const lockout = getLockoutStatus(user);
   if (lockout.blocked) {
