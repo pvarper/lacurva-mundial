@@ -26,7 +26,12 @@
           </label>
           <label>
             Contraseña
-            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            <div class="password-field">
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+              <button type="button" class="password-toggle" aria-label="Mostrar contraseña" data-target="loginPassword">
+                <i aria-hidden="true" class="bi bi-eye"></i>
+              </button>
+            </div>
           </label>
           <button type="submit"><i aria-hidden="true" class="bi bi-box-arrow-in-right"></i> Entrar</button>
         </form>
@@ -64,7 +69,14 @@
             <h2>Crear Usuario</h2>
             <form id="createUserForm" class="panel form-grid">
               <label>Usuario <input id="newUsername" required minlength="3"></label>
-              <label>Contraseña <input id="newPassword" type="password" required minlength="6"></label>
+              <label>Contraseña
+                <div class="password-field">
+                  <input id="newPassword" type="password" required minlength="6">
+                  <button type="button" class="password-toggle" aria-label="Mostrar contraseña" data-target="newPassword">
+                    <i aria-hidden="true" class="bi bi-eye"></i>
+                  </button>
+                </div>
+              </label>
               <label>Rol
                 <select id="newRole">
                   <option value="user">Usuario</option>
