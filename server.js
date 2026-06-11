@@ -196,6 +196,7 @@ async function recordFailedAttempt(user, users) {
 async function clearFailedAttempts(user, users) {
   user.failedAttempts = 0;
   user.lockedUntil = null;
+  user.temporaryLockoutCount = 0;
   await writeJson('users.json', users);
 }
 
@@ -229,6 +230,7 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { error: 'Too many login attempts. Please try again later.' }
 });
 
