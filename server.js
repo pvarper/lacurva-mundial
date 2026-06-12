@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_MAX_AGE_MS = 5 * 60 * 1000;
+const SESSION_MAX_AGE_MS = 120 * 60 * 1000;
 const PREDICTION_LOCK_MS = 10 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
