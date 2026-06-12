@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SESSION_MAX_AGE_MS = 120 * 60 * 1000;
-const PREDICTION_LOCK_MS = 10 * 60 * 1000;
+const PREDICTION_LOCK_MS = 1 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
 
@@ -21,7 +21,7 @@ const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
-  { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 10 minutos antes del inicio.' },
+  { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
 ];
 
