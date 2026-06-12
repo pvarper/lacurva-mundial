@@ -392,19 +392,38 @@ async function loadPredictions() {
 }
 
 async function loadStandings() {
-  const [standings, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  const [{ standings, liveMatch }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
   state.prizePool = prizePool;
   renderPrizePool();
   elements.standingDetail.classList.add('hidden');
   elements.standingDetail.innerHTML = '';
-  elements.standingsBody.innerHTML = standings.map((row, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(row.username)}</td>
-      <td><strong>${row.points}</strong></td>
-      <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}">Ver detalle</button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
-    </tr>
-  `).join('');
+
+  const theadRow = elements.standingsBody.closest('table').querySelector('thead tr');
+  const liveHeader = liveMatch
+    ? `<th>En vivo: ${escapeHtml(liveMatch.homeTeam)} vs ${escapeHtml(liveMatch.awayTeam)}</th>`
+    : '';
+  theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
+
+  const TROPHY_COLORS = ['', '#FFD700', '#C0C0C0', '#CD7F32'];
+  let rank = 1;
+  elements.standingsBody.innerHTML = standings.map((row, index) => {
+    if (index > 0 && standings[index - 1].points !== row.points) rank++;
+    const trophy = rank <= 3
+      ? ` <i class="bi bi-trophy-fill" style="color:${TROPHY_COLORS[rank]}" aria-hidden="true"></i>`
+      : '';
+    const livePredCell = liveMatch
+      ? `<td>${row.livePrediction ? `${row.livePrediction.homeScore} - ${row.livePrediction.awayScore}` : '<span class="muted-text">Sin predicción</span>'}</td>`
+      : '';
+    return `
+      <tr>
+        <td>${rank}${trophy}</td>
+        <td>${escapeHtml(row.username)}</td>
+        ${livePredCell}
+        <td><strong>${row.points}</strong></td>
+        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}">Ver detalle</button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function formatPrizeAmount(amount, currency = 'Bs') {
