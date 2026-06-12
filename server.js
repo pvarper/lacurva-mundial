@@ -568,9 +568,6 @@ app.put('/api/prize-pool', requireAdmin, asyncHandler(async (req, res) => {
 
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
-  if (req.session.user.role !== 'admin' && req.session.user.id !== userId) {
-    return res.status(403).json({ error: 'You can only view your own standing detail.' });
-  }
 
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),
