@@ -79,6 +79,10 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function todayBoliviaDate() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/La_Paz' }).format(new Date());
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
     '&': '&amp;',
@@ -119,13 +123,17 @@ function showView(viewId) {
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
   if (viewId === 'fixturesView') {
+    if (!elements.fixtureDateFilter.value) elements.fixtureDateFilter.value = todayBoliviaDate();
     loadFixtures().catch(() => {});
     startFixtureAutoRefresh();
   } else {
     stopFixtureAutoRefresh();
   }
   if (viewId === 'usersView') loadUsers();
-  if (viewId === 'predictionsView') loadPredictions();
+  if (viewId === 'predictionsView') {
+    if (!elements.predictionDateFilter.value) elements.predictionDateFilter.value = todayBoliviaDate();
+    loadPredictions();
+  }
   if (viewId === 'standingsView') loadStandings();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
@@ -451,8 +459,8 @@ async function updatePrizePool(form) {
   renderPrizePool();
 }
 
-function canViewStandingDetail(row) {
-  return state.user?.role === 'admin' || state.user?.id === row.userId;
+function canViewStandingDetail() {
+  return true;
 }
 
 function formatScore(homeScore, awayScore) {
