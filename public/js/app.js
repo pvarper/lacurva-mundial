@@ -1,6 +1,6 @@
 const state = {
   user: null,
-  inactivityLimitMs: 5 * 60 * 1000,
+  inactivityLimitMs: 120 * 60 * 1000,
   inactivityTimer: null,
   fixtureRefreshTimer: null,
   currentView: null,
