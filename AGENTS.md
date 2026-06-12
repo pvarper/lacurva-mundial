@@ -42,10 +42,10 @@ Use `pnpm` only. Do not use `npm install`, `npm run`, or npm lockfiles.
 - Users authenticate with username and password.
 - Admin users can create, edit, and deactivate users.
 - Authenticated users can view fixtures, submit predictions, view standings, and read rules.
-- Predictions lock 10 minutes before kickoff.
+- Predictions lock 1 minute before kickoff.
 - Scoring is 5 points for exact score, 3 points for correct winner or draw, and 0 otherwise.
 - Matches without final scores do not add points.
-- Inactivity logout happens after 5 minutes.
+- Inactivity logout happens after 120 minutes.
 
 ## Security Notes
 
