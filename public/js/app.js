@@ -230,7 +230,7 @@ function renderFixtureCard(match) {
       <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
       <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
       <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
-      <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
+      <p class="${match.locked ? 'locked' : 'predictions-open'}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
       ${renderFixtureAdminForm(match)}
     </article>
   `;
@@ -420,7 +420,7 @@ async function loadStandings() {
         <td>${escapeHtml(row.username)}</td>
         ${livePredCell}
         <td><strong>${row.points}</strong></td>
-        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}">Ver detalle</button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
+        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
       </tr>
     `;
   }).join('');
