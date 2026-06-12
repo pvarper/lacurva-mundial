@@ -223,6 +223,7 @@ label { display: grid; gap: 0.4rem; font-weight: 700; }
 .venue { margin: 0.35rem 0; color: var(--muted); }
 .muted-text { color: var(--muted); }
 .locked { color: var(--danger); font-weight: 800; }
+.predictions-open { color: var(--accent); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; }
 .prediction-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.6rem; align-items: end; }
 .save-feedback { grid-column: 1 / -1; margin: 0; font-weight: 700; color: var(--accent); text-align: center; }
 .fixture-update-form {
@@ -304,6 +305,7 @@ th { color: var(--muted); }
 .actions-cell { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .secondary-button, .danger-button { padding: 0.45rem 0.75rem; }
 .secondary-button { background: #41514a; }
+.icon-button { padding: 0.35rem 0.55rem; line-height: 1; }
 .danger-button { background: var(--danger); }
 .inactive-status { color: var(--danger); background: #fff1ef; }
 .locked-status { color: #b45309; background: #fef3c7; }
