@@ -525,15 +525,19 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     readJson('fixtures.json'),
     readJson('predictions.json')
   ]);
+  const liveMatch = fixtures.find((m) => m.status === 'live') || null;
   const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
     const points = userPredictions.reduce((total, prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
       return match ? total + calculatePredictionPoints(prediction, match) : total;
     }, 0);
-    return { userId: user.id, username: user.username, points };
+    const livePrediction = liveMatch
+      ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
+      : null;
+    return { userId: user.id, username: user.username, points, livePrediction };
   }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
-  res.json(standings);
+  res.json({ standings, liveMatch });
 }));
 
 app.get('/api/prize-pool', requireAuth, asyncHandler(async (req, res) => {
