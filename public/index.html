@@ -122,6 +122,17 @@
         <!-- CONTENT -->
         <section class="content flex flex-col min-h-screen">
 
+          <!-- MOBILE TOP BAR — only visible on mobile -->
+          <div id="mobileTopBar" aria-label="Barra de usuario móvil">
+            <div class="mobile-user">
+              <i class="bi bi-person-circle" aria-hidden="true"></i>
+              <span id="mobileCurrentUser">-</span>
+            </div>
+            <button id="mobileLogoutButton" class="mobile-logout" type="button">
+              <i class="bi bi-box-arrow-left" aria-hidden="true"></i> Salir
+            </button>
+          </div>
+
           <div class="content-tools flex items-center gap-3 px-4 py-3 border-b border-white/8">
             <button id="showSidebarButton" class="layout-restore-button hidden items-center gap-2 bg-pitch-800 hover:bg-pitch-700 border border-white/10 text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg transition" type="button">
               <i aria-hidden="true" class="bi bi-layout-sidebar"></i> Mostrar menú
@@ -358,7 +369,7 @@
       </div>
 
       <!-- MOBILE BOTTOM NAV -->
-      <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-pitch-950/95 backdrop-blur-md border-t border-white/10 z-50" aria-label="Navegación móvil">
+      <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 z-50" aria-label="Navegación móvil">
         <div class="flex">
           <button data-view="fixturesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
             <i aria-hidden="true" class="bi bi-calendar-event text-lg"></i>

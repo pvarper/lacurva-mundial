@@ -23,7 +23,9 @@ const elements = {
   loginForm: document.querySelector('#loginForm'),
   loginMessage: document.querySelector('#loginMessage'),
   sidebarCurrentUser: document.querySelector('#sidebarCurrentUser'),
+  mobileCurrentUser: document.querySelector('#mobileCurrentUser'),
   logoutButton: document.querySelector('#logoutButton'),
+  mobileLogoutButton: document.querySelector('#mobileLogoutButton'),
   hideSidebarButton: document.querySelector('#hideSidebarButton'),
   showSidebarButton: document.querySelector('#showSidebarButton'),
   menuButtons: document.querySelectorAll('.menu button[data-view], .bottom-nav-btn[data-view]'),
@@ -149,6 +151,7 @@ function showAuthenticatedApp(user) {
   elements.loginView.classList.add('hidden');
   elements.appView.classList.remove('hidden');
   elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
+  if (elements.mobileCurrentUser) elements.mobileCurrentUser.textContent = user.username;
   const isAdmin = user.role === 'admin';
   elements.usersMenu.classList.toggle('hidden', !isAdmin);
   elements.auditMenu.classList.toggle('hidden', !isAdmin);
@@ -713,6 +716,7 @@ document.querySelectorAll('.password-toggle').forEach((btn) => {
 elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
 elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
+if (elements.mobileLogoutButton) elements.mobileLogoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
