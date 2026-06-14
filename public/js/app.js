@@ -293,17 +293,18 @@ async function loadUsers() {
       statusLabel = 'Activo';
       statusClass = '';
     }
+    const roleIcon = user.role === 'admin' ? '<i class="bi bi-shield-fill" style="color:#f2b705;margin-right:0.3rem"></i>' : '';
     const unblockButton = (user.permanentlyBlocked || (user.lockedUntil && new Date(user.lockedUntil) > new Date()))
-      ? `<button type="button" class="secondary-button" data-action="unblock-user" data-user-id="${escapeHtml(user.id)}">Desbloquear</button>`
+      ? `<button type="button" class="secondary-button" data-action="unblock-user" data-user-id="${escapeHtml(user.id)}"><i class="bi bi-unlock"></i> Desbloquear</button>`
       : '';
     return `
     <tr data-user-id="${escapeHtml(user.id)}">
-      <td>${escapeHtml(user.username)}</td>
-      <td>${escapeHtml(user.role)}</td>
+      <td class="font-medium">${escapeHtml(user.username)}</td>
+      <td>${roleIcon}${escapeHtml(user.role)}</td>
       <td><span class="status ${statusClass}">${statusLabel}</span></td>
       <td class="actions-cell">
-        <button type="button" class="secondary-button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">Editar</button>
-        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active && !user.permanentlyBlocked ? '' : 'disabled'}>Desactivar</button>
+        <button type="button" class="secondary-button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}"><i class="bi bi-pencil"></i> Editar</button>
+        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active && !user.permanentlyBlocked ? '' : 'disabled'}><i class="bi bi-person-x"></i> Desactivar</button>
         ${unblockButton}
       </td>
     </tr>`;
@@ -615,15 +616,30 @@ function filteredAuditLogs() {
 
 function renderAuditLog() {
   const logs = filteredAuditLogs();
-  elements.auditLogBody.innerHTML = logs.length ? logs.map((entry) => `
-    <tr>
-      <td>${escapeHtml(formatDate(entry.timestamp))}</td>
-      <td>${escapeHtml(entry.username || 'Sistema')}</td>
-      <td>${escapeHtml(entry.role || '-')}</td>
-      <td>${escapeHtml(actionLabel(entry.action))}</td>
-      <td>${escapeHtml(formatAuditDetail(entry.detail))}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="5">No hay acciones registradas.</td></tr>';
+  const actionIcons = {
+    login_success: 'bi-box-arrow-in-right text-green-500',
+    login_failed: 'bi-exclamation-triangle text-red-400',
+    logout: 'bi-box-arrow-left text-slate-400',
+    menu_viewed: 'bi-eye text-slate-400',
+    user_created: 'bi-person-plus text-blue-400',
+    user_updated: 'bi-pencil text-yellow-400',
+    user_deactivated: 'bi-person-x text-red-400',
+    prediction_created: 'bi-pencil-square text-green-400',
+    prediction_updated: 'bi-arrow-clockwise text-yellow-400',
+    standing_detail_viewed: 'bi-bar-chart text-slate-400',
+  };
+  elements.auditLogBody.innerHTML = logs.length ? logs.map((entry) => {
+    const icon = actionIcons[entry.action] || 'bi-circle text-slate-500';
+    return `
+      <tr>
+        <td style="font-size:0.75rem;white-space:nowrap">${escapeHtml(formatDate(entry.timestamp))}</td>
+        <td class="font-medium">${escapeHtml(entry.username || 'Sistema')}</td>
+        <td>${escapeHtml(entry.role || '—')}</td>
+        <td><i class="bi ${icon}" aria-hidden="true"></i> ${escapeHtml(actionLabel(entry.action))}</td>
+        <td style="color:#64748b;font-size:0.78rem">${escapeHtml(formatAuditDetail(entry.detail))}</td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">No hay acciones registradas.</td></tr>';
 }
 
 function clearAuditFilters() {
