@@ -154,7 +154,7 @@
   text-transform: uppercase;
 }
 .fixture-status { display: inline-block; margin-top: 0.4rem; }
-.scheduled-status { color: #64748b; background: rgba(100, 116, 139, 0.12); }
+.scheduled-status { color: #60a5fa; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.2); }
 .live-status {
   color: #fff;
   background: #e53935;
@@ -195,7 +195,7 @@
   flex: 1;
   font-size: 1rem;
   font-weight: 800;
-  color: #e2e8f0;
+  color: #ffffff;
   line-height: 1.2;
 }
 .team-name.home { text-align: right; }
@@ -866,17 +866,18 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   .sidebar { display: none !important; }
   #showSidebarButton { display: none !important; }
   .content-tools { display: none; }
-  .content { padding-bottom: 5.5rem; }
+  .content { padding-bottom: 5.5rem; overflow-x: hidden; }
   #bottomNav { display: block; }
   #mobileTopBar { display: flex; }
 
   .cards-grid { grid-template-columns: 1fr; }
-  .prize-panel { grid-template-columns: 1fr; }
+  .prize-panel { grid-template-columns: 1fr; max-width: 100%; overflow-x: hidden; }
   .prize-split { grid-template-columns: repeat(3, 1fr); }
   .prize-edit-form { grid-template-columns: 1fr 1fr; }
   .user-edit-form { grid-template-columns: 1fr; }
   .section-heading { flex-direction: column; }
   .detail-heading { flex-direction: column; align-items: flex-start; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (max-width: 480px) {
