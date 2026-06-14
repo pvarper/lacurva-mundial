@@ -307,14 +307,27 @@
 }
 .admin-score-row .save-btn:hover { background: #fbbf24; }
 .admin-score-row .save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.admin-label {
-  font-size: 0.65rem;
+.admin-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(242, 183, 5, 0.25);
+  border-radius: 7px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.25rem;
+  color: #f2b705;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
 }
+.admin-toggle-btn:hover {
+  background: rgba(242, 183, 5, 0.1);
+  border-color: rgba(242, 183, 5, 0.5);
+}
+.fixture-update-form { margin-top: 0.5rem; }
 
 /* ── Prediction form ── */
 .prediction-form {

@@ -205,8 +205,10 @@ function renderFixtureAdminForm(match) {
   if (state.user?.role !== 'admin') return '';
   const status = match.status || 'scheduled';
   return `
-    <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
-      <p class="admin-label"><i class="bi bi-shield-fill" style="color:#f2b705"></i> Admin · resultado</p>
+    <button type="button" class="admin-toggle-btn" data-match-id="${escapeHtml(match.id)}">
+      <i class="bi bi-pencil-square"></i> Editar resultado
+    </button>
+    <form class="fixture-update-form hidden" data-match-id="${escapeHtml(match.id)}">
       <div class="admin-score-row">
         <input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}" placeholder="—" class="score-input">
         <span class="score-sep">—</span>
@@ -787,6 +789,19 @@ elements.auditDateFilter.addEventListener('change', renderAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
+
+elements.fixturesList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.admin-toggle-btn');
+  if (!btn) return;
+  const card = btn.closest('.match-card');
+  const form = card?.querySelector('.fixture-update-form');
+  if (!form) return;
+  const isOpen = !form.classList.contains('hidden');
+  form.classList.toggle('hidden', isOpen);
+  btn.innerHTML = isOpen
+    ? '<i class="bi bi-pencil-square"></i> Editar resultado'
+    : '<i class="bi bi-x-lg"></i> Cerrar';
+});
 
 elements.fixturesList.addEventListener('submit', async (event) => {
   event.preventDefault();
