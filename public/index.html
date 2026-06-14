@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,99 +11,200 @@
     <meta property="og:type" content="website">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              pitch: {
+                950: '#0a1118',
+                900: '#0f1923',
+                800: '#1a2535',
+                700: '#243044',
+                600: '#2d3c56',
+              },
+              gold: { DEFAULT: '#f2b705', light: '#fbbf24' },
+            },
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
     <link rel="stylesheet" href="/css/styles.css">
   </head>
-  <body>
-    <main class="app-shell">
-      <section id="loginView" class="login-card">
-        <div class="brand-mark"><i aria-hidden="true" class="bi bi-trophy-fill"></i></div>
-        <h1>La Curva Mundial</h1>
-        <p>Ingresá para ver fixtures, predicciones y tabla acumulada.</p>
-        <form id="loginForm" class="form-stack">
-          <label>
-            Usuario
-            <input id="loginUsername" name="username" autocomplete="username" required>
-          </label>
-          <label>
-            Contraseña
-            <div class="password-field">
-              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
-              <button type="button" class="password-toggle" aria-label="Mostrar contraseña" data-target="loginPassword">
-                <i aria-hidden="true" class="bi bi-eye"></i>
-              </button>
+  <body class="bg-pitch-900 text-slate-100 font-sans min-h-screen">
+
+    <main class="app-shell min-h-screen">
+
+      <!-- ======================== LOGIN ======================== -->
+      <section id="loginView" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-pitch-950 via-pitch-800 to-pitch-900 p-4">
+        <div class="w-full max-w-sm">
+          <div class="bg-pitch-800/70 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-2xl">
+            <div class="brand-mark w-14 h-14 rounded-xl bg-gold flex items-center justify-center text-pitch-950 text-2xl mb-5">
+              <i aria-hidden="true" class="bi bi-trophy-fill"></i>
             </div>
-          </label>
-          <button type="submit"><i aria-hidden="true" class="bi bi-box-arrow-in-right"></i> Entrar</button>
-        </form>
-        <p id="loginMessage" class="message"></p>
-      </section>
-
-      <section id="appView" class="dashboard hidden">
-        <aside class="sidebar">
-          <div class="sidebar-brand">
-            <i aria-hidden="true" class="bi bi-globe-americas"></i>
-            <span>La Curva Mundial</span>
-            <button id="hideSidebarButton" class="sidebar-collapse-btn" type="button" title="Ocultar menú"><i aria-hidden="true" class="bi bi-chevron-double-left"></i></button>
-          </div>
-          <div class="sidebar-user">
-            <span class="eyebrow">Usuario activo</span>
-            <p id="sidebarCurrentUser" class="sidebar-username">-</p>
-            <button id="logoutButton" class="logout sidebar-logout"><i aria-hidden="true" class="bi bi-box-arrow-left"></i> Cerrar sesión</button>
-          </div>
-          <nav class="menu" aria-label="Menú principal">
-            <button data-view="usersView" id="usersMenu" class="admin-only"><i aria-hidden="true" class="bi bi-person-plus"></i> Crear Usuario</button>
-            <button data-view="fixturesView" class="active"><i aria-hidden="true" class="bi bi-calendar-event"></i> Fixture Mundial</button>
-            <button data-view="predictionsView"><i aria-hidden="true" class="bi bi-pencil-square"></i> Predicciones</button>
-            <button data-view="standingsView"><i aria-hidden="true" class="bi bi-table"></i> Tabla Acumulada</button>
-            <button data-view="rulesView"><i aria-hidden="true" class="bi bi-info-circle"></i> Reglas</button>
-            <button data-view="auditView" id="auditMenu" class="admin-only"><i aria-hidden="true" class="bi bi-journal-text"></i> Bitácora</button>
-          </nav>
-        </aside>
-
-        <section class="content">
-          <div class="content-tools">
-            <button id="showSidebarButton" class="layout-restore-button" type="button"><i aria-hidden="true" class="bi bi-layout-sidebar"></i> Mostrar menú</button>
-          </div>
-
-          <section id="usersView" class="view hidden">
-            <h2>Crear Usuario</h2>
-            <form id="createUserForm" class="panel form-grid">
-              <label>Usuario <input id="newUsername" required minlength="3"></label>
-              <label>Contraseña
-                <div class="password-field">
-                  <input id="newPassword" type="password" required minlength="6">
-                  <button type="button" class="password-toggle" aria-label="Mostrar contraseña" data-target="newPassword">
+            <h1 class="text-2xl font-black text-white mb-1">La Curva Mundial</h1>
+            <p class="text-slate-400 text-sm mb-6">Ingresá para ver fixtures, predicciones y tabla acumulada.</p>
+            <form id="loginForm" class="form-stack space-y-4">
+              <label class="block">
+                <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Usuario</span>
+                <input id="loginUsername" name="username" autocomplete="username" required
+                  class="w-full bg-pitch-700/80 border border-white/15 rounded-lg px-3.5 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-gold transition">
+              </label>
+              <label class="block">
+                <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Contraseña</span>
+                <div class="password-field relative">
+                  <input id="loginPassword" name="password" type="password" autocomplete="current-password" required
+                    class="w-full bg-pitch-700/80 border border-white/15 rounded-lg px-3.5 py-2.5 pr-10 text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  <button type="button" class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition" aria-label="Mostrar contraseña" data-target="loginPassword">
                     <i aria-hidden="true" class="bi bi-eye"></i>
                   </button>
                 </div>
               </label>
-              <label>Rol
-                <select id="newRole">
-                  <option value="user">Usuario</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
-              <button type="submit"><i aria-hidden="true" class="bi bi-person-plus"></i> Crear</button>
+              <button type="submit" class="w-full bg-gold hover:bg-gold-light text-pitch-950 font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 text-sm mt-1">
+                <i aria-hidden="true" class="bi bi-box-arrow-in-right"></i> Entrar
+              </button>
             </form>
-            <p id="createUserMessage" class="message"></p>
-            <div class="panel table-wrap users-panel">
-              <h3>Usuarios creados</h3>
-              <table>
-                <thead>
-                  <tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Opciones</th></tr>
-                </thead>
-                <tbody id="usersTableBody"></tbody>
-              </table>
+            <p id="loginMessage" class="message mt-4 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================== APP ======================== -->
+      <section id="appView" class="dashboard hidden">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar bg-pitch-950 border-r border-white/8 flex flex-col sticky top-0 h-screen overflow-y-auto">
+          <div class="sidebar-brand flex items-center gap-3 px-4 py-4 border-b border-white/8">
+            <div class="w-8 h-8 rounded-lg bg-gold flex items-center justify-center text-pitch-950 flex-shrink-0">
+              <i aria-hidden="true" class="bi bi-globe-americas text-sm"></i>
+            </div>
+            <span class="font-black text-white text-sm flex-1 truncate">La Curva Mundial</span>
+            <button id="hideSidebarButton" class="sidebar-collapse-btn w-8 h-8 flex items-center justify-center rounded-lg bg-white/8 hover:bg-white/15 text-slate-400 hover:text-white transition flex-shrink-0" type="button" title="Ocultar menú">
+              <i aria-hidden="true" class="bi bi-chevron-double-left text-sm"></i>
+            </button>
+          </div>
+
+          <div class="sidebar-user px-4 py-4 border-b border-white/8">
+            <p class="eyebrow text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Usuario activo</p>
+            <p id="sidebarCurrentUser" class="sidebar-username text-sm font-bold text-white mb-3">-</p>
+            <button id="logoutButton" class="logout w-full flex items-center justify-center gap-2 bg-red-950/60 hover:bg-red-900/80 border border-red-800/40 text-red-400 hover:text-white text-xs font-bold py-2 rounded-lg transition">
+              <i aria-hidden="true" class="bi bi-box-arrow-left"></i> Cerrar sesión
+            </button>
+          </div>
+
+          <nav class="menu flex-1 p-3 space-y-0.5" aria-label="Menú principal">
+            <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-2 pb-1">Jugar</p>
+            <button data-view="fixturesView" class="active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-calendar-event w-4"></i> Fixture Mundial
+            </button>
+            <button data-view="predictionsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-pencil-square w-4"></i> Predicciones
+            </button>
+            <button data-view="standingsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Acumulada
+            </button>
+            <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1">Info</p>
+            <button data-view="rulesView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-info-circle w-4"></i> Reglas
+            </button>
+            <p id="adminSectionLabel" class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1 hidden">Admin</p>
+            <button data-view="usersView" id="usersMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-person-plus w-4"></i> Usuarios
+            </button>
+            <button data-view="auditView" id="auditMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-journal-text w-4"></i> Bitácora
+            </button>
+          </nav>
+        </aside>
+
+        <!-- CONTENT -->
+        <section class="content flex flex-col min-h-screen">
+
+          <div class="content-tools flex items-center gap-3 px-4 py-3 border-b border-white/8">
+            <button id="showSidebarButton" class="layout-restore-button hidden items-center gap-2 bg-pitch-800 hover:bg-pitch-700 border border-white/10 text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg transition" type="button">
+              <i aria-hidden="true" class="bi bi-layout-sidebar"></i> Mostrar menú
+            </button>
+          </div>
+
+          <!-- USUARIOS -->
+          <section id="usersView" class="view hidden p-4 md:p-6">
+            <div class="mb-6">
+              <h2 class="text-xl font-black text-white mb-1">Usuarios</h2>
+              <p class="text-slate-500 text-sm">Administrá los accesos al sistema.</p>
+            </div>
+
+            <div class="bg-pitch-800 border border-white/10 rounded-xl p-5 mb-5">
+              <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Crear Usuario</h3>
+              <form id="createUserForm" class="form-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="block">
+                  <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Usuario</span>
+                  <input id="newUsername" required minlength="3"
+                    class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                </label>
+                <label class="block">
+                  <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Contraseña</span>
+                  <div class="password-field relative">
+                    <input id="newPassword" type="password" required minlength="6"
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 pr-9 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                    <button type="button" class="password-toggle absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition" aria-label="Mostrar contraseña" data-target="newPassword">
+                      <i aria-hidden="true" class="bi bi-eye text-sm"></i>
+                    </button>
+                  </div>
+                </label>
+                <label class="block">
+                  <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Rol</span>
+                  <select id="newRole"
+                    class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                    <option value="user">Usuario</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <div class="flex items-end">
+                  <button type="submit" class="w-full flex items-center justify-center gap-2 bg-gold hover:bg-gold-light text-pitch-950 font-bold py-2 rounded-lg transition text-sm">
+                    <i aria-hidden="true" class="bi bi-person-plus"></i> Crear
+                  </button>
+                </div>
+              </form>
+              <p id="createUserMessage" class="message mt-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            </div>
+
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden users-panel">
+              <div class="px-5 py-3 border-b border-white/8">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuarios creados</h3>
+              </div>
+              <div class="table-wrap overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Usuario</th><th>Rol</th><th>Estado</th><th>Opciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTableBody"></tbody>
+                </table>
+              </div>
             </div>
           </section>
 
-          <section id="fixturesView" class="view">
-            <div class="section-heading">
-              <h2>Fixture Mundial</h2>
-              <div class="filters">
-                <input id="fixtureDateFilter" type="date" aria-label="Filtrar fixture por fecha">
-                <input id="fixtureTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar fixture por equipo">
-                <select id="fixturePhaseFilter" aria-label="Filtrar fixture por fase">
+          <!-- FIXTURE -->
+          <section id="fixturesView" class="view p-4 md:p-6">
+            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-5">
+              <div class="flex-1">
+                <h2 class="text-xl font-black text-white mb-1">Fixture Mundial</h2>
+                <p class="text-slate-500 text-sm">Todos los partidos del Mundial 2026.</p>
+              </div>
+              <div class="filters grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <input id="fixtureDateFilter" type="date" aria-label="Filtrar fixture por fecha"
+                  class="col-span-2 sm:col-span-1 bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                <input id="fixtureTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar fixture por equipo"
+                  class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-gold transition">
+                <select id="fixturePhaseFilter" aria-label="Filtrar fixture por fase"
+                  class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
                   <option value="">Todas las fases</option>
                   <option value="Fase de Grupos">Fase de Grupos</option>
                   <option value="16vos">16vos</option>
@@ -112,20 +213,29 @@
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Final</option>
                 </select>
-                <button id="clearFixtureFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
+                <button id="clearFixtureFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
+                  <i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar
+                </button>
               </div>
             </div>
-            <p id="fixturesMessage" class="message"></p>
-            <div id="fixturesList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+            <p id="fixturesMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="fixturesList" class="cards-grid space-y-3" aria-live="polite" aria-atomic="false"></div>
           </section>
 
-          <section id="predictionsView" class="view hidden">
-            <div class="section-heading">
-              <h2>Predicciones</h2>
-              <div class="filters">
-                <input id="predictionDateFilter" type="date" aria-label="Filtrar predicciones por fecha">
-                <input id="predictionTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar predicciones por equipo">
-                <select id="predictionPhaseFilter" aria-label="Filtrar predicciones por fase">
+          <!-- PREDICCIONES -->
+          <section id="predictionsView" class="view hidden p-4 md:p-6">
+            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-5">
+              <div class="flex-1">
+                <h2 class="text-xl font-black text-white mb-1">Predicciones</h2>
+                <p class="text-slate-500 text-sm">Ingresá tus pronósticos antes del cierre.</p>
+              </div>
+              <div class="filters grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <input id="predictionDateFilter" type="date" aria-label="Filtrar predicciones por fecha"
+                  class="col-span-2 sm:col-span-1 bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                <input id="predictionTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar predicciones por equipo"
+                  class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-gold transition">
+                <select id="predictionPhaseFilter" aria-label="Filtrar predicciones por fase"
+                  class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
                   <option value="">Todas las fases</option>
                   <option value="Fase de Grupos">Fase de Grupos</option>
                   <option value="16vos">16vos</option>
@@ -134,39 +244,54 @@
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Final</option>
                 </select>
-                <button id="clearPredictionFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
+                <button id="clearPredictionFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
+                  <i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar
+                </button>
               </div>
             </div>
-            <p id="predictionsMessage" class="message"></p>
-            <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+            <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="predictionsList" class="cards-grid space-y-3" aria-live="polite" aria-atomic="false"></div>
           </section>
 
-          <section id="standingsView" class="view hidden">
-            <h2>Tabla Acumulada</h2>
-            <p id="standingsMessage" class="message"></p>
-            <div id="prizePoolPanel" class="prize-panel"></div>
-            <div class="panel table-wrap">
+          <!-- STANDINGS -->
+          <section id="standingsView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Tabla Acumulada</h2>
+              <p class="text-slate-500 text-sm">Clasificación en tiempo real de La Curva Mundial.</p>
+            </div>
+            <p id="standingsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="prizePoolPanel" class="prize-panel mb-5"></div>
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
               <table>
-                <thead>
-                  <tr><th>Posición</th><th>Usuario</th><th>Puntos</th><th>Opciones</th></tr>
-                </thead>
+                <thead><tr></tr></thead>
                 <tbody id="standingsBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
-            <div id="standingDetail" class="panel table-wrap standings-detail hidden"></div>
+            <div id="standingDetail" class="standings-detail panel hidden mt-4 bg-pitch-800 border border-white/10 rounded-xl overflow-hidden"></div>
           </section>
 
-          <section id="rulesView" class="view hidden">
-            <h2>Reglas</h2>
-            <div id="rulesList" class="rules-list"></div>
+          <!-- REGLAS -->
+          <section id="rulesView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Reglas</h2>
+              <p class="text-slate-500 text-sm">Sistema de puntuación y condiciones del torneo.</p>
+            </div>
+            <div id="rulesList" class="rules-list space-y-3"></div>
           </section>
 
-          <section id="auditView" class="view hidden">
-            <h2>Bitácora</h2>
-            <div class="filters audit-filters">
-              <input id="auditDateFilter" type="date" aria-label="Filtrar bitácora por fecha">
-              <input id="auditUserFilter" placeholder="Filtrar por usuario" aria-label="Filtrar bitácora por usuario">
-              <select id="auditActionFilter" aria-label="Filtrar bitácora por acción">
+          <!-- BITÁCORA -->
+          <section id="auditView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Bitácora</h2>
+              <p class="text-slate-500 text-sm">Registro de acciones del sistema.</p>
+            </div>
+            <div class="filters audit-filters grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <input id="auditDateFilter" type="date" aria-label="Filtrar bitácora por fecha"
+                class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+              <input id="auditUserFilter" placeholder="Filtrar por usuario" aria-label="Filtrar bitácora por usuario"
+                class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-gold transition">
+              <select id="auditActionFilter" aria-label="Filtrar bitácora por acción"
+                class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
                 <option value="">Todas las acciones</option>
                 <option value="login_success">Login correcto</option>
                 <option value="login_failed">Login fallido</option>
@@ -179,20 +304,50 @@
                 <option value="prediction_updated">Predicción editada</option>
                 <option value="standing_detail_viewed">Detalle de tabla visto</option>
               </select>
-              <button id="clearAuditFilters" class="secondary-button filter-clear-button" type="button"><i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar filtros</button>
+              <button id="clearAuditFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
+                <i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar
+              </button>
             </div>
-            <div class="panel table-wrap">
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
               <table>
                 <thead>
-                  <tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr>
+                  <tr>
+                    <th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th>
+                  </tr>
                 </thead>
                 <tbody id="auditLogBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
           </section>
-        </section>
-      </section>
+
+        </section><!-- /content -->
+      </section><!-- /appView -->
+
+      <!-- MOBILE BOTTOM NAV -->
+      <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-pitch-950/95 backdrop-blur-md border-t border-white/10 z-50" aria-label="Navegación móvil">
+        <div class="flex">
+          <button data-view="fixturesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+            <i aria-hidden="true" class="bi bi-calendar-event text-lg"></i>
+            <span class="text-[10px] font-bold">Fixture</span>
+          </button>
+          <button data-view="predictionsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+            <i aria-hidden="true" class="bi bi-pencil-square text-lg"></i>
+            <span class="text-[10px] font-bold">Predicciones</span>
+          </button>
+          <button data-view="standingsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+            <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
+            <span class="text-[10px] font-bold">Tabla</span>
+          </button>
+          <button data-view="rulesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+            <i aria-hidden="true" class="bi bi-info-circle text-lg"></i>
+            <span class="text-[10px] font-bold">Reglas</span>
+          </button>
+        </div>
+      </nav>
+
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
     <script src="/js/app.js"></script>
   </body>
 </html>
