@@ -1,6 +1,11 @@
 /* Minimal overrides — Tailwind handles layout and spacing */
 :root { color-scheme: dark; }
 
+/* ── Base background — explicit, not Tailwind (CDN doesn't reliably apply custom colors to body) ── */
+html, body { background-color: #1a2d45; }
+.sidebar { background-color: #0f1f30 !important; }
+.content { background-color: #1a2d45; }
+
 /* ── Login ── */
 .login-screen {
   min-height: 100vh;
