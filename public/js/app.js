@@ -430,23 +430,23 @@ async function loadStandings() {
     : '';
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
-  const TROPHY_COLORS = ['', '#FFD700', '#C0C0C0', '#CD7F32'];
+  const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
   let rank = 1;
   elements.standingsBody.innerHTML = standings.map((row, index) => {
     if (index > 0 && standings[index - 1].points !== row.points) rank++;
     const trophy = rank <= 3
-      ? ` <i class="bi bi-trophy-fill" style="color:${TROPHY_COLORS[rank]}" aria-hidden="true"></i>`
+      ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
     const livePredCell = liveMatch
-      ? `<td>${row.livePrediction ? `${row.livePrediction.homeScore} - ${row.livePrediction.awayScore}` : '<span class="muted-text">Sin predicción</span>'}</td>`
+      ? `<td>${row.livePrediction ? `<strong>${row.livePrediction.homeScore} — ${row.livePrediction.awayScore}</strong>` : '<span class="muted-text">—</span>'}</td>`
       : '';
     return `
       <tr>
-        <td>${rank}${trophy}</td>
+        <td class="font-bold">${rank}${trophy}</td>
         <td>${escapeHtml(row.username)}</td>
         ${livePredCell}
-        <td><strong>${row.points}</strong></td>
-        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
       </tr>
     `;
   }).join('');
@@ -522,36 +522,43 @@ async function loadStandingDetail(userId) {
   elements.standingDetail.innerHTML = `
     <div class="detail-heading">
       <div>
-        <h3>Detalle de ${escapeHtml(data.user.username)}</h3>
-        <p>Total acumulado: <strong>${data.totalPoints}</strong> puntos</p>
+        <h3><i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}</h3>
+        <p>Total acumulado: <strong style="color:#f2b705">${data.totalPoints}</strong> puntos</p>
       </div>
-      <button type="button" class="secondary-button" data-action="close-standing-detail">Cerrar detalle</button>
+      <button type="button" class="secondary-button" data-action="close-standing-detail"><i class="bi bi-x"></i> Cerrar</button>
     </div>
-    <table>
-      <thead>
-        <tr><th>Partido</th><th>Fecha Bolivia</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Puntos</th></tr>
-      </thead>
-      <tbody>
-        ${data.details.map((detail) => `
-          <tr>
-            <td>${detail.matchNumber}</td>
-            <td>${escapeHtml(detail.boliviaDate)} ${escapeHtml(detail.boliviaTime)}</td>
-            <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
-            <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
-            <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
-            <td><strong>${detail.points}</strong></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+    <div class="table-wrap overflow-x-auto">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Fecha</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Pts</th></tr>
+        </thead>
+        <tbody>
+          ${data.details.map((detail) => {
+            const pts = detail.points;
+            const ptsColor = pts === 5 ? '#22c55e' : pts === 3 ? '#f2b705' : '#475569';
+            return `
+              <tr>
+                <td>${detail.matchNumber}</td>
+                <td>${escapeHtml(detail.boliviaDate)}</td>
+                <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
+                <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
+                <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
+                <td><strong style="color:${ptsColor}">${pts}</strong></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
 async function loadRules() {
   const { rules } = await api('/api/rules');
-  elements.rulesList.innerHTML = rules.map((rule) => `
+  const icons = ['bi-star-fill', 'bi-check2-circle', 'bi-x-circle', 'bi-clock', 'bi-shield-check', 'bi-trophy'];
+  elements.rulesList.innerHTML = rules.map((rule, i) => `
     <article class="rule-card">
-      <h3>${escapeHtml(rule.title)}</h3>
+      <h3><i class="bi ${icons[i % icons.length]}" aria-hidden="true" style="color:#f2b705;margin-right:0.5rem"></i>${escapeHtml(rule.title)}</h3>
       <p>${escapeHtml(rule.description)}</p>
     </article>
   `).join('');
