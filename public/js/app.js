@@ -206,19 +206,17 @@ function renderFixtureAdminForm(match) {
   const status = match.status || 'scheduled';
   return `
     <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
-      <div class="fixture-score-row">
-        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
-        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
-      </div>
-      <div class="fixture-status-row">
-        <label>Estado
-          <select name="status">
-            <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
-            <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
-            <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
-          </select>
-        </label>
-        <button type="submit">Guardar resultado</button>
+      <p class="admin-label"><i class="bi bi-shield-fill" style="color:#f2b705"></i> Admin · resultado</p>
+      <div class="admin-score-row">
+        <input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}" placeholder="—" class="score-input">
+        <span class="score-sep">—</span>
+        <input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}" placeholder="—" class="score-input">
+        <select name="status" class="status-select">
+          <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
+          <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
+          <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
+        </select>
+        <button type="submit" class="save-btn"><i class="bi bi-check-lg"></i> Guardar</button>
       </div>
     </form>
   `;
