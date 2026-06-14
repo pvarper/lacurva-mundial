@@ -26,7 +26,7 @@ const elements = {
   logoutButton: document.querySelector('#logoutButton'),
   hideSidebarButton: document.querySelector('#hideSidebarButton'),
   showSidebarButton: document.querySelector('#showSidebarButton'),
-  menuButtons: document.querySelectorAll('.menu button[data-view]'),
+  menuButtons: document.querySelectorAll('.menu button[data-view], .bottom-nav-btn[data-view]'),
   views: document.querySelectorAll('.view'),
   usersMenu: document.querySelector('#usersMenu'),
   auditMenu: document.querySelector('#auditMenu'),
@@ -149,8 +149,13 @@ function showAuthenticatedApp(user) {
   elements.loginView.classList.add('hidden');
   elements.appView.classList.remove('hidden');
   elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
-  elements.usersMenu.classList.toggle('hidden', user.role !== 'admin');
-  elements.auditMenu.classList.toggle('hidden', user.role !== 'admin');
+  const isAdmin = user.role === 'admin';
+  elements.usersMenu.classList.toggle('hidden', !isAdmin);
+  elements.auditMenu.classList.toggle('hidden', !isAdmin);
+  const adminLabel = document.querySelector('#adminSectionLabel');
+  if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
+  const bottomNav = document.querySelector('#bottomNav');
+  if (bottomNav) bottomNav.classList.remove('hidden');
   showView('fixturesView');
   resetInactivityTimer();
 }
@@ -162,6 +167,8 @@ function showLogin(message = '') {
   stopFixtureAutoRefresh();
   elements.appView.classList.add('hidden');
   elements.loginView.classList.remove('hidden');
+  const bottomNav = document.querySelector('#bottomNav');
+  if (bottomNav) bottomNav.classList.add('hidden');
   setMessage(elements.loginMessage, message);
 }
 
