@@ -319,6 +319,44 @@
         </section><!-- /content -->
       </section><!-- /appView -->
 
+      <!-- PREDICTION MODAL -->
+      <div id="predictionModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 prediction-modal-overlay">
+        <div class="prediction-modal-card">
+          <div class="prediction-modal-header">
+            <div>
+              <p id="predictionModalPhase" class="prediction-modal-phase"></p>
+              <div class="prediction-modal-teams">
+                <span id="predictionModalHome" class="team-name home"></span>
+                <span class="prediction-modal-vs">VS</span>
+                <span id="predictionModalAway" class="team-name away"></span>
+              </div>
+            </div>
+            <button id="predictionModalClose" type="button" class="prediction-modal-close" aria-label="Cerrar">
+              <i aria-hidden="true" class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <form id="predictionModalForm" class="prediction-modal-body">
+            <div class="prediction-modal-inputs">
+              <div class="prediction-modal-field">
+                <label id="predictionModalHomeLabel" class="prediction-modal-field-label"></label>
+                <input id="predictionModalHomeScore" name="homeScore" type="number" min="0" step="1" required
+                  class="prediction-modal-score-input" placeholder="0">
+              </div>
+              <span class="prediction-modal-sep">—</span>
+              <div class="prediction-modal-field">
+                <label id="predictionModalAwayLabel" class="prediction-modal-field-label"></label>
+                <input id="predictionModalAwayScore" name="awayScore" type="number" min="0" step="1" required
+                  class="prediction-modal-score-input" placeholder="0">
+              </div>
+            </div>
+            <button type="submit" id="predictionModalSubmit" class="prediction-modal-submit">
+              <i aria-hidden="true" class="bi bi-check-lg"></i> Guardar predicción
+            </button>
+            <p id="predictionModalFeedback" class="prediction-modal-feedback hidden"></p>
+          </form>
+        </div>
+      </div>
+
       <!-- MOBILE BOTTOM NAV -->
       <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-pitch-950/95 backdrop-blur-md border-t border-white/10 z-50" aria-label="Navegación móvil">
         <div class="flex">

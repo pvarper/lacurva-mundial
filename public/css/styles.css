@@ -565,6 +565,179 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .detail-heading h3 { margin: 0; font-size: 1rem; font-weight: 800; color: #e2e8f0; }
 .detail-heading p { margin: 0; font-size: 0.85rem; color: #64748b; }
 
+/* ── Predict button on prediction cards ── */
+.predict-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #f2b705;
+  color: #0a1118;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.predict-open-btn:hover { background: #fbbf24; }
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+/* ── Prediction modal ── */
+.prediction-modal-overlay {
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+.prediction-modal-card {
+  background: #1e2d42;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: modal-in 0.2s ease;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.prediction-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.prediction-modal-phase {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+.prediction-modal-teams {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.prediction-modal-teams .team-name {
+  font-size: 0.95rem;
+  flex: 1;
+}
+.prediction-modal-vs {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+.prediction-modal-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.prediction-modal-close:hover { background: rgba(255,255,255,0.12); color: #e2e8f0; }
+.prediction-modal-body { padding: 1.25rem; }
+.prediction-modal-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.prediction-modal-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.prediction-modal-field-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prediction-modal-score-input {
+  width: 100%;
+  background: #243044;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 0.75rem 0.5rem;
+  color: #f2b705;
+  font-size: 2rem;
+  font-weight: 900;
+  text-align: center;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -moz-appearance: textfield;
+}
+.prediction-modal-score-input::-webkit-inner-spin-button,
+.prediction-modal-score-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.prediction-modal-score-input:focus {
+  outline: none;
+  border-color: #f2b705;
+  box-shadow: 0 0 0 3px rgba(242, 183, 5, 0.15);
+}
+.prediction-modal-sep {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #334155;
+  padding-bottom: 0.65rem;
+  flex-shrink: 0;
+}
+.prediction-modal-submit {
+  width: 100%;
+  background: #f2b705;
+  color: #0a1118;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.15s;
+}
+.prediction-modal-submit:hover { background: #fbbf24; }
+.prediction-modal-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.prediction-modal-feedback {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #22c55e;
+  margin-top: 0.75rem;
+}
+
 /* ── Rule cards (JS-rendered) ── */
 .rule-card {
   background: #1a2535;

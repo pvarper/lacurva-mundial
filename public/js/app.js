@@ -376,17 +376,29 @@ function filteredPredictions() {
 
 function renderPredictionCard(match) {
   const prediction = match.prediction || {};
-  const disabled = match.locked ? 'disabled' : '';
   const hasPrediction = prediction.homeScore !== undefined && prediction.homeScore !== null;
   const predBadge = hasPrediction
-    ? `<span class="status final-status"><i class="bi bi-check2"></i> ${prediction.homeScore} — ${prediction.awayScore}</span>`
-    : (match.locked ? '' : '<span class="status scheduled-status">Sin predicción</span>');
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${prediction.homeScore} — ${prediction.awayScore}</span>`
+    : `<span class="status scheduled-status">Sin predicción</span>`;
+
+  const actionArea = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Partido cerrado</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${prediction.homeScore ?? ''}"
+        data-away-score="${prediction.awayScore ?? ''}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
 
   return `
-    <article class="match-card${match.locked ? '' : ''}">
+    <article class="match-card">
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
-        ${predBadge}
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
@@ -397,13 +409,10 @@ function renderPredictionCard(match) {
         <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
         <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
       </div>
-      ${match.locked ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Partido cerrado</span>` : `
-      <form class="prediction-form" data-match-id="${match.id}">
-        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${prediction.homeScore ?? ''}" ${disabled} required></label>
-        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${prediction.awayScore ?? ''}" ${disabled} required></label>
-        <button type="submit" ${disabled}>Guardar</button>
-        <p class="save-feedback hidden" aria-live="polite">Predicción Guardada</p>
-      </form>`}
+      <div class="card-footer">
+        ${predBadge}
+        ${actionArea}
+      </div>
     </article>
   `;
 }
@@ -818,19 +827,68 @@ elements.fixturesList.addEventListener('submit', async (event) => {
   }
 });
 
-elements.predictionsList.addEventListener('submit', async (event) => {
+// Prediction modal helpers
+const predModal = {
+  el: document.querySelector('#predictionModal'),
+  form: document.querySelector('#predictionModalForm'),
+  open(match) {
+    document.querySelector('#predictionModalPhase').textContent =
+      `${match.phase} · #${match.matchNumber}`;
+    document.querySelector('#predictionModalHome').textContent = match.homeTeam;
+    document.querySelector('#predictionModalAway').textContent = match.awayTeam;
+    document.querySelector('#predictionModalHomeLabel').textContent = match.homeTeam;
+    document.querySelector('#predictionModalAwayLabel').textContent = match.awayTeam;
+    document.querySelector('#predictionModalHomeScore').value = match.homeScore;
+    document.querySelector('#predictionModalAwayScore').value = match.awayScore;
+    document.querySelector('#predictionModalFeedback').classList.add('hidden');
+    this.form.dataset.matchId = match.matchId;
+    this.el.classList.remove('hidden');
+    document.querySelector('#predictionModalHomeScore').focus();
+  },
+  close() { this.el.classList.add('hidden'); }
+};
+
+elements.predictionsList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.predict-open-btn');
+  if (!btn) return;
+  predModal.open({
+    matchId: btn.dataset.matchId,
+    homeTeam: btn.dataset.homeTeam,
+    awayTeam: btn.dataset.awayTeam,
+    homeScore: btn.dataset.homeScore,
+    awayScore: btn.dataset.awayScore,
+    phase: btn.dataset.phase,
+    matchNumber: btn.dataset.matchNumber
+  });
+});
+
+document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());
+document.querySelector('#predictionModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) predModal.close();
+});
+
+document.querySelector('#predictionModalForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   const matchId = form.dataset.matchId;
   const homeScore = Number(form.elements.homeScore.value);
   const awayScore = Number(form.elements.awayScore.value);
+  const submitBtn = document.querySelector('#predictionModalSubmit');
+  submitBtn.disabled = true;
   try {
     await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore }) });
-    const feedback = form.querySelector('.save-feedback');
+    const feedback = document.querySelector('#predictionModalFeedback');
+    feedback.textContent = 'Predicción guardada correctamente.';
     feedback.classList.remove('hidden');
-    setTimeout(async () => { await loadPredictions(); }, 1000);
+    setTimeout(async () => {
+      predModal.close();
+      await loadPredictions();
+    }, 900);
   } catch (error) {
     setMessage(elements.predictionsMessage, error.message);
+    predModal.close();
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 
