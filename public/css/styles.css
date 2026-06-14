@@ -815,8 +815,9 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   border-radius: 4px;
 }
 
-/* ── Bottom nav — solid dark, never transparent ── */
+/* ── Bottom nav — hidden on desktop, solid dark on mobile ── */
 #bottomNav {
+  display: none;
   background: #0a1118;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }

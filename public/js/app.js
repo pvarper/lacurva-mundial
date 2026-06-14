@@ -110,6 +110,7 @@ function setMessage(element, message, success = false) {
 
 function setSidebarVisible(visible) {
   elements.appView.classList.toggle('sidebar-collapsed', !visible);
+  elements.showSidebarButton.classList.toggle('hidden', visible);
 }
 
 
