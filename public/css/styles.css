@@ -10,7 +10,7 @@
   padding: 1.5rem;
   background: radial-gradient(ellipse at top left, #1a3a2a 0%, transparent 50%),
               radial-gradient(ellipse at bottom right, #1a2a3a 0%, transparent 50%),
-              #0f1923;
+              #0f1f35;
 }
 .login-card {
   width: 100%;
@@ -125,7 +125,7 @@
 
 /* ── Match card (JS-generated) ── */
 .match-card {
-  background: #1e2d42;
+  background: #172b42;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 0.9rem 1.1rem;
@@ -133,7 +133,7 @@
 }
 .match-card:hover {
   border-color: rgba(255, 255, 255, 0.18);
-  background: #223248;
+  background: #1e3550;
   transform: translateY(-1px);
 }
 .match-card.live-card {
@@ -263,7 +263,7 @@
 }
 .admin-score-row .score-input {
   width: 3.5rem;
-  background: #243044;
+  background: #1e3550;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 0.35rem 0.5rem;
@@ -281,7 +281,7 @@
   flex-shrink: 0;
 }
 .admin-score-row .status-select {
-  background: #243044;
+  background: #1e3550;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 0.35rem 0.5rem;
@@ -293,7 +293,7 @@
 }
 .admin-score-row .save-btn {
   background: #f2b705;
-  color: #0a1118;
+  color: #0a1320;
   font-weight: 700;
   border-radius: 8px;
   padding: 0.35rem 0.85rem;
@@ -347,7 +347,7 @@
   color: #64748b;
 }
 .prediction-form input {
-  background: #243044;
+  background: #1e3550;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
@@ -362,7 +362,7 @@
 .prediction-form input:disabled { opacity: 0.45; }
 .prediction-form button {
   background: #f2b705;
-  color: #0a1118;
+  color: #0a1320;
   font-weight: 800;
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
@@ -421,7 +421,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   transition: all 0.15s;
   font-family: inherit;
 }
-.secondary-button:hover { background: #2d3c56; color: #e2e8f0; border-color: rgba(255, 255, 255, 0.15); }
+.secondary-button:hover { background: #274160; color: #e2e8f0; border-color: rgba(255, 255, 255, 0.15); }
 
 .danger-button {
   background: rgba(220, 38, 38, 0.12);
@@ -457,7 +457,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 }
 .user-edit-form input,
 .user-edit-form select {
-  background: #243044;
+  background: #1e3550;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0.45rem 0.7rem;
@@ -483,7 +483,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   border-radius: 16px;
   overflow: hidden;
   color: #fff;
-  background: linear-gradient(135deg, #0a1118 0%, #0d6b4f 55%, #c49004 100%);
+  background: linear-gradient(135deg, #0a1320 0%, #0d6b4f 55%, #c49004 100%);
   box-shadow: 0 16px 40px rgba(13, 107, 79, 0.28);
   padding: 1.5rem;
   display: grid;
@@ -545,7 +545,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   font-family: inherit;
 }
 .prize-edit-form button {
-  background: #0a1118;
+  background: #0a1320;
   color: #f2b705;
   border: none;
   border-radius: 8px;
@@ -571,7 +571,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   align-items: center;
   gap: 0.4rem;
   background: #f2b705;
-  color: #0a1118;
+  color: #0a1320;
   border: none;
   border-radius: 8px;
   padding: 0.4rem 0.9rem;
@@ -598,7 +598,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   backdrop-filter: blur(4px);
 }
 .prediction-modal-card {
-  background: #1e2d42;
+  background: #172b42;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
   width: 100%;
@@ -685,7 +685,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 }
 .prediction-modal-score-input {
   width: 100%;
-  background: #243044;
+  background: #1e3550;
   border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 0.75rem 0.5rem;
@@ -714,7 +714,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .prediction-modal-submit {
   width: 100%;
   background: #f2b705;
-  color: #0a1118;
+  color: #0a1320;
   border: none;
   border-radius: 12px;
   padding: 0.85rem;
@@ -740,7 +740,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 /* ── Rule cards (JS-rendered) ── */
 .rule-card {
-  background: #1a2535;
+  background: #172b42;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-left: 4px solid #f2b705;
   border-radius: 12px;
@@ -768,7 +768,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 #auditDateFilter,
 #auditUserFilter,
 #auditActionFilter {
-  background: #1a2535;
+  background: #172b42;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
@@ -800,13 +800,13 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   color: #475569;
 }
 .filter-clear-button.secondary-button {
-  background: #1a2535;
+  background: #172b42;
   border-color: rgba(255,255,255,0.1);
   color: #64748b;
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
 }
-.filter-clear-button.secondary-button:hover { color: #e2e8f0; background: #243044; }
+.filter-clear-button.secondary-button:hover { color: #e2e8f0; background: #1e3550; }
 
 /* ── Focus ring ── */
 :focus-visible {
@@ -818,7 +818,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 /* ── Bottom nav — hidden on desktop, solid dark on mobile ── */
 #bottomNav {
   display: none;
-  background: #0a1118;
+  background: #0a1320;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -829,7 +829,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.65rem 1rem;
-  background: #0a1118;
+  background: #0a1320;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
