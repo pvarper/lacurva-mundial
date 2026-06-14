@@ -190,7 +190,8 @@ function stopFixtureAutoRefresh() {
 
 function fixtureStatusBadge(match) {
   const status = match.status || 'scheduled';
-  return `<span class="status fixture-status ${status}-status">${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
+  const liveIcon = status === 'live' ? '<i class="bi bi-circle-fill" style="font-size:0.5rem"></i> ' : '';
+  return `<span class="status fixture-status ${status}-status">${liveIcon}${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
 }
 
 function renderFixtureAdminForm(match) {
@@ -217,20 +218,31 @@ function renderFixtureAdminForm(match) {
 }
 
 function renderFixtureCard(match) {
-  const score = match.homeScore === null || match.awayScore === null ? 'vs' : `${match.homeScore} - ${match.awayScore}`;
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const scoreHtml = hasScore
+    ? `<div class="score-display">${match.homeScore} — ${match.awayScore}</div>`
+    : `<div class="score-display vs">VS</div>`;
+
   return `
-    <article class="match-card">
-      <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
-      ${fixtureStatusBadge(match)}
-      <div class="teams">
-        <span>${escapeHtml(match.homeTeam)}</span>
-        <span class="score">${score}</span>
-        <span>${escapeHtml(match.awayTeam)}</span>
+    <article class="match-card${isLive ? ' live-card' : ''}">
+      <div class="match-header">
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
+        ${fixtureStatusBadge(match)}
       </div>
-      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
-      <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
-      <p class="${match.locked ? 'locked' : 'predictions-open'}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
+      <div class="match-teams">
+        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        ${scoreHtml}
+        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
+      </div>
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      <span class="${match.locked ? 'locked' : 'predictions-open'}">
+        <i aria-hidden="true" class="bi bi-${match.locked ? 'lock-fill' : 'pencil-square'}"></i>
+        ${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}
+      </span>
       ${renderFixtureAdminForm(match)}
     </article>
   `;
@@ -357,19 +369,33 @@ function filteredPredictions() {
 function renderPredictionCard(match) {
   const prediction = match.prediction || {};
   const disabled = match.locked ? 'disabled' : '';
+  const hasPrediction = prediction.homeScore !== undefined && prediction.homeScore !== null;
+  const predBadge = hasPrediction
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> ${prediction.homeScore} — ${prediction.awayScore}</span>`
+    : (match.locked ? '' : '<span class="status scheduled-status">Sin predicción</span>');
+
   return `
-    <article class="match-card">
-      <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
-      <div class="teams"><span>${escapeHtml(match.homeTeam)}</span><span>vs</span><span>${escapeHtml(match.awayTeam)}</span></div>
-      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
+    <article class="match-card${match.locked ? '' : ''}">
+      <div class="match-header">
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
+        ${predBadge}
+      </div>
+      <div class="match-teams">
+        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        <div class="score-display vs">VS</div>
+        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
+      </div>
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      ${match.locked ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Partido cerrado</span>` : `
       <form class="prediction-form" data-match-id="${match.id}">
         <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${prediction.homeScore ?? ''}" ${disabled} required></label>
         <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${prediction.awayScore ?? ''}" ${disabled} required></label>
         <button type="submit" ${disabled}>Guardar</button>
         <p class="save-feedback hidden" aria-live="polite">Predicción Guardada</p>
-      </form>
-      <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Este partido ya está cerrado.' : 'Podés editar tu predicción.'}</p>
+      </form>`}
     </article>
   `;
 }
