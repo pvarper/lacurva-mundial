@@ -255,26 +255,24 @@
               </div>
             </div>
 
-            <!-- Date carousel -->
-            <div class="date-carousel" aria-label="Seleccionar fecha">
-              <button id="dateCarouselPrev" class="carousel-nav-btn" type="button" aria-label="Fecha anterior">
-                <i class="bi bi-chevron-left"></i>
-              </button>
-              <div id="dateCarouselTrack" class="date-carousel-track"></div>
-              <button id="dateCarouselNext" class="carousel-nav-btn" type="button" aria-label="Fecha siguiente">
-                <i class="bi bi-chevron-right"></i>
-              </button>
-            </div>
-
-            <!-- Two-column split: my predictions / community feed -->
+            <!-- Two-column split: my predictions / activity feed -->
             <div class="predictions-split">
-              <!-- Left: my predictions -->
+              <!-- Left: date carousel + my predictions -->
               <div class="predictions-main">
+                <div class="date-carousel" aria-label="Seleccionar fecha">
+                  <button id="dateCarouselPrev" class="carousel-nav-btn" type="button" aria-label="Fecha anterior">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  <div id="dateCarouselTrack" class="date-carousel-track"></div>
+                  <button id="dateCarouselNext" class="carousel-nav-btn" type="button" aria-label="Fecha siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </div>
                 <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
                 <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
               </div>
 
-              <!-- Right: community feed -->
+              <!-- Right: activity feed -->
               <aside class="pred-feed-panel">
                 <h3 class="pred-feed-title">
                   <i class="bi bi-activity"></i> Actividad reciente
