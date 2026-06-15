@@ -166,8 +166,7 @@ function showAuthenticatedApp(user) {
   elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
   if (elements.mobileCurrentUser) elements.mobileCurrentUser.textContent = user.username;
   const isAdmin = user.role === 'admin';
-  elements.usersMenu.classList.toggle('hidden', !isAdmin);
-  elements.auditMenu.classList.toggle('hidden', !isAdmin);
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
   const adminLabel = document.querySelector('#adminSectionLabel');
   if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
   const bottomNav = document.querySelector('#bottomNav');
@@ -250,7 +249,7 @@ function renderFixtureCard(match, opts = {}) {
     : `<div class="score-display vs">VS</div>`;
 
   const header = opts.inGroup
-    ? (isLive ? `<div class="match-header"><div class="match-header-right">${fixtureStatusBadge(match)}</div></div>` : '')
+    ? `<div class="match-header"><div class="match-header-right">${fixtureStatusBadge(match)}</div></div>`
     : `<div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
         <div class="match-header-right">${fixtureStatusBadge(match)}</div>
@@ -349,15 +348,18 @@ function renderGroupSection(groupName, matches, predMap = {}) {
   const cardsHtml = matches.map(m => renderFixtureCard(m, { inGroup: true, prediction: predMap[m.id] ?? null })).join('');
   return `
     <section class="group-section">
-      <div class="group-header">
+      <button type="button" class="group-header group-toggle-btn" aria-expanded="true">
         <div>
           <h2 class="group-name">Grupo ${escapeHtml(groupName)}</h2>
           <span class="group-meta">${matches.length} partido${matches.length !== 1 ? 's' : ''}</span>
         </div>
+        <i class="bi bi-chevron-down group-chevron" aria-hidden="true"></i>
+      </button>
+      <div class="group-body">
+        ${standingsHtml}
+        <p class="group-matches-label">Partidos del Grupo</p>
+        <div class="group-matches-grid">${cardsHtml}</div>
       </div>
-      ${standingsHtml}
-      <p class="group-matches-label">Partidos del Grupo</p>
-      <div class="group-matches-grid">${cardsHtml}</div>
     </section>`;
 }
 
@@ -389,7 +391,7 @@ async function loadFixtures() {
     }
     const groupsHtml = Object.entries(groupMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([g, ms]) => renderGroupSection(g, ms, predMap))
+      .map(([g, ms]) => renderGroupSection(g, ms.slice().sort((a, b) => `${a.boliviaDate} ${a.boliviaTime}`.localeCompare(`${b.boliviaDate} ${b.boliviaTime}`)), predMap))
       .join('');
     const knockoutHtml = ungrouped.length
       ? `<div class="cards-grid knockout-grid">${ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
@@ -545,7 +547,7 @@ function renderPredictionCard(match) {
     <article class="match-card${isLive ? ' live-card' : ''}">
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)}${match.group ? ` · Grupo ${escapeHtml(match.group)}` : ''}</span>
-        ${isLive ? fixtureStatusBadge(match) : ''}
+        ${fixtureStatusBadge(match)}
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
@@ -668,7 +670,7 @@ function renderActivityFeed() {
       if (teamQuery && !m.homeTeam.toLowerCase().includes(teamQuery) && !m.awayTeam.toLowerCase().includes(teamQuery)) return false;
       return true;
     })
-    .sort((a, b) => b.boliviaDate.localeCompare(a.boliviaDate) || b.id - a.id);
+    .sort((a, b) => `${b.boliviaDate} ${b.boliviaTime}`.localeCompare(`${a.boliviaDate} ${a.boliviaTime}`) || b.id - a.id);
   if (!withPred.length) {
     elements.activityFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
     return;
@@ -695,6 +697,7 @@ function renderActivityFeed() {
           <span class="pred-feed-date">${escapeHtml(m.boliviaDate)}</span>
           ${metaHtml}
           <span class="pred-feed-match">${escapeHtml(m.homeTeam)} vs ${escapeHtml(m.awayTeam)}</span>
+          ${fixtureStatusBadge(m)}
           <div class="pred-feed-row">
             <span class="pred-feed-label">Resultado:</span> ${resultHtml}
             <span class="pred-feed-sep">·</span>
@@ -1098,6 +1101,13 @@ elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
 
 elements.fixturesList.addEventListener('click', (event) => {
+  const toggleBtn = event.target.closest('.group-toggle-btn');
+  if (toggleBtn) {
+    const section = toggleBtn.closest('.group-section');
+    const collapsed = section.classList.toggle('collapsed');
+    toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+    return;
+  }
   const btn = event.target.closest('.admin-toggle-btn');
   if (!btn) return;
   const card = btn.closest('.match-card');

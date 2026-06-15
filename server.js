@@ -28,6 +28,12 @@ const rules = [
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      fontSrc: ["'self'", 'https://cdn.jsdelivr.net', 'data:'],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
       ...(process.env.NODE_ENV !== 'production' && { 'upgrade-insecure-requests': null })
     }
   }
@@ -299,7 +305,7 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
-  const publicViews = ['fixturesView', 'predictionsView', 'standingsView', 'rulesView'];
+  const publicViews = ['fixturesView', 'predictionsView', 'standingsView', 'rulesView', 'activityView'];
   const adminViews = ['usersView', 'auditView'];
   if (!publicViews.includes(view) && !adminViews.includes(view)) {
     return res.status(400).json({ error: 'Invalid view.' });
