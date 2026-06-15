@@ -501,11 +501,17 @@ function deactivateUser(userId) {
 function filteredPredictions() {
   const date = state.selectedPredDate;
   const phase = elements.predictionPhaseFilter.value;
-  return state.predictions.filter((match) => {
-    const matchesDate = !date || match.boliviaDate === date;
-    const matchesPhase = !phase || match.phase === phase;
-    return matchesDate && matchesPhase;
-  });
+  return state.predictions
+    .filter((match) => {
+      const matchesDate = !date || match.boliviaDate === date;
+      const matchesPhase = !phase || match.phase === phase;
+      return matchesDate && matchesPhase;
+    })
+    .sort((a, b) => {
+      const dateA = `${a.boliviaDate} ${a.boliviaTime || ''}`;
+      const dateB = `${b.boliviaDate} ${b.boliviaTime || ''}`;
+      return dateA.localeCompare(dateB) || a.id - b.id;
+    });
 }
 
 function renderPredictionCard(match) {
