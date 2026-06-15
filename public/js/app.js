@@ -38,8 +38,6 @@ const elements = {
   createUserMessage: document.querySelector('#createUserMessage'),
   usersTableBody: document.querySelector('#usersTableBody'),
   fixturesList: document.querySelector('#fixturesList'),
-  fixtureDateFilter: document.querySelector('#fixtureDateFilter'),
-  fixtureTeamFilter: document.querySelector('#fixtureTeamFilter'),
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
   predictionsList: document.querySelector('#predictionsList'),
@@ -130,7 +128,6 @@ function showView(viewId) {
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
   if (viewId === 'fixturesView') {
-    if (!elements.fixtureDateFilter.value) elements.fixtureDateFilter.value = todayBoliviaDate();
     loadFixtures().catch(() => {});
     startFixtureAutoRefresh();
   } else {
@@ -231,21 +228,42 @@ function renderFixtureAdminForm(match) {
   `;
 }
 
-function renderFixtureCard(match) {
+function renderFixtureCard(match, opts = {}) {
   const hasScore = match.homeScore !== null && match.awayScore !== null;
   const isLive = (match.status || 'scheduled') === 'live';
   const scoreHtml = hasScore
     ? `<div class="score-display">${match.homeScore} — ${match.awayScore}</div>`
     : `<div class="score-display vs">VS</div>`;
 
+  const header = opts.inGroup
+    ? (isLive ? `<div class="match-header"><div class="match-header-right">${fixtureStatusBadge(match)}</div></div>` : '')
+    : `<div class="match-header">
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
+        <div class="match-header-right">${fixtureStatusBadge(match)}</div>
+      </div>`;
+
+  const pred = opts.prediction || null;
+  const hasPred = pred && pred.homeScore !== null && pred.homeScore !== undefined;
+  const predBadge = hasPred
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}</span>`
+    : '';
+  const predAction = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Predicciones cerradas</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${hasPred ? pred.homeScore : ''}"
+        data-away-score="${hasPred ? pred.awayScore : ''}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPred ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
+
   return `
     <article class="match-card${isLive ? ' live-card' : ''}">
-      <div class="match-header">
-        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
-        <div class="match-header-right">
-          ${fixtureStatusBadge(match)}
-        </div>
-      </div>
+      ${header}
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
         ${scoreHtml}
@@ -255,27 +273,119 @@ function renderFixtureCard(match) {
         <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
         <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
       </div>
-      <span class="${match.locked ? 'locked' : 'predictions-open'}">
-        <i aria-hidden="true" class="bi bi-${match.locked ? 'lock-fill' : 'pencil-square'}"></i>
-        ${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}
-      </span>
+      <div class="card-footer">
+        ${predBadge}
+        ${predAction}
+      </div>
       ${renderFixtureAdminForm(match)}
     </article>
   `;
 }
 
+function computeGroupStandings(matches) {
+  const teams = {};
+  for (const m of matches) {
+    if (!teams[m.homeTeam]) teams[m.homeTeam] = { team: m.homeTeam, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 };
+    if (!teams[m.awayTeam]) teams[m.awayTeam] = { team: m.awayTeam, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 };
+    if ((m.status === 'final') && m.homeScore !== null && m.awayScore !== null) {
+      const h = teams[m.homeTeam], a = teams[m.awayTeam];
+      h.pj++; a.pj++;
+      h.gf += m.homeScore; h.gc += m.awayScore;
+      a.gf += m.awayScore; a.gc += m.homeScore;
+      if (m.homeScore > m.awayScore) { h.g++; a.p++; }
+      else if (m.homeScore < m.awayScore) { a.g++; h.p++; }
+      else { h.e++; a.e++; }
+    }
+  }
+  return Object.values(teams).sort((a, b) => {
+    const pa = a.g * 3 + a.e, pb = b.g * 3 + b.e;
+    if (pb !== pa) return pb - pa;
+    const dga = a.gf - a.gc, dgb = b.gf - b.gc;
+    if (dgb !== dga) return dgb - dga;
+    return b.gf - a.gf;
+  });
+}
+
+function renderGroupStandingsTable(teams) {
+  const rankColors = ['#22c55e', '#22c55e', '#f59e0b', '#ef4444'];
+  const rows = teams.map((t, i) => {
+    const pts = t.g * 3 + t.e;
+    const dg = t.gf - t.gc;
+    const dgStr = dg > 0 ? `+${dg}` : String(dg);
+    const color = rankColors[i] ?? '#94a3b8';
+    const dgClass = dg > 0 ? 'gs-pos' : dg < 0 ? 'gs-neg' : '';
+    return `<tr>
+      <td><span class="gs-rank" style="background:${color}22;color:${color};border:1px solid ${color}44">${i + 1}</span></td>
+      <td class="gs-team">${escapeHtml(t.team)}</td>
+      <td>${t.pj}</td>
+      <td class="${dgClass}">${dgStr}</td>
+      <td><strong>${pts}</strong></td>
+    </tr>`;
+  }).join('');
+  return `
+    <table class="group-standings-table">
+      <thead><tr><th>#</th><th>Selección</th><th>PJ</th><th>DG</th><th>PTS</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderGroupSection(groupName, matches, predMap = {}) {
+  const standings = computeGroupStandings(matches);
+  const standingsHtml = standings.length ? renderGroupStandingsTable(standings) : '';
+  const cardsHtml = matches.map(m => renderFixtureCard(m, { inGroup: true, prediction: predMap[m.id] ?? null })).join('');
+  return `
+    <section class="group-section">
+      <div class="group-header">
+        <div>
+          <h2 class="group-name">Grupo ${escapeHtml(groupName)}</h2>
+          <span class="group-meta">${matches.length} partido${matches.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+      ${standingsHtml}
+      <p class="group-matches-label">Partidos del Grupo</p>
+      <div class="group-matches-grid">${cardsHtml}</div>
+    </section>`;
+}
+
 async function loadFixtures() {
   const params = new URLSearchParams();
-  if (elements.fixtureDateFilter.value) params.set('date', elements.fixtureDateFilter.value);
-  if (elements.fixtureTeamFilter.value) params.set('team', elements.fixtureTeamFilter.value);
   if (elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
-  const fixtures = await api(`/api/fixtures?${params}`);
-  elements.fixturesList.innerHTML = fixtures.length ? fixtures.map(renderFixtureCard).join('') : '<p>No hay partidos para ese filtro.</p>';
+  const [fixtures, userPreds] = await Promise.all([
+    api(`/api/fixtures?${params}`),
+    api('/api/predictions').catch(() => [])
+  ]);
+  const predMap = Object.fromEntries(
+    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
+  );
+  if (!fixtures.length) {
+    elements.fixturesList.classList.add('cards-grid');
+    elements.fixturesList.innerHTML = '<p>No hay partidos para ese filtro.</p>';
+    return;
+  }
+  const grouped = fixtures.filter(m => m.group);
+  const ungrouped = fixtures.filter(m => !m.group);
+  if (grouped.length) {
+    elements.fixturesList.classList.remove('cards-grid');
+    const groupMap = {};
+    for (const m of grouped) {
+      if (!groupMap[m.group]) groupMap[m.group] = [];
+      groupMap[m.group].push(m);
+    }
+    const groupsHtml = Object.entries(groupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([g, ms]) => renderGroupSection(g, ms, predMap))
+      .join('');
+    const knockoutHtml = ungrouped.length
+      ? `<div class="cards-grid knockout-grid">${ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
+      : '';
+    elements.fixturesList.innerHTML = groupsHtml + knockoutHtml;
+  } else {
+    elements.fixturesList.classList.add('cards-grid');
+    elements.fixturesList.innerHTML = ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
+  }
 }
 
 function clearFixtureFilters() {
-  elements.fixtureDateFilter.value = '';
-  elements.fixtureTeamFilter.value = '';
   elements.fixturePhaseFilter.value = '';
   loadFixtures();
 }
@@ -899,8 +1009,6 @@ elements.standingDetail.addEventListener('click', (event) => {
   elements.standingDetail.classList.add('hidden');
   elements.standingDetail.innerHTML = '';
 });
-elements.fixtureDateFilter.addEventListener('change', loadFixtures);
-elements.fixtureTeamFilter.addEventListener('input', debounce(loadFixtures, 300));
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
@@ -984,9 +1092,7 @@ const predModal = {
   close() { this.el.classList.add('hidden'); }
 };
 
-elements.predictionsList.addEventListener('click', (event) => {
-  const btn = event.target.closest('.predict-open-btn');
-  if (!btn) return;
+function openPredModalFromBtn(btn) {
   predModal.open({
     matchId: btn.dataset.matchId,
     homeTeam: btn.dataset.homeTeam,
@@ -996,6 +1102,16 @@ elements.predictionsList.addEventListener('click', (event) => {
     phase: btn.dataset.phase,
     matchNumber: btn.dataset.matchNumber
   });
+}
+
+elements.predictionsList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixturesList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
 });
 
 document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());
@@ -1019,6 +1135,7 @@ document.querySelector('#predictionModalForm').addEventListener('submit', async 
     setTimeout(async () => {
       predModal.close();
       await loadPredictions();
+      if (state.currentView === 'fixturesView') await loadFixtures();
     }, 900);
   } catch (error) {
     setMessage(elements.predictionsMessage, error.message);

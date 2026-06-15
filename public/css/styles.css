@@ -128,6 +128,88 @@ html, body { background-color: #1a2d45; }
   margin-top: 0.5rem;
 }
 
+/* ── Group sections (Fixture Mundial grouped view) ── */
+.group-section {
+  background: #0f1e2e;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 1.25rem 1.4rem 1.1rem;
+  margin-bottom: 1.5rem;
+}
+.group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.group-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #e2e8f0;
+  margin: 0 0 0.15rem;
+  letter-spacing: 0.01em;
+}
+.group-meta {
+  font-size: 0.72rem;
+  color: #475569;
+  font-weight: 500;
+}
+.group-standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+  font-size: 0.8rem;
+}
+.group-standings-table thead th {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.group-standings-table thead th:not(:nth-child(2)) { text-align: center; }
+.group-standings-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+.group-standings-table tbody tr:last-child { border-bottom: none; }
+.group-standings-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.group-standings-table td {
+  padding: 0.45rem 0.5rem;
+  color: #94a3b8;
+  text-align: center;
+}
+.gs-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.gs-team { text-align: left !important; color: #cbd5e1; font-weight: 600; }
+.gs-pos { color: #22c55e; font-weight: 700; }
+.gs-neg { color: #f87171; font-weight: 700; }
+.group-standings-table td strong { color: #e2e8f0; font-weight: 800; }
+.group-matches-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #475569;
+  margin: 0 0 0.6rem;
+}
+.group-matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.6rem;
+}
+
 /* ── Match card (JS-generated) ── */
 .match-card {
   background: #172b42;
