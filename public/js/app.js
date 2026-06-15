@@ -243,7 +243,6 @@ function renderFixtureCard(match) {
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
         <div class="match-header-right">
-          ${isLive ? '<span class="live-badge"><span class="live-dot"></span>EN VIVO</span>' : ''}
           ${fixtureStatusBadge(match)}
         </div>
       </div>
@@ -412,8 +411,8 @@ function renderPredictionCard(match) {
   return `
     <article class="match-card${isLive ? ' live-card' : ''}">
       <div class="match-header">
-        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
-        ${isLive ? '<span class="live-badge"><span class="live-dot"></span>EN VIVO</span>' : ''}
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)}${match.group ? ` · Grupo ${escapeHtml(match.group)}` : ''}</span>
+        ${isLive ? fixtureStatusBadge(match) : ''}
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
