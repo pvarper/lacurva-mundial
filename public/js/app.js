@@ -43,7 +43,6 @@ const elements = {
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
   predictionsList: document.querySelector('#predictionsList'),
-  predictionTeamFilter: document.querySelector('#predictionTeamFilter'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
@@ -375,13 +374,11 @@ function deactivateUser(userId) {
 
 function filteredPredictions() {
   const date = state.selectedPredDate;
-  const team = elements.predictionTeamFilter.value.trim().toLowerCase();
   const phase = elements.predictionPhaseFilter.value;
   return state.predictions.filter((match) => {
     const matchesDate = !date || match.boliviaDate === date;
-    const matchesTeam = !team || match.homeTeam.toLowerCase().includes(team) || match.awayTeam.toLowerCase().includes(team);
     const matchesPhase = !phase || match.phase === phase;
-    return matchesDate && matchesTeam && matchesPhase;
+    return matchesDate && matchesPhase;
   });
 }
 
@@ -441,7 +438,6 @@ function renderPredictions() {
 }
 
 function clearPredictionFilters() {
-  elements.predictionTeamFilter.value = '';
   elements.predictionPhaseFilter.value = '';
   renderPredictions();
 }
@@ -901,7 +897,6 @@ elements.fixtureDateFilter.addEventListener('change', loadFixtures);
 elements.fixtureTeamFilter.addEventListener('input', debounce(loadFixtures, 300));
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
-elements.predictionTeamFilter.addEventListener('input', renderPredictions);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);
 elements.dateCarouselPrev.addEventListener('click', () => {
