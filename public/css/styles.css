@@ -113,11 +113,11 @@ html, body { background-color: #1a2d45; }
 
 /* ── Sidebar active item ── */
 .menu button.active {
-  background: rgba(242, 183, 5, 0.12);
-  color: #f2b705;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
 }
 .bottom-nav-btn.active {
-  color: #f2b705;
+  color: #38bdf8;
 }
 
 /* ── Cards grid — 2 columns on desktop ── */
@@ -211,10 +211,10 @@ html, body { background-color: #1a2d45; }
   text-align: center;
   font-size: 1.5rem;
   font-weight: 900;
-  color: #f2b705;
+  color: #38bdf8;
   letter-spacing: 0.05em;
   line-height: 1;
-  background: rgba(242, 183, 5, 0.08);
+  background: rgba(56, 189, 248, 0.08);
   border-radius: 8px;
   padding: 0.2rem 0.5rem;
 }
@@ -694,7 +694,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 0.75rem 0.5rem;
-  color: #f2b705;
+  color: #38bdf8;
   font-size: 2rem;
   font-weight: 900;
   text-align: center;
@@ -706,8 +706,8 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .prediction-modal-score-input::-webkit-outer-spin-button { -webkit-appearance: none; }
 .prediction-modal-score-input:focus {
   outline: none;
-  border-color: #f2b705;
-  box-shadow: 0 0 0 3px rgba(242, 183, 5, 0.15);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 .prediction-modal-sep {
   font-size: 1.75rem;
