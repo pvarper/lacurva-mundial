@@ -481,14 +481,21 @@ function selectPredDate(date) {
 }
 
 async function loadPredictions() {
+  const prevDate = state.selectedPredDate;
   state.predictions = await api('/api/predictions');
   const dates = getUniquePredDates();
   if (dates.length) {
-    const today = todayBoliviaDate();
-    const todayIdx = dates.findIndex(d => d >= today);
-    const pick = todayIdx >= 0 ? todayIdx : dates.length - 1;
-    state.dateCarouselIndex = Math.max(0, pick - 1);
-    state.selectedPredDate = dates[pick];
+    if (prevDate && dates.includes(prevDate)) {
+      state.selectedPredDate = prevDate;
+      const idx = dates.indexOf(prevDate);
+      state.dateCarouselIndex = Math.max(0, Math.min(idx - 1, dates.length - 3));
+    } else {
+      const today = todayBoliviaDate();
+      const todayIdx = dates.findIndex(d => d >= today);
+      const pick = todayIdx >= 0 ? todayIdx : dates.length - 1;
+      state.dateCarouselIndex = Math.max(0, pick - 1);
+      state.selectedPredDate = dates[pick];
+    }
   }
   renderDateCarousel();
   renderPredictions();
