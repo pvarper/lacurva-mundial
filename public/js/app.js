@@ -160,7 +160,7 @@ function showAuthenticatedApp(user) {
   if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
   const bottomNav = document.querySelector('#bottomNav');
   if (bottomNav) bottomNav.classList.remove('hidden');
-  showView('fixturesView');
+  showView('predictionsView');
   resetInactivityTimer();
 }
 
