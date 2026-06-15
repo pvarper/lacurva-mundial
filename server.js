@@ -28,6 +28,12 @@ const rules = [
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      fontSrc: ["'self'", 'https://cdn.jsdelivr.net', 'data:'],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
       ...(process.env.NODE_ENV !== 'production' && { 'upgrade-insecure-requests': null })
     }
   }
