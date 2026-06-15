@@ -457,8 +457,9 @@ function renderDateCarousel() {
   const idx = state.dateCarouselIndex;
   const visible = dates.slice(idx, idx + 3);
 
-  elements.dateCarouselPrev.disabled = idx === 0;
-  elements.dateCarouselNext.disabled = idx + 3 >= total;
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  elements.dateCarouselPrev.disabled = selIdx <= 0;
+  elements.dateCarouselNext.disabled = selIdx >= total - 1;
 
   elements.dateCarouselTrack.innerHTML = visible.map(d => {
     const { day, month } = formatCarouselDate(d);
@@ -854,22 +855,24 @@ elements.predictionTeamFilter.addEventListener('input', renderPredictions);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);
 elements.dateCarouselPrev.addEventListener('click', () => {
-  if (state.dateCarouselIndex > 0) {
-    state.dateCarouselIndex--;
-    const dates = getUniquePredDates();
-    state.selectedPredDate = dates[state.dateCarouselIndex];
-    renderDateCarousel();
-    renderPredictions();
-  }
+  const dates = getUniquePredDates();
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  if (selIdx <= 0) return;
+  const newSel = selIdx - 1;
+  state.selectedPredDate = dates[newSel];
+  if (newSel < state.dateCarouselIndex) state.dateCarouselIndex = newSel;
+  renderDateCarousel();
+  renderPredictions();
 });
 elements.dateCarouselNext.addEventListener('click', () => {
   const dates = getUniquePredDates();
-  if (state.dateCarouselIndex + 3 < dates.length) {
-    state.dateCarouselIndex++;
-    state.selectedPredDate = dates[state.dateCarouselIndex + 2];
-    renderDateCarousel();
-    renderPredictions();
-  }
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  if (selIdx >= dates.length - 1) return;
+  const newSel = selIdx + 1;
+  state.selectedPredDate = dates[newSel];
+  if (newSel >= state.dateCarouselIndex + 3) state.dateCarouselIndex = newSel - 2;
+  renderDateCarousel();
+  renderPredictions();
 });
 elements.dateCarouselTrack.addEventListener('click', (e) => {
   const pill = e.target.closest('.date-pill');
