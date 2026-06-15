@@ -166,8 +166,7 @@ function showAuthenticatedApp(user) {
   elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
   if (elements.mobileCurrentUser) elements.mobileCurrentUser.textContent = user.username;
   const isAdmin = user.role === 'admin';
-  elements.usersMenu.classList.toggle('hidden', !isAdmin);
-  elements.auditMenu.classList.toggle('hidden', !isAdmin);
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
   const adminLabel = document.querySelector('#adminSectionLabel');
   if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
   const bottomNav = document.querySelector('#bottomNav');

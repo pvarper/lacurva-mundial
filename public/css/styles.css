@@ -1220,6 +1220,13 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
   padding-bottom: env(safe-area-inset-bottom);
 }
+#bottomNavInner {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#bottomNavInner::-webkit-scrollbar { display: none; }
+#bottomNavInner .bottom-nav-btn { min-width: 4rem; flex: 1 0 auto; }
 
 /* ── Mobile top bar ── */
 #mobileTopBar {
