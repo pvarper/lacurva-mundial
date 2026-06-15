@@ -231,14 +231,12 @@
 
           <!-- PREDICCIONES -->
           <section id="predictionsView" class="view hidden p-4 md:p-6">
-            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-5">
+            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-4">
               <div class="flex-1">
-                <h2 class="text-xl font-black text-white mb-1">Predicciones</h2>
+                <h2 class="text-xl font-black text-white mb-1">Mis Predicciones</h2>
                 <p class="text-slate-500 text-sm">Ingresá tus pronósticos antes del cierre.</p>
               </div>
-              <div class="filters grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <input id="predictionDateFilter" type="date" aria-label="Filtrar predicciones por fecha"
-                  class="col-span-2 sm:col-span-1 bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+              <div class="filters grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <input id="predictionTeamFilter" placeholder="Filtrar por equipo" aria-label="Filtrar predicciones por equipo"
                   class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-gold transition">
                 <select id="predictionPhaseFilter" aria-label="Filtrar predicciones por fase"
@@ -256,6 +254,18 @@
                 </button>
               </div>
             </div>
+
+            <!-- Date carousel -->
+            <div class="date-carousel" aria-label="Seleccionar fecha">
+              <button id="dateCarouselPrev" class="carousel-nav-btn" type="button" aria-label="Fecha anterior">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <div id="dateCarouselTrack" class="date-carousel-track"></div>
+              <button id="dateCarouselNext" class="carousel-nav-btn" type="button" aria-label="Fecha siguiente">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+
             <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
             <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
           </section>

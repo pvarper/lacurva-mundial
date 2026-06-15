@@ -6,7 +6,9 @@ const state = {
   currentView: null,
   predictions: [],
   prizePool: null,
-  auditLogs: []
+  auditLogs: [],
+  dateCarouselIndex: 0,
+  selectedPredDate: null,
 };
 
 const FIXTURE_REFRESH_MS = 30 * 1000;
@@ -41,10 +43,12 @@ const elements = {
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
   predictionsList: document.querySelector('#predictionsList'),
-  predictionDateFilter: document.querySelector('#predictionDateFilter'),
   predictionTeamFilter: document.querySelector('#predictionTeamFilter'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
+  dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
+  dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
+  dateCarouselNext: document.querySelector('#dateCarouselNext'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
   prizePoolPanel: document.querySelector('#prizePoolPanel'),
@@ -134,7 +138,6 @@ function showView(viewId) {
   }
   if (viewId === 'usersView') loadUsers();
   if (viewId === 'predictionsView') {
-    if (!elements.predictionDateFilter.value) elements.predictionDateFilter.value = todayBoliviaDate();
     loadPredictions();
   }
   if (viewId === 'standingsView') loadStandings();
@@ -367,7 +370,7 @@ function deactivateUser(userId) {
 }
 
 function filteredPredictions() {
-  const date = elements.predictionDateFilter.value;
+  const date = state.selectedPredDate;
   const team = elements.predictionTeamFilter.value.trim().toLowerCase();
   const phase = elements.predictionPhaseFilter.value;
   return state.predictions.filter((match) => {
@@ -433,14 +436,60 @@ function renderPredictions() {
 }
 
 function clearPredictionFilters() {
-  elements.predictionDateFilter.value = '';
   elements.predictionTeamFilter.value = '';
   elements.predictionPhaseFilter.value = '';
   renderPredictions();
 }
 
+function getUniquePredDates() {
+  return [...new Set(state.predictions.map(m => m.boliviaDate))].sort();
+}
+
+function formatCarouselDate(d) {
+  const [, m, day] = d.split('-');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return { day: parseInt(day, 10), month: months[parseInt(m, 10) - 1] };
+}
+
+function renderDateCarousel() {
+  const dates = getUniquePredDates();
+  const total = dates.length;
+  const idx = state.dateCarouselIndex;
+  const visible = dates.slice(idx, idx + 3);
+
+  elements.dateCarouselPrev.disabled = idx === 0;
+  elements.dateCarouselNext.disabled = idx + 3 >= total;
+
+  elements.dateCarouselTrack.innerHTML = visible.map(d => {
+    const { day, month } = formatCarouselDate(d);
+    const count = state.predictions.filter(m => m.boliviaDate === d).length;
+    const isActive = d === state.selectedPredDate;
+    return `
+      <button class="date-pill${isActive ? ' active' : ''}" data-date="${d}" type="button">
+        <span class="date-pill-label">${month}</span>
+        <span class="date-pill-day">${day}</span>
+        <span class="date-pill-count">${count} partido${count !== 1 ? 's' : ''}</span>
+      </button>`;
+  }).join('');
+}
+
+function selectPredDate(date) {
+  state.selectedPredDate = date;
+  renderDateCarousel();
+  renderPredictions();
+}
+
 async function loadPredictions() {
   state.predictions = await api('/api/predictions');
+  const dates = getUniquePredDates();
+  if (dates.length) {
+    const today = todayBoliviaDate();
+    const todayIdx = dates.findIndex(d => d >= today);
+    const pick = todayIdx >= 0 ? todayIdx : dates.length - 1;
+    state.dateCarouselIndex = Math.max(0, pick - 1);
+    state.selectedPredDate = dates[pick];
+  }
+  renderDateCarousel();
   renderPredictions();
 }
 
@@ -801,10 +850,32 @@ elements.fixtureDateFilter.addEventListener('change', loadFixtures);
 elements.fixtureTeamFilter.addEventListener('input', debounce(loadFixtures, 300));
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
-elements.predictionDateFilter.addEventListener('change', renderPredictions);
 elements.predictionTeamFilter.addEventListener('input', renderPredictions);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);
+elements.dateCarouselPrev.addEventListener('click', () => {
+  if (state.dateCarouselIndex > 0) {
+    state.dateCarouselIndex--;
+    const dates = getUniquePredDates();
+    state.selectedPredDate = dates[state.dateCarouselIndex];
+    renderDateCarousel();
+    renderPredictions();
+  }
+});
+elements.dateCarouselNext.addEventListener('click', () => {
+  const dates = getUniquePredDates();
+  if (state.dateCarouselIndex + 3 < dates.length) {
+    state.dateCarouselIndex++;
+    state.selectedPredDate = dates[state.dateCarouselIndex + 2];
+    renderDateCarousel();
+    renderPredictions();
+  }
+});
+elements.dateCarouselTrack.addEventListener('click', (e) => {
+  const pill = e.target.closest('.date-pill');
+  if (!pill) return;
+  selectPredDate(pill.dataset.date);
+});
 elements.auditDateFilter.addEventListener('change', renderAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);

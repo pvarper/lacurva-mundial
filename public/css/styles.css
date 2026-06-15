@@ -813,6 +813,79 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 }
 .filter-clear-button.secondary-button:hover { color: #e2e8f0; background: #1e3550; }
 
+/* ── Date carousel ── */
+.date-carousel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.date-carousel-track {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  justify-content: center;
+}
+.carousel-nav-btn {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #172b42;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.carousel-nav-btn:hover:not(:disabled) { background: #1e3550; color: #fff; }
+.carousel-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.date-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.5rem;
+  background: #172b42;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+  min-width: 0;
+}
+.date-pill:hover { background: #1e3550; border-color: rgba(255,255,255,0.15); }
+.date-pill.active {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+.date-pill-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.date-pill-day {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+.date-pill.active .date-pill-day { color: #38bdf8; }
+.date-pill.active .date-pill-label { color: #38bdf8; opacity: 0.7; }
+.date-pill-count {
+  font-size: 0.6rem;
+  color: #475569;
+  font-weight: 600;
+}
+.date-pill.active .date-pill-count { color: #38bdf8; opacity: 0.6; }
+
 /* ── Focus ring ── */
 :focus-visible {
   outline: 2px solid #f2b705;
