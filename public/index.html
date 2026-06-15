@@ -96,11 +96,11 @@
 
           <nav class="menu flex-1 p-3 space-y-0.5" aria-label="Menú principal">
             <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-2 pb-1">Jugar</p>
+            <button data-view="predictionsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-pencil-square w-4"></i> Mis Predicciones
+            </button>
             <button data-view="fixturesView" class="active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-calendar-event w-4"></i> Fixture Mundial
-            </button>
-            <button data-view="predictionsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
-              <i aria-hidden="true" class="bi bi-pencil-square w-4"></i> Predicciones
             </button>
             <button data-view="standingsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Acumulada
@@ -371,13 +371,13 @@
       <!-- MOBILE BOTTOM NAV -->
       <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 z-50" aria-label="Navegación móvil">
         <div class="flex">
+          <button data-view="predictionsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+            <i aria-hidden="true" class="bi bi-pencil-square text-lg"></i>
+            <span class="text-[10px] font-bold">Mis Pred.</span>
+          </button>
           <button data-view="fixturesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
             <i aria-hidden="true" class="bi bi-calendar-event text-lg"></i>
             <span class="text-[10px] font-bold">Fixture</span>
-          </button>
-          <button data-view="predictionsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
-            <i aria-hidden="true" class="bi bi-pencil-square text-lg"></i>
-            <span class="text-[10px] font-bold">Predicciones</span>
           </button>
           <button data-view="standingsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
             <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
