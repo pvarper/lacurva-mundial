@@ -519,6 +519,35 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) => {
+  const [users, fixtures, predictions] = await Promise.all([
+    readJson('users.json'),
+    readJson('fixtures.json'),
+    readJson('predictions.json')
+  ]);
+  const activeUsers = users.filter(u => u.active !== false);
+  const feed = predictions
+    .map(p => {
+      const user = activeUsers.find(u => u.id === p.userId);
+      const match = fixtures.find(f => f.id === p.matchId);
+      if (!user || !match) return null;
+      return {
+        id: p.id,
+        username: user.username,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        matchDate: match.boliviaDate,
+        predHome: p.homeScore,
+        predAway: p.awayScore,
+        updatedAt: p.updatedAt
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 60);
+  res.json(feed);
+}));
+
 app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),

@@ -6,7 +6,9 @@ const state = {
   currentView: null,
   predictions: [],
   prizePool: null,
-  auditLogs: []
+  auditLogs: [],
+  dateCarouselIndex: 0,
+  selectedPredDate: null,
 };
 
 const FIXTURE_REFRESH_MS = 30 * 1000;
@@ -23,10 +25,12 @@ const elements = {
   loginForm: document.querySelector('#loginForm'),
   loginMessage: document.querySelector('#loginMessage'),
   sidebarCurrentUser: document.querySelector('#sidebarCurrentUser'),
+  mobileCurrentUser: document.querySelector('#mobileCurrentUser'),
   logoutButton: document.querySelector('#logoutButton'),
+  mobileLogoutButton: document.querySelector('#mobileLogoutButton'),
   hideSidebarButton: document.querySelector('#hideSidebarButton'),
   showSidebarButton: document.querySelector('#showSidebarButton'),
-  menuButtons: document.querySelectorAll('.menu button[data-view]'),
+  menuButtons: document.querySelectorAll('.menu button[data-view], .bottom-nav-btn[data-view]'),
   views: document.querySelectorAll('.view'),
   usersMenu: document.querySelector('#usersMenu'),
   auditMenu: document.querySelector('#auditMenu'),
@@ -34,15 +38,15 @@ const elements = {
   createUserMessage: document.querySelector('#createUserMessage'),
   usersTableBody: document.querySelector('#usersTableBody'),
   fixturesList: document.querySelector('#fixturesList'),
-  fixtureDateFilter: document.querySelector('#fixtureDateFilter'),
-  fixtureTeamFilter: document.querySelector('#fixtureTeamFilter'),
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
   predictionsList: document.querySelector('#predictionsList'),
-  predictionDateFilter: document.querySelector('#predictionDateFilter'),
-  predictionTeamFilter: document.querySelector('#predictionTeamFilter'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
+  dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
+  dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
+  dateCarouselNext: document.querySelector('#dateCarouselNext'),
+  recentPredFeed: document.querySelector('#recentPredFeed'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
   prizePoolPanel: document.querySelector('#prizePoolPanel'),
@@ -108,6 +112,7 @@ function setMessage(element, message, success = false) {
 
 function setSidebarVisible(visible) {
   elements.appView.classList.toggle('sidebar-collapsed', !visible);
+  elements.showSidebarButton.classList.toggle('hidden', visible);
 }
 
 
@@ -123,7 +128,6 @@ function showView(viewId) {
   elements.menuButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
   recordNavigation(viewId);
   if (viewId === 'fixturesView') {
-    if (!elements.fixtureDateFilter.value) elements.fixtureDateFilter.value = todayBoliviaDate();
     loadFixtures().catch(() => {});
     startFixtureAutoRefresh();
   } else {
@@ -131,7 +135,6 @@ function showView(viewId) {
   }
   if (viewId === 'usersView') loadUsers();
   if (viewId === 'predictionsView') {
-    if (!elements.predictionDateFilter.value) elements.predictionDateFilter.value = todayBoliviaDate();
     loadPredictions();
   }
   if (viewId === 'standingsView') loadStandings();
@@ -149,9 +152,15 @@ function showAuthenticatedApp(user) {
   elements.loginView.classList.add('hidden');
   elements.appView.classList.remove('hidden');
   elements.sidebarCurrentUser.textContent = `${user.username} (${user.role})`;
-  elements.usersMenu.classList.toggle('hidden', user.role !== 'admin');
-  elements.auditMenu.classList.toggle('hidden', user.role !== 'admin');
-  showView('fixturesView');
+  if (elements.mobileCurrentUser) elements.mobileCurrentUser.textContent = user.username;
+  const isAdmin = user.role === 'admin';
+  elements.usersMenu.classList.toggle('hidden', !isAdmin);
+  elements.auditMenu.classList.toggle('hidden', !isAdmin);
+  const adminLabel = document.querySelector('#adminSectionLabel');
+  if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
+  const bottomNav = document.querySelector('#bottomNav');
+  if (bottomNav) bottomNav.classList.remove('hidden');
+  showView('predictionsView');
   resetInactivityTimer();
 }
 
@@ -162,6 +171,8 @@ function showLogin(message = '') {
   stopFixtureAutoRefresh();
   elements.appView.classList.add('hidden');
   elements.loginView.classList.remove('hidden');
+  const bottomNav = document.querySelector('#bottomNav');
+  if (bottomNav) bottomNav.classList.add('hidden');
   setMessage(elements.loginMessage, message);
 }
 
@@ -190,64 +201,191 @@ function stopFixtureAutoRefresh() {
 
 function fixtureStatusBadge(match) {
   const status = match.status || 'scheduled';
-  return `<span class="status fixture-status ${status}-status">${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
+  const liveIcon = status === 'live' ? '<i class="bi bi-circle-fill" style="font-size:0.5rem"></i> ' : '';
+  return `<span class="status fixture-status ${status}-status">${liveIcon}${escapeHtml(fixtureStatusLabels[status] || status)}</span>`;
 }
 
 function renderFixtureAdminForm(match) {
   if (state.user?.role !== 'admin') return '';
   const status = match.status || 'scheduled';
   return `
-    <form class="fixture-update-form" data-match-id="${escapeHtml(match.id)}">
-      <div class="fixture-score-row">
-        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}"></label>
-        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}"></label>
-      </div>
-      <div class="fixture-status-row">
-        <label>Estado
-          <select name="status">
-            <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
-            <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
-            <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
-          </select>
-        </label>
-        <button type="submit">Guardar resultado</button>
+    <button type="button" class="admin-toggle-btn" data-match-id="${escapeHtml(match.id)}">
+      <i class="bi bi-pencil-square"></i> Editar resultado
+    </button>
+    <form class="fixture-update-form hidden" data-match-id="${escapeHtml(match.id)}">
+      <div class="admin-score-row">
+        <input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}" placeholder="—" class="score-input">
+        <span class="score-sep">—</span>
+        <input name="awayScore" type="number" min="0" step="1" value="${match.awayScore ?? ''}" placeholder="—" class="score-input">
+        <select name="status" class="status-select">
+          <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Programado</option>
+          <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
+          <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
+        </select>
+        <button type="submit" class="save-btn"><i class="bi bi-check-lg"></i> Guardar</button>
       </div>
     </form>
   `;
 }
 
-function renderFixtureCard(match) {
-  const score = match.homeScore === null || match.awayScore === null ? 'vs' : `${match.homeScore} - ${match.awayScore}`;
+function renderFixtureCard(match, opts = {}) {
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const scoreHtml = hasScore
+    ? `<div class="score-display">${match.homeScore} — ${match.awayScore}</div>`
+    : `<div class="score-display vs">VS</div>`;
+
+  const header = opts.inGroup
+    ? (isLive ? `<div class="match-header"><div class="match-header-right">${fixtureStatusBadge(match)}</div></div>` : '')
+    : `<div class="match-header">
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
+        <div class="match-header-right">${fixtureStatusBadge(match)}</div>
+      </div>`;
+
+  const pred = opts.prediction || null;
+  const hasPred = pred && pred.homeScore !== null && pred.homeScore !== undefined;
+  const predBadge = hasPred
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}</span>`
+    : '';
+  const predAction = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Predicciones cerradas</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${hasPred ? pred.homeScore : ''}"
+        data-away-score="${hasPred ? pred.awayScore : ''}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPred ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
+
   return `
-    <article class="match-card">
-      <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
-      ${fixtureStatusBadge(match)}
-      <div class="teams">
-        <span>${escapeHtml(match.homeTeam)}</span>
-        <span class="score">${score}</span>
-        <span>${escapeHtml(match.awayTeam)}</span>
+    <article class="match-card${isLive ? ' live-card' : ''}">
+      ${header}
+      <div class="match-teams">
+        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        ${scoreHtml}
+        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
       </div>
-      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
-      <p class="venue">${escapeHtml(match.roundName || match.phase)}</p>
-      <p class="${match.locked ? 'locked' : 'predictions-open'}">${match.locked ? 'Predicciones cerradas' : 'Predicciones abiertas'}</p>
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      <div class="card-footer">
+        ${predBadge}
+        ${predAction}
+      </div>
       ${renderFixtureAdminForm(match)}
     </article>
   `;
 }
 
+function computeGroupStandings(matches) {
+  const teams = {};
+  for (const m of matches) {
+    if (!teams[m.homeTeam]) teams[m.homeTeam] = { team: m.homeTeam, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 };
+    if (!teams[m.awayTeam]) teams[m.awayTeam] = { team: m.awayTeam, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 };
+    if ((m.status === 'final') && m.homeScore !== null && m.awayScore !== null) {
+      const h = teams[m.homeTeam], a = teams[m.awayTeam];
+      h.pj++; a.pj++;
+      h.gf += m.homeScore; h.gc += m.awayScore;
+      a.gf += m.awayScore; a.gc += m.homeScore;
+      if (m.homeScore > m.awayScore) { h.g++; a.p++; }
+      else if (m.homeScore < m.awayScore) { a.g++; h.p++; }
+      else { h.e++; a.e++; }
+    }
+  }
+  return Object.values(teams).sort((a, b) => {
+    const pa = a.g * 3 + a.e, pb = b.g * 3 + b.e;
+    if (pb !== pa) return pb - pa;
+    const dga = a.gf - a.gc, dgb = b.gf - b.gc;
+    if (dgb !== dga) return dgb - dga;
+    return b.gf - a.gf;
+  });
+}
+
+function renderGroupStandingsTable(teams) {
+  const rankColors = ['#22c55e', '#22c55e', '#f59e0b', '#ef4444'];
+  const rows = teams.map((t, i) => {
+    const pts = t.g * 3 + t.e;
+    const dg = t.gf - t.gc;
+    const dgStr = dg > 0 ? `+${dg}` : String(dg);
+    const color = rankColors[i] ?? '#94a3b8';
+    const dgClass = dg > 0 ? 'gs-pos' : dg < 0 ? 'gs-neg' : '';
+    return `<tr>
+      <td><span class="gs-rank" style="background:${color}22;color:${color};border:1px solid ${color}44">${i + 1}</span></td>
+      <td class="gs-team">${escapeHtml(t.team)}</td>
+      <td>${t.pj}</td>
+      <td class="${dgClass}">${dgStr}</td>
+      <td><strong>${pts}</strong></td>
+    </tr>`;
+  }).join('');
+  return `
+    <table class="group-standings-table">
+      <thead><tr><th>#</th><th>Selección</th><th>PJ</th><th>DG</th><th>PTS</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderGroupSection(groupName, matches, predMap = {}) {
+  const standings = computeGroupStandings(matches);
+  const standingsHtml = standings.length ? renderGroupStandingsTable(standings) : '';
+  const cardsHtml = matches.map(m => renderFixtureCard(m, { inGroup: true, prediction: predMap[m.id] ?? null })).join('');
+  return `
+    <section class="group-section">
+      <div class="group-header">
+        <div>
+          <h2 class="group-name">Grupo ${escapeHtml(groupName)}</h2>
+          <span class="group-meta">${matches.length} partido${matches.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+      ${standingsHtml}
+      <p class="group-matches-label">Partidos del Grupo</p>
+      <div class="group-matches-grid">${cardsHtml}</div>
+    </section>`;
+}
+
 async function loadFixtures() {
   const params = new URLSearchParams();
-  if (elements.fixtureDateFilter.value) params.set('date', elements.fixtureDateFilter.value);
-  if (elements.fixtureTeamFilter.value) params.set('team', elements.fixtureTeamFilter.value);
   if (elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
-  const fixtures = await api(`/api/fixtures?${params}`);
-  elements.fixturesList.innerHTML = fixtures.length ? fixtures.map(renderFixtureCard).join('') : '<p>No hay partidos para ese filtro.</p>';
+  const [fixtures, userPreds] = await Promise.all([
+    api(`/api/fixtures?${params}`),
+    api('/api/predictions').catch(() => [])
+  ]);
+  const predMap = Object.fromEntries(
+    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
+  );
+  if (!fixtures.length) {
+    elements.fixturesList.classList.add('cards-grid');
+    elements.fixturesList.innerHTML = '<p>No hay partidos para ese filtro.</p>';
+    return;
+  }
+  const grouped = fixtures.filter(m => m.group);
+  const ungrouped = fixtures.filter(m => !m.group);
+  if (grouped.length) {
+    elements.fixturesList.classList.remove('cards-grid');
+    const groupMap = {};
+    for (const m of grouped) {
+      if (!groupMap[m.group]) groupMap[m.group] = [];
+      groupMap[m.group].push(m);
+    }
+    const groupsHtml = Object.entries(groupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([g, ms]) => renderGroupSection(g, ms, predMap))
+      .join('');
+    const knockoutHtml = ungrouped.length
+      ? `<div class="cards-grid knockout-grid">${ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
+      : '';
+    elements.fixturesList.innerHTML = groupsHtml + knockoutHtml;
+  } else {
+    elements.fixturesList.classList.add('cards-grid');
+    elements.fixturesList.innerHTML = ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
+  }
 }
 
 function clearFixtureFilters() {
-  elements.fixtureDateFilter.value = '';
-  elements.fixtureTeamFilter.value = '';
   elements.fixturePhaseFilter.value = '';
   loadFixtures();
 }
@@ -281,17 +419,18 @@ async function loadUsers() {
       statusLabel = 'Activo';
       statusClass = '';
     }
+    const roleIcon = user.role === 'admin' ? '<i class="bi bi-shield-fill" style="color:#f2b705;margin-right:0.3rem"></i>' : '';
     const unblockButton = (user.permanentlyBlocked || (user.lockedUntil && new Date(user.lockedUntil) > new Date()))
-      ? `<button type="button" class="secondary-button" data-action="unblock-user" data-user-id="${escapeHtml(user.id)}">Desbloquear</button>`
+      ? `<button type="button" class="secondary-button" data-action="unblock-user" data-user-id="${escapeHtml(user.id)}"><i class="bi bi-unlock"></i> Desbloquear</button>`
       : '';
     return `
     <tr data-user-id="${escapeHtml(user.id)}">
-      <td>${escapeHtml(user.username)}</td>
-      <td>${escapeHtml(user.role)}</td>
+      <td class="font-medium">${escapeHtml(user.username)}</td>
+      <td>${roleIcon}${escapeHtml(user.role)}</td>
       <td><span class="status ${statusClass}">${statusLabel}</span></td>
       <td class="actions-cell">
-        <button type="button" class="secondary-button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">Editar</button>
-        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active && !user.permanentlyBlocked ? '' : 'disabled'}>Desactivar</button>
+        <button type="button" class="secondary-button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}"><i class="bi bi-pencil"></i> Editar</button>
+        <button type="button" class="danger-button" data-action="deactivate-user" data-user-id="${escapeHtml(user.id)}" ${user.active && !user.permanentlyBlocked ? '' : 'disabled'}><i class="bi bi-person-x"></i> Desactivar</button>
         ${unblockButton}
       </td>
     </tr>`;
@@ -343,33 +482,61 @@ function deactivateUser(userId) {
 }
 
 function filteredPredictions() {
-  const date = elements.predictionDateFilter.value;
-  const team = elements.predictionTeamFilter.value.trim().toLowerCase();
+  const date = state.selectedPredDate;
   const phase = elements.predictionPhaseFilter.value;
   return state.predictions.filter((match) => {
     const matchesDate = !date || match.boliviaDate === date;
-    const matchesTeam = !team || match.homeTeam.toLowerCase().includes(team) || match.awayTeam.toLowerCase().includes(team);
     const matchesPhase = !phase || match.phase === phase;
-    return matchesDate && matchesTeam && matchesPhase;
+    return matchesDate && matchesPhase;
   });
 }
 
 function renderPredictionCard(match) {
   const prediction = match.prediction || {};
-  const disabled = match.locked ? 'disabled' : '';
+  const hasPrediction = prediction.homeScore !== undefined && prediction.homeScore !== null;
+  const predBadge = hasPrediction
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${prediction.homeScore} — ${prediction.awayScore}</span>`
+    : `<span class="status scheduled-status">Sin predicción</span>`;
+
+  const actionArea = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Partido cerrado</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${prediction.homeScore ?? ''}"
+        data-away-score="${prediction.awayScore ?? ''}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
+
+  const hasScore = match.homeScore !== null && match.homeScore !== undefined;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const scoreDisplay = hasScore
+    ? `<div class="score-display${isLive ? ' live' : ''}">${match.homeScore} — ${match.awayScore}</div>`
+    : `<div class="score-display vs">VS</div>`;
+
   return `
-    <article class="match-card">
-      <div class="match-meta"><span>Partido ${match.matchNumber}</span><span class="status">${escapeHtml(match.phase)}</span></div>
-      <div class="teams"><span>${escapeHtml(match.homeTeam)}</span><span>vs</span><span>${escapeHtml(match.awayTeam)}</span></div>
-      <p class="venue"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} Bolivia</p>
-      <p class="venue"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)} - ${escapeHtml(match.stadiumCommonName || match.stadium)}</p>
-      <form class="prediction-form" data-match-id="${match.id}">
-        <label>${escapeHtml(match.homeTeam)}<input name="homeScore" type="number" min="0" step="1" value="${prediction.homeScore ?? ''}" ${disabled} required></label>
-        <label>${escapeHtml(match.awayTeam)}<input name="awayScore" type="number" min="0" step="1" value="${prediction.awayScore ?? ''}" ${disabled} required></label>
-        <button type="submit" ${disabled}>Guardar</button>
-        <p class="save-feedback hidden" aria-live="polite">Predicción Guardada</p>
-      </form>
-      <p class="${match.locked ? 'locked' : ''}">${match.locked ? 'Este partido ya está cerrado.' : 'Podés editar tu predicción.'}</p>
+    <article class="match-card${isLive ? ' live-card' : ''}">
+      <div class="match-header">
+        <span class="match-phase">${escapeHtml(match.roundName || match.phase)}${match.group ? ` · Grupo ${escapeHtml(match.group)}` : ''}</span>
+        ${isLive ? fixtureStatusBadge(match) : ''}
+      </div>
+      <div class="match-teams">
+        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        ${scoreDisplay}
+        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
+      </div>
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      <div class="card-footer">
+        ${predBadge}
+        ${actionArea}
+      </div>
     </article>
   `;
 }
@@ -380,15 +547,113 @@ function renderPredictions() {
 }
 
 function clearPredictionFilters() {
-  elements.predictionDateFilter.value = '';
-  elements.predictionTeamFilter.value = '';
   elements.predictionPhaseFilter.value = '';
   renderPredictions();
 }
 
-async function loadPredictions() {
-  state.predictions = await api('/api/predictions');
+function getUniquePredDates() {
+  return [...new Set(state.predictions.map(m => m.boliviaDate))].sort();
+}
+
+function formatCarouselDate(d) {
+  const [, m, day] = d.split('-');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return { day: parseInt(day, 10), month: months[parseInt(m, 10) - 1] };
+}
+
+function renderDateCarousel() {
+  const dates = getUniquePredDates();
+  const total = dates.length;
+  const idx = state.dateCarouselIndex;
+  const visible = dates.slice(idx, idx + 3);
+
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  elements.dateCarouselPrev.disabled = selIdx <= 0;
+  elements.dateCarouselNext.disabled = selIdx >= total - 1;
+
+  elements.dateCarouselTrack.innerHTML = visible.map(d => {
+    const { day, month } = formatCarouselDate(d);
+    const count = state.predictions.filter(m => m.boliviaDate === d).length;
+    const isActive = d === state.selectedPredDate;
+    return `
+      <button class="date-pill${isActive ? ' active' : ''}" data-date="${d}" type="button">
+        <span class="date-pill-label">${month}</span>
+        <span class="date-pill-day">${day}</span>
+        <span class="date-pill-count">${count} partido${count !== 1 ? 's' : ''}</span>
+      </button>`;
+  }).join('');
+}
+
+function selectPredDate(date) {
+  state.selectedPredDate = date;
+  renderDateCarousel();
   renderPredictions();
+}
+
+async function loadPredictions() {
+  const prevDate = state.selectedPredDate;
+  state.predictions = await api('/api/predictions');
+  const dates = getUniquePredDates();
+  if (dates.length) {
+    if (prevDate && dates.includes(prevDate)) {
+      state.selectedPredDate = prevDate;
+      const idx = dates.indexOf(prevDate);
+      state.dateCarouselIndex = Math.max(0, Math.min(idx - 1, dates.length - 3));
+    } else {
+      const today = todayBoliviaDate();
+      const todayIdx = dates.findIndex(d => d >= today);
+      const pick = todayIdx >= 0 ? todayIdx : dates.length - 1;
+      state.dateCarouselIndex = Math.max(0, pick - 1);
+      state.selectedPredDate = dates[pick];
+    }
+  }
+  renderDateCarousel();
+  renderPredictions();
+  renderUserPredFeed();
+}
+
+function calcPredPoints(match) {
+  if (!match.prediction || match.status !== 'final' || match.homeScore === null || match.awayScore === null) return null;
+  const p = match.prediction;
+  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) return 5;
+  const getOutcome = (h, a) => h > a ? 'home' : h < a ? 'away' : 'draw';
+  return getOutcome(p.homeScore, p.awayScore) === getOutcome(match.homeScore, match.awayScore) ? 3 : 0;
+}
+
+function renderUserPredFeed() {
+  if (!elements.recentPredFeed) return;
+  const withPred = state.predictions
+    .filter(m => m.prediction)
+    .sort((a, b) => b.prediction.updatedAt.localeCompare(a.prediction.updatedAt));
+  if (!withPred.length) {
+    elements.recentPredFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
+    return;
+  }
+  elements.recentPredFeed.innerHTML = withPred.map(m => {
+    const p = m.prediction;
+    const pts = calcPredPoints(m);
+    const hasResult = m.status === 'final' && m.homeScore !== null;
+    const resultHtml = hasResult
+      ? `<span class="pred-feed-result">${m.homeScore} — ${m.awayScore}</span>`
+      : `<span class="pred-feed-result pending">Sin resultado</span>`;
+    const ptsHtml = pts !== null
+      ? `<span class="pred-feed-pts pts-${pts}">${pts} pts</span>`
+      : '';
+    return `
+      <li class="pred-feed-item">
+        <div class="pred-feed-body">
+          <span class="pred-feed-date">${escapeHtml(m.boliviaDate)}</span>
+          <span class="pred-feed-match">${escapeHtml(m.homeTeam)} vs ${escapeHtml(m.awayTeam)}</span>
+          <div class="pred-feed-row">
+            <span class="pred-feed-label">Resultado:</span> ${resultHtml}
+            <span class="pred-feed-sep">·</span>
+            <span class="pred-feed-label">Mi pred:</span>
+            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}</span>
+            ${ptsHtml}
+          </div>
+        </div>
+      </li>`;
+  }).join('');
 }
 
 async function loadStandings() {
@@ -404,23 +669,23 @@ async function loadStandings() {
     : '';
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
-  const TROPHY_COLORS = ['', '#FFD700', '#C0C0C0', '#CD7F32'];
+  const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
   let rank = 1;
   elements.standingsBody.innerHTML = standings.map((row, index) => {
     if (index > 0 && standings[index - 1].points !== row.points) rank++;
     const trophy = rank <= 3
-      ? ` <i class="bi bi-trophy-fill" style="color:${TROPHY_COLORS[rank]}" aria-hidden="true"></i>`
+      ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
     const livePredCell = liveMatch
-      ? `<td>${row.livePrediction ? `${row.livePrediction.homeScore} - ${row.livePrediction.awayScore}` : '<span class="muted-text">Sin predicción</span>'}</td>`
+      ? `<td>${row.livePrediction ? `<strong>${row.livePrediction.homeScore} — ${row.livePrediction.awayScore}</strong>` : '<span class="muted-text">—</span>'}</td>`
       : '';
     return `
       <tr>
-        <td>${rank}${trophy}</td>
+        <td class="font-bold">${rank}${trophy}</td>
         <td>${escapeHtml(row.username)}</td>
         ${livePredCell}
-        <td><strong>${row.points}</strong></td>
-        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">Solo detalle propio</span>'}</td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
       </tr>
     `;
   }).join('');
@@ -496,36 +761,43 @@ async function loadStandingDetail(userId) {
   elements.standingDetail.innerHTML = `
     <div class="detail-heading">
       <div>
-        <h3>Detalle de ${escapeHtml(data.user.username)}</h3>
-        <p>Total acumulado: <strong>${data.totalPoints}</strong> puntos</p>
+        <h3><i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}</h3>
+        <p>Total acumulado: <strong style="color:#f2b705">${data.totalPoints}</strong> puntos</p>
       </div>
-      <button type="button" class="secondary-button" data-action="close-standing-detail">Cerrar detalle</button>
+      <button type="button" class="secondary-button" data-action="close-standing-detail"><i class="bi bi-x"></i> Cerrar</button>
     </div>
-    <table>
-      <thead>
-        <tr><th>Partido</th><th>Fecha Bolivia</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Puntos</th></tr>
-      </thead>
-      <tbody>
-        ${data.details.map((detail) => `
-          <tr>
-            <td>${detail.matchNumber}</td>
-            <td>${escapeHtml(detail.boliviaDate)} ${escapeHtml(detail.boliviaTime)}</td>
-            <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
-            <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
-            <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
-            <td><strong>${detail.points}</strong></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+    <div class="table-wrap overflow-x-auto">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Fecha</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Pts</th></tr>
+        </thead>
+        <tbody>
+          ${data.details.map((detail) => {
+            const pts = detail.points;
+            const ptsColor = pts === 5 ? '#22c55e' : pts === 3 ? '#f2b705' : '#475569';
+            return `
+              <tr>
+                <td>${detail.matchNumber}</td>
+                <td>${escapeHtml(detail.boliviaDate)}</td>
+                <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
+                <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
+                <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
+                <td><strong style="color:${ptsColor}">${pts}</strong></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
 async function loadRules() {
   const { rules } = await api('/api/rules');
-  elements.rulesList.innerHTML = rules.map((rule) => `
+  const icons = ['bi-star-fill', 'bi-check2-circle', 'bi-x-circle', 'bi-clock', 'bi-shield-check', 'bi-trophy'];
+  elements.rulesList.innerHTML = rules.map((rule, i) => `
     <article class="rule-card">
-      <h3>${escapeHtml(rule.title)}</h3>
+      <h3><i class="bi ${icons[i % icons.length]}" aria-hidden="true" style="color:#f2b705;margin-right:0.5rem"></i>${escapeHtml(rule.title)}</h3>
       <p>${escapeHtml(rule.description)}</p>
     </article>
   `).join('');
@@ -582,15 +854,30 @@ function filteredAuditLogs() {
 
 function renderAuditLog() {
   const logs = filteredAuditLogs();
-  elements.auditLogBody.innerHTML = logs.length ? logs.map((entry) => `
-    <tr>
-      <td>${escapeHtml(formatDate(entry.timestamp))}</td>
-      <td>${escapeHtml(entry.username || 'Sistema')}</td>
-      <td>${escapeHtml(entry.role || '-')}</td>
-      <td>${escapeHtml(actionLabel(entry.action))}</td>
-      <td>${escapeHtml(formatAuditDetail(entry.detail))}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="5">No hay acciones registradas.</td></tr>';
+  const actionIcons = {
+    login_success: 'bi-box-arrow-in-right text-green-500',
+    login_failed: 'bi-exclamation-triangle text-red-400',
+    logout: 'bi-box-arrow-left text-slate-400',
+    menu_viewed: 'bi-eye text-slate-400',
+    user_created: 'bi-person-plus text-blue-400',
+    user_updated: 'bi-pencil text-yellow-400',
+    user_deactivated: 'bi-person-x text-red-400',
+    prediction_created: 'bi-pencil-square text-green-400',
+    prediction_updated: 'bi-arrow-clockwise text-yellow-400',
+    standing_detail_viewed: 'bi-bar-chart text-slate-400',
+  };
+  elements.auditLogBody.innerHTML = logs.length ? logs.map((entry) => {
+    const icon = actionIcons[entry.action] || 'bi-circle text-slate-500';
+    return `
+      <tr>
+        <td style="font-size:0.75rem;white-space:nowrap">${escapeHtml(formatDate(entry.timestamp))}</td>
+        <td class="font-medium">${escapeHtml(entry.username || 'Sistema')}</td>
+        <td>${escapeHtml(entry.role || '—')}</td>
+        <td><i class="bi ${icon}" aria-hidden="true"></i> ${escapeHtml(actionLabel(entry.action))}</td>
+        <td style="color:#64748b;font-size:0.78rem">${escapeHtml(formatAuditDetail(entry.detail))}</td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">No hay acciones registradas.</td></tr>';
 }
 
 function clearAuditFilters() {
@@ -648,6 +935,7 @@ document.querySelectorAll('.password-toggle').forEach((btn) => {
 elements.hideSidebarButton.addEventListener('click', () => setSidebarVisible(false));
 elements.showSidebarButton.addEventListener('click', () => setSidebarVisible(true));
 elements.logoutButton.addEventListener('click', () => logout());
+if (elements.mobileLogoutButton) elements.mobileLogoutButton.addEventListener('click', () => logout());
 elements.usersTableBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
@@ -721,18 +1009,52 @@ elements.standingDetail.addEventListener('click', (event) => {
   elements.standingDetail.classList.add('hidden');
   elements.standingDetail.innerHTML = '';
 });
-elements.fixtureDateFilter.addEventListener('change', loadFixtures);
-elements.fixtureTeamFilter.addEventListener('input', debounce(loadFixtures, 300));
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
-elements.predictionDateFilter.addEventListener('change', renderPredictions);
-elements.predictionTeamFilter.addEventListener('input', renderPredictions);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);
+elements.dateCarouselPrev.addEventListener('click', () => {
+  const dates = getUniquePredDates();
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  if (selIdx <= 0) return;
+  const newSel = selIdx - 1;
+  state.selectedPredDate = dates[newSel];
+  if (newSel < state.dateCarouselIndex) state.dateCarouselIndex = newSel;
+  renderDateCarousel();
+  renderPredictions();
+});
+elements.dateCarouselNext.addEventListener('click', () => {
+  const dates = getUniquePredDates();
+  const selIdx = dates.indexOf(state.selectedPredDate);
+  if (selIdx >= dates.length - 1) return;
+  const newSel = selIdx + 1;
+  state.selectedPredDate = dates[newSel];
+  if (newSel >= state.dateCarouselIndex + 3) state.dateCarouselIndex = newSel - 2;
+  renderDateCarousel();
+  renderPredictions();
+});
+elements.dateCarouselTrack.addEventListener('click', (e) => {
+  const pill = e.target.closest('.date-pill');
+  if (!pill) return;
+  selectPredDate(pill.dataset.date);
+});
 elements.auditDateFilter.addEventListener('change', renderAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
+
+elements.fixturesList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.admin-toggle-btn');
+  if (!btn) return;
+  const card = btn.closest('.match-card');
+  const form = card?.querySelector('.fixture-update-form');
+  if (!form) return;
+  const isOpen = !form.classList.contains('hidden');
+  form.classList.toggle('hidden', isOpen);
+  btn.innerHTML = isOpen
+    ? '<i class="bi bi-pencil-square"></i> Editar resultado'
+    : '<i class="bi bi-x-lg"></i> Cerrar';
+});
 
 elements.fixturesList.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -749,19 +1071,77 @@ elements.fixturesList.addEventListener('submit', async (event) => {
   }
 });
 
-elements.predictionsList.addEventListener('submit', async (event) => {
+// Prediction modal helpers
+const predModal = {
+  el: document.querySelector('#predictionModal'),
+  form: document.querySelector('#predictionModalForm'),
+  open(match) {
+    document.querySelector('#predictionModalPhase').textContent =
+      `${match.phase} · #${match.matchNumber}`;
+    document.querySelector('#predictionModalHome').textContent = match.homeTeam;
+    document.querySelector('#predictionModalAway').textContent = match.awayTeam;
+    document.querySelector('#predictionModalHomeLabel').textContent = match.homeTeam;
+    document.querySelector('#predictionModalAwayLabel').textContent = match.awayTeam;
+    document.querySelector('#predictionModalHomeScore').value = match.homeScore;
+    document.querySelector('#predictionModalAwayScore').value = match.awayScore;
+    document.querySelector('#predictionModalFeedback').classList.add('hidden');
+    this.form.dataset.matchId = match.matchId;
+    this.el.classList.remove('hidden');
+    document.querySelector('#predictionModalHomeScore').focus();
+  },
+  close() { this.el.classList.add('hidden'); }
+};
+
+function openPredModalFromBtn(btn) {
+  predModal.open({
+    matchId: btn.dataset.matchId,
+    homeTeam: btn.dataset.homeTeam,
+    awayTeam: btn.dataset.awayTeam,
+    homeScore: btn.dataset.homeScore,
+    awayScore: btn.dataset.awayScore,
+    phase: btn.dataset.phase,
+    matchNumber: btn.dataset.matchNumber
+  });
+}
+
+elements.predictionsList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixturesList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
+});
+
+document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());
+document.querySelector('#predictionModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) predModal.close();
+});
+
+document.querySelector('#predictionModalForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   const matchId = form.dataset.matchId;
   const homeScore = Number(form.elements.homeScore.value);
   const awayScore = Number(form.elements.awayScore.value);
+  const submitBtn = document.querySelector('#predictionModalSubmit');
+  submitBtn.disabled = true;
   try {
     await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore }) });
-    const feedback = form.querySelector('.save-feedback');
+    const feedback = document.querySelector('#predictionModalFeedback');
+    feedback.textContent = 'Predicción guardada correctamente.';
     feedback.classList.remove('hidden');
-    setTimeout(async () => { await loadPredictions(); }, 1000);
+    setTimeout(async () => {
+      predModal.close();
+      await loadPredictions();
+      if (state.currentView === 'fixturesView') await loadFixtures();
+    }, 900);
   } catch (error) {
     setMessage(elements.predictionsMessage, error.message);
+    predModal.close();
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 
