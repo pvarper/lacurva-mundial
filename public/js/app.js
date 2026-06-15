@@ -243,7 +243,10 @@ function renderFixtureCard(match) {
     <article class="match-card${isLive ? ' live-card' : ''}">
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
-        ${fixtureStatusBadge(match)}
+        <div class="match-header-right">
+          ${isLive ? '<span class="live-badge"><span class="live-dot"></span>EN VIVO</span>' : ''}
+          ${fixtureStatusBadge(match)}
+        </div>
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
@@ -413,6 +416,7 @@ function renderPredictionCard(match) {
     <article class="match-card${isLive ? ' live-card' : ''}">
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
+        ${isLive ? '<span class="live-badge"><span class="live-dot"></span>EN VIVO</span>' : ''}
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
