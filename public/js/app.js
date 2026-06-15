@@ -39,6 +39,7 @@ const elements = {
   usersTableBody: document.querySelector('#usersTableBody'),
   fixturesList: document.querySelector('#fixturesList'),
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
+  fixtureGroupFilter: document.querySelector('#fixtureGroupFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
   predictionsList: document.querySelector('#predictionsList'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
@@ -47,8 +48,16 @@ const elements = {
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
   recentPredFeed: document.querySelector('#recentPredFeed'),
+  activityFeed: document.querySelector('#activityFeed'),
+  activityTeamFilter: document.querySelector('#activityTeamFilter'),
+  clearActivityFilters: document.querySelector('#clearActivityFilters'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
+  standingDetailModal: document.querySelector('#standingDetailModal'),
+  standingDetailModalTitle: document.querySelector('#standingDetailModalTitle'),
+  standingDetailModalPts: document.querySelector('.standing-detail-modal-pts'),
+  standingDetailModalContent: document.querySelector('#standingDetailModalContent'),
+  standingDetailModalClose: document.querySelector('#standingDetailModalClose'),
   prizePoolPanel: document.querySelector('#prizePoolPanel'),
   fixturesMessage: document.querySelector('#fixturesMessage'),
   predictionsMessage: document.querySelector('#predictionsMessage'),
@@ -137,6 +146,9 @@ function showView(viewId) {
   if (viewId === 'predictionsView') {
     loadPredictions();
   }
+  if (viewId === 'activityView') {
+    loadPredictions();
+  }
   if (viewId === 'standingsView') loadStandings();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
@@ -167,6 +179,8 @@ function showAuthenticatedApp(user) {
 function showLogin(message = '') {
   state.user = null;
   state.currentView = null;
+  state.selectedPredDate = null;
+  state.dateCarouselIndex = 0;
   clearTimeout(state.inactivityTimer);
   stopFixtureAutoRefresh();
   elements.appView.classList.add('hidden');
@@ -357,13 +371,15 @@ async function loadFixtures() {
   const predMap = Object.fromEntries(
     userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
   );
-  if (!fixtures.length) {
+  const groupFilter = elements.fixtureGroupFilter ? elements.fixtureGroupFilter.value : '';
+  const filtered = groupFilter ? fixtures.filter(m => m.group === groupFilter) : fixtures;
+  if (!filtered.length) {
     elements.fixturesList.classList.add('cards-grid');
     elements.fixturesList.innerHTML = '<p>No hay partidos para ese filtro.</p>';
     return;
   }
-  const grouped = fixtures.filter(m => m.group);
-  const ungrouped = fixtures.filter(m => !m.group);
+  const grouped = filtered.filter(m => m.group);
+  const ungrouped = filtered.filter(m => !m.group);
   if (grouped.length) {
     elements.fixturesList.classList.remove('cards-grid');
     const groupMap = {};
@@ -387,6 +403,7 @@ async function loadFixtures() {
 
 function clearFixtureFilters() {
   elements.fixturePhaseFilter.value = '';
+  if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.value = '';
   loadFixtures();
 }
 
@@ -484,11 +501,17 @@ function deactivateUser(userId) {
 function filteredPredictions() {
   const date = state.selectedPredDate;
   const phase = elements.predictionPhaseFilter.value;
-  return state.predictions.filter((match) => {
-    const matchesDate = !date || match.boliviaDate === date;
-    const matchesPhase = !phase || match.phase === phase;
-    return matchesDate && matchesPhase;
-  });
+  return state.predictions
+    .filter((match) => {
+      const matchesDate = !date || match.boliviaDate === date;
+      const matchesPhase = !phase || match.phase === phase;
+      return matchesDate && matchesPhase;
+    })
+    .sort((a, b) => {
+      const dateA = `${a.boliviaDate} ${a.boliviaTime || ''}`;
+      const dateB = `${b.boliviaDate} ${b.boliviaTime || ''}`;
+      return dateA.localeCompare(dateB) || a.id - b.id;
+    });
 }
 
 function renderPredictionCard(match) {
@@ -610,6 +633,8 @@ async function loadPredictions() {
   renderDateCarousel();
   renderPredictions();
   renderUserPredFeed();
+  populateActivityTeamFilter();
+  renderActivityFeed();
 }
 
 function calcPredPoints(match) {
@@ -621,15 +646,34 @@ function calcPredPoints(match) {
 }
 
 function renderUserPredFeed() {
-  if (!elements.recentPredFeed) return;
+  // Legacy feed removed — activity moved to activityView
+}
+
+function getMatchdayLabel(roundName) {
+  if (!roundName) return '';
+  const m = roundName.match(/Fecha\s+(\d+)/i);
+  return m ? `Fecha ${m[1]}` : roundName;
+}
+
+function populateActivityTeamFilter() {
+  // text input — nothing to populate
+}
+
+function renderActivityFeed() {
+  if (!elements.activityFeed) return;
+  const teamQuery = elements.activityTeamFilter ? elements.activityTeamFilter.value.trim().toLowerCase() : '';
   const withPred = state.predictions
-    .filter(m => m.prediction)
-    .sort((a, b) => b.prediction.updatedAt.localeCompare(a.prediction.updatedAt));
+    .filter(m => {
+      if (!m.prediction) return false;
+      if (teamQuery && !m.homeTeam.toLowerCase().includes(teamQuery) && !m.awayTeam.toLowerCase().includes(teamQuery)) return false;
+      return true;
+    })
+    .sort((a, b) => b.boliviaDate.localeCompare(a.boliviaDate) || b.id - a.id);
   if (!withPred.length) {
-    elements.recentPredFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
+    elements.activityFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
     return;
   }
-  elements.recentPredFeed.innerHTML = withPred.map(m => {
+  elements.activityFeed.innerHTML = withPred.map(m => {
     const p = m.prediction;
     const pts = calcPredPoints(m);
     const hasResult = m.status === 'final' && m.homeScore !== null;
@@ -639,10 +683,17 @@ function renderUserPredFeed() {
     const ptsHtml = pts !== null
       ? `<span class="pred-feed-pts pts-${pts}">${pts} pts</span>`
       : '';
+    const matchdayLabel = getMatchdayLabel(m.roundName);
+    const groupLabel = m.group ? `Grupo ${escapeHtml(m.group)}` : '';
+    const metaParts = [matchdayLabel, groupLabel].filter(Boolean);
+    const metaHtml = metaParts.length
+      ? `<span class="pred-feed-meta">${metaParts.map(escapeHtml).join(' · ')}</span>`
+      : '';
     return `
       <li class="pred-feed-item">
         <div class="pred-feed-body">
           <span class="pred-feed-date">${escapeHtml(m.boliviaDate)}</span>
+          ${metaHtml}
           <span class="pred-feed-match">${escapeHtml(m.homeTeam)} vs ${escapeHtml(m.awayTeam)}</span>
           <div class="pred-feed-row">
             <span class="pred-feed-label">Resultado:</span> ${resultHtml}
@@ -660,8 +711,7 @@ async function loadStandings() {
   const [{ standings, liveMatch }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
   state.prizePool = prizePool;
   renderPrizePool();
-  elements.standingDetail.classList.add('hidden');
-  elements.standingDetail.innerHTML = '';
+  closeStandingDetailModal();
 
   const theadRow = elements.standingsBody.closest('table').querySelector('thead tr');
   const liveHeader = liveMatch
@@ -755,41 +805,41 @@ function formatPrediction(prediction) {
   return prediction ? `${prediction.homeScore} - ${prediction.awayScore}` : 'Sin predicción';
 }
 
+function closeStandingDetailModal() {
+  elements.standingDetailModal.classList.add('hidden');
+  elements.standingDetailModalContent.innerHTML = '';
+}
+
 async function loadStandingDetail(userId) {
   const data = await api(`/api/standings/${encodeURIComponent(userId)}`);
-  elements.standingDetail.classList.remove('hidden');
-  elements.standingDetail.innerHTML = `
-    <div class="detail-heading">
-      <div>
-        <h3><i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}</h3>
-        <p>Total acumulado: <strong style="color:#f2b705">${data.totalPoints}</strong> puntos</p>
-      </div>
-      <button type="button" class="secondary-button" data-action="close-standing-detail"><i class="bi bi-x"></i> Cerrar</button>
-    </div>
-    <div class="table-wrap overflow-x-auto">
-      <table>
-        <thead>
-          <tr><th>#</th><th>Fecha</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Pts</th></tr>
-        </thead>
-        <tbody>
-          ${data.details.map((detail) => {
-            const pts = detail.points;
-            const ptsColor = pts === 5 ? '#22c55e' : pts === 3 ? '#f2b705' : '#475569';
-            return `
-              <tr>
-                <td>${detail.matchNumber}</td>
-                <td>${escapeHtml(detail.boliviaDate)}</td>
-                <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
-                <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
-                <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
-                <td><strong style="color:${ptsColor}">${pts}</strong></td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
+  elements.standingDetailModalTitle.innerHTML =
+    `<i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}`;
+  elements.standingDetailModalPts.innerHTML =
+    `Total acumulado: <strong style="color:#f2b705">${data.totalPoints}</strong> pts`;
+  elements.standingDetailModalContent.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>#</th><th>Fecha</th><th>Encuentro</th><th>Resultado</th><th>Predicción</th><th>Pts</th></tr>
+      </thead>
+      <tbody>
+        ${data.details.map((detail) => {
+          const pts = detail.points;
+          const ptsColor = pts === 5 ? '#22c55e' : pts === 3 ? '#f2b705' : '#475569';
+          return `
+            <tr>
+              <td>${detail.matchNumber}</td>
+              <td>${escapeHtml(detail.boliviaDate)}</td>
+              <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
+              <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
+              <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
+              <td><strong style="color:${ptsColor}">${pts}</strong></td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
   `;
+  elements.standingDetailModal.classList.remove('hidden');
 }
 
 async function loadRules() {
@@ -1003,16 +1053,20 @@ elements.prizePoolPanel.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
-elements.standingDetail.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-action="close-standing-detail"]');
-  if (!button) return;
-  elements.standingDetail.classList.add('hidden');
-  elements.standingDetail.innerHTML = '';
+elements.standingDetailModalClose.addEventListener('click', closeStandingDetailModal);
+elements.standingDetailModal.addEventListener('click', (event) => {
+  if (event.target === elements.standingDetailModal) closeStandingDetailModal();
 });
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
+if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.addEventListener('change', loadFixtures);
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);
+if (elements.activityTeamFilter) elements.activityTeamFilter.addEventListener('input', renderActivityFeed);
+if (elements.clearActivityFilters) elements.clearActivityFilters.addEventListener('click', () => {
+  elements.activityTeamFilter.value = '';
+  renderActivityFeed();
+});
 elements.dateCarouselPrev.addEventListener('click', () => {
   const dates = getUniquePredDates();
   const selIdx = dates.indexOf(state.selectedPredDate);

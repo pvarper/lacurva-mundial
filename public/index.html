@@ -99,6 +99,9 @@
             <button data-view="predictionsView" class="active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-pencil-square w-4"></i> Mis Predicciones
             </button>
+            <button data-view="activityView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-activity w-4"></i> Actividad Reciente
+            </button>
             <button data-view="fixturesView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-calendar-event w-4"></i> Fixture Mundial
             </button>
@@ -205,7 +208,7 @@
                 <h2 class="text-xl font-black text-white mb-1">Fixture Mundial</h2>
                 <p class="text-slate-500 text-sm">Todos los partidos del Mundial 2026.</p>
               </div>
-              <div class="filters flex gap-2">
+              <div class="filters grid grid-cols-2 sm:flex gap-2">
                 <select id="fixturePhaseFilter" aria-label="Filtrar fixture por fase"
                   class="bg-pitch-800 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
                   <option value="">Todas las fases</option>
@@ -216,7 +219,22 @@
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Final</option>
                 </select>
-                <button id="clearFixtureFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
+                <select id="fixtureGroupFilter" aria-label="Filtrar fixture por grupo">
+                  <option value="">Todos los grupos</option>
+                  <option value="A">Grupo A</option>
+                  <option value="B">Grupo B</option>
+                  <option value="C">Grupo C</option>
+                  <option value="D">Grupo D</option>
+                  <option value="E">Grupo E</option>
+                  <option value="F">Grupo F</option>
+                  <option value="G">Grupo G</option>
+                  <option value="H">Grupo H</option>
+                  <option value="I">Grupo I</option>
+                  <option value="J">Grupo J</option>
+                  <option value="K">Grupo K</option>
+                  <option value="L">Grupo L</option>
+                </select>
+                <button id="clearFixtureFilters" class="secondary-button filter-clear-button col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 text-xs" type="button">
                   <i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar
                 </button>
               </div>
@@ -249,30 +267,41 @@
               </div>
             </div>
 
-            <!-- Two-column split: my predictions / activity feed -->
-            <div class="predictions-split">
-              <!-- Left: date carousel + my predictions -->
-              <div class="predictions-main">
-                <div class="date-carousel" aria-label="Seleccionar fecha">
-                  <button id="dateCarouselPrev" class="carousel-nav-btn" type="button" aria-label="Fecha anterior">
-                    <i class="bi bi-chevron-left"></i>
-                  </button>
-                  <div id="dateCarouselTrack" class="date-carousel-track"></div>
-                  <button id="dateCarouselNext" class="carousel-nav-btn" type="button" aria-label="Fecha siguiente">
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                </div>
-                <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
-                <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+            <div class="predictions-main">
+              <div class="date-carousel" aria-label="Seleccionar fecha">
+                <button id="dateCarouselPrev" class="carousel-nav-btn" type="button" aria-label="Fecha anterior">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <div id="dateCarouselTrack" class="date-carousel-track"></div>
+                <button id="dateCarouselNext" class="carousel-nav-btn" type="button" aria-label="Fecha siguiente">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
               </div>
+              <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+              <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+            </div>
+          </section>
 
-              <!-- Right: activity feed -->
-              <aside class="pred-feed-panel">
-                <h3 class="pred-feed-title">
-                  <i class="bi bi-activity"></i> Actividad reciente
-                </h3>
-                <ul id="recentPredFeed" class="pred-feed-list" aria-live="polite" aria-atomic="false"></ul>
-              </aside>
+          <!-- ACTIVIDAD RECIENTE -->
+          <section id="activityView" class="view hidden p-4 md:p-6">
+            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-4">
+              <div class="flex-1">
+                <h2 class="text-xl font-black text-white mb-1">Actividad Reciente</h2>
+                <p class="text-slate-500 text-sm">Historial de tus predicciones.</p>
+              </div>
+              <div class="filters flex gap-2">
+                <input id="activityTeamFilter" type="text" placeholder="Buscar equipo…" aria-label="Filtrar por equipo"
+                  class="activity-team-input" autocomplete="off">
+                <button id="clearActivityFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
+                  <i aria-hidden="true" class="bi bi-x-circle"></i> Limpiar
+                </button>
+              </div>
+            </div>
+            <div class="panel bg-pitch-800 border border-white/10 rounded-xl overflow-hidden">
+              <div class="pred-feed-title">
+                <i class="bi bi-activity"></i> Actividad Reciente
+              </div>
+              <ul id="activityFeed" class="pred-feed-list" aria-live="polite" aria-atomic="false"></ul>
             </div>
           </section>
 
@@ -290,7 +319,6 @@
                 <tbody id="standingsBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
-            <div id="standingDetail" class="standings-detail panel hidden mt-4 bg-pitch-800 border border-white/10 rounded-xl overflow-hidden"></div>
           </section>
 
           <!-- REGLAS -->
@@ -387,24 +415,46 @@
       <!-- MOBILE BOTTOM NAV -->
       <nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 z-50" aria-label="Navegación móvil">
         <div class="flex">
-          <button data-view="predictionsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+          <button data-view="predictionsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-pencil-square text-lg"></i>
             <span class="text-[10px] font-bold">Mis Pred.</span>
           </button>
-          <button data-view="fixturesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+          <button data-view="activityView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-activity text-lg"></i>
+            <span class="text-[10px] font-bold">Actividad</span>
+          </button>
+          <button data-view="fixturesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-calendar-event text-lg"></i>
             <span class="text-[10px] font-bold">Fixture</span>
           </button>
-          <button data-view="standingsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+          <button data-view="standingsView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
             <span class="text-[10px] font-bold">Tabla</span>
           </button>
-          <button data-view="rulesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 hover:text-white transition">
+          <button data-view="rulesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-info-circle text-lg"></i>
             <span class="text-[10px] font-bold">Reglas</span>
           </button>
         </div>
       </nav>
+
+      <!-- STANDING DETAIL MODAL -->
+      <div id="standingDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 prediction-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="standingDetailModalTitle">
+        <div class="standing-detail-modal-card">
+          <div class="standing-detail-modal-header">
+            <div>
+              <h3 id="standingDetailModalTitle" class="standing-detail-modal-username"></h3>
+              <p class="standing-detail-modal-pts"></p>
+            </div>
+            <button id="standingDetailModalClose" type="button" class="prediction-modal-close" aria-label="Cerrar">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="standing-detail-modal-body">
+            <div id="standingDetailModalContent" class="table-wrap overflow-x-auto"></div>
+          </div>
+        </div>
+      </div>
 
     </main>
 
