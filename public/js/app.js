@@ -493,36 +493,51 @@ async function loadPredictions() {
   }
   renderDateCarousel();
   renderPredictions();
-  loadRecentPredictions();
+  renderUserPredFeed();
 }
 
-function formatRelativeTime(isoString) {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+function calcPredPoints(match) {
+  if (!match.prediction || match.status !== 'final' || match.homeScore === null || match.awayScore === null) return null;
+  const p = match.prediction;
+  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) return 5;
+  const getOutcome = (h, a) => h > a ? 'home' : h < a ? 'away' : 'draw';
+  return getOutcome(p.homeScore, p.awayScore) === getOutcome(match.homeScore, match.awayScore) ? 3 : 0;
 }
 
-async function loadRecentPredictions() {
-  const feed = await api('/api/recent-predictions');
+function renderUserPredFeed() {
   if (!elements.recentPredFeed) return;
-  if (!feed.length) {
+  const withPred = state.predictions
+    .filter(m => m.prediction)
+    .sort((a, b) => b.prediction.updatedAt.localeCompare(a.prediction.updatedAt));
+  if (!withPred.length) {
     elements.recentPredFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
     return;
   }
-  elements.recentPredFeed.innerHTML = feed.map(p => `
-    <li class="pred-feed-item">
-      <div class="pred-feed-avatar">${escapeHtml(p.username.slice(0, 2))}</div>
-      <div class="pred-feed-body">
-        <span class="pred-feed-user">${escapeHtml(p.username)}</span>
-        <span class="pred-feed-match">${escapeHtml(p.homeTeam)} vs ${escapeHtml(p.awayTeam)}</span>
-        <span class="pred-feed-score">${p.predHome} — ${p.predAway}</span>
-      </div>
-      <span class="pred-feed-time">${formatRelativeTime(p.updatedAt)}</span>
-    </li>`).join('');
+  elements.recentPredFeed.innerHTML = withPred.map(m => {
+    const p = m.prediction;
+    const pts = calcPredPoints(m);
+    const hasResult = m.status === 'final' && m.homeScore !== null;
+    const resultHtml = hasResult
+      ? `<span class="pred-feed-result">${m.homeScore} — ${m.awayScore}</span>`
+      : `<span class="pred-feed-result pending">Sin resultado</span>`;
+    const ptsHtml = pts !== null
+      ? `<span class="pred-feed-pts pts-${pts}">${pts} pts</span>`
+      : '';
+    return `
+      <li class="pred-feed-item">
+        <div class="pred-feed-body">
+          <span class="pred-feed-date">${escapeHtml(m.boliviaDate)}</span>
+          <span class="pred-feed-match">${escapeHtml(m.homeTeam)} vs ${escapeHtml(m.awayTeam)}</span>
+          <div class="pred-feed-row">
+            <span class="pred-feed-label">Resultado:</span> ${resultHtml}
+            <span class="pred-feed-sep">·</span>
+            <span class="pred-feed-label">Mi pred:</span>
+            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}</span>
+            ${ptsHtml}
+          </div>
+        </div>
+      </li>`;
+  }).join('');
 }
 
 async function loadStandings() {
