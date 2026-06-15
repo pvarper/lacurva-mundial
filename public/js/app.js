@@ -399,14 +399,20 @@ function renderPredictionCard(match) {
         ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
       </button>`;
 
+  const hasScore = match.homeScore !== null && match.homeScore !== undefined;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const scoreDisplay = hasScore
+    ? `<div class="score-display${isLive ? ' live' : ''}">${match.homeScore} — ${match.awayScore}</div>`
+    : `<div class="score-display vs">VS</div>`;
+
   return `
-    <article class="match-card">
+    <article class="match-card${isLive ? ' live-card' : ''}">
       <div class="match-header">
         <span class="match-phase">${escapeHtml(match.roundName || match.phase)} · #${match.matchNumber}</span>
       </div>
       <div class="match-teams">
         <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
-        <div class="score-display vs">VS</div>
+        ${scoreDisplay}
         <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
       </div>
       <div class="match-meta-row">
