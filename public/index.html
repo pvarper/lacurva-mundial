@@ -266,8 +266,22 @@
               </button>
             </div>
 
-            <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
-            <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+            <!-- Two-column split: my predictions / community feed -->
+            <div class="predictions-split">
+              <!-- Left: my predictions -->
+              <div class="predictions-main">
+                <p id="predictionsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+                <div id="predictionsList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
+              </div>
+
+              <!-- Right: community feed -->
+              <aside class="pred-feed-panel">
+                <h3 class="pred-feed-title">
+                  <i class="bi bi-activity"></i> Actividad reciente
+                </h3>
+                <ul id="recentPredFeed" class="pred-feed-list" aria-live="polite" aria-atomic="false"></ul>
+              </aside>
+            </div>
           </section>
 
           <!-- STANDINGS -->

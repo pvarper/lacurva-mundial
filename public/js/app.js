@@ -49,6 +49,7 @@ const elements = {
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
+  recentPredFeed: document.querySelector('#recentPredFeed'),
   standingsBody: document.querySelector('#standingsBody'),
   standingDetail: document.querySelector('#standingDetail'),
   prizePoolPanel: document.querySelector('#prizePoolPanel'),
@@ -492,6 +493,36 @@ async function loadPredictions() {
   }
   renderDateCarousel();
   renderPredictions();
+  loadRecentPredictions();
+}
+
+function formatRelativeTime(isoString) {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+}
+
+async function loadRecentPredictions() {
+  const feed = await api('/api/recent-predictions');
+  if (!elements.recentPredFeed) return;
+  if (!feed.length) {
+    elements.recentPredFeed.innerHTML = '<li class="pred-feed-item"><span class="pred-feed-match">Sin predicciones aún.</span></li>';
+    return;
+  }
+  elements.recentPredFeed.innerHTML = feed.map(p => `
+    <li class="pred-feed-item">
+      <div class="pred-feed-avatar">${escapeHtml(p.username.slice(0, 2))}</div>
+      <div class="pred-feed-body">
+        <span class="pred-feed-user">${escapeHtml(p.username)}</span>
+        <span class="pred-feed-match">${escapeHtml(p.homeTeam)} vs ${escapeHtml(p.awayTeam)}</span>
+        <span class="pred-feed-score">${p.predHome} — ${p.predAway}</span>
+      </div>
+      <span class="pred-feed-time">${formatRelativeTime(p.updatedAt)}</span>
+    </li>`).join('');
 }
 
 async function loadStandings() {
