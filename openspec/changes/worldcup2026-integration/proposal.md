@@ -43,18 +43,23 @@ New for this change:
 4. **String coercion is explicit and required.** The provider returns `finished`, `home_score`, and `away_score` as strings. The new code must `Number()` the scores and string-compare `finished`/`time_elapsed` rather than relying on JS truthiness — this was a known gotcha from exploration and must not regress.
 5. **Sync always overwrites on diff**, same policy as the original proposal — there's no "locked after manual edit" semantics. This keeps the mental model simple (provider is source of truth on diff, admin override is a temporary correction that the next sync cycle may overwrite if the provider's data changes). See Decision/Assumption A below — this is carried over unchanged but worth re-confirming given the new provider's unofficial/community-sourced nature (292 stars, ~30 commits, no accuracy disclaimer — same risk category as SportMonks would have been).
 
-## Decisions needed from the user
+## Decisions — resolved
 
-1. **File/branding renaming.** Recommend renaming `lib/sportmonks-*.js` to provider-neutral names (`lib/worldcup-sync.js`, `lib/team-name-map.js`, `lib/match-status-map.js`) since "sportmonks" branding is now incorrect and would confuse future readers. Alternative: keep the `sportmonks-` prefixed filenames despite the provider change, to minimize diff churn on an already-committed branch. **Awaiting your call.**
-2. **Activation/env-var gating.** The new provider needs no API key, so the old `SPORTMONKS_API_TOKEN`-presence gate doesn't apply. Options: (a) always-on whenever the server starts, in any environment, since no secret is required; (b) explicit opt-in flag (e.g. `WORLDCUP_SYNC_ENABLED=true`) so local/dev runs don't unexpectedly hit an external API on every server start and so tests stay deterministic. **Recommend (b)** for safety/testability, but this is your call.
-3. **Disposition of dead SportMonks code.** The current `lib/sportmonks-team-map.js` (all team ids `null`, permanent no-op) and `lib/sportmonks-states.js` (unverified guesses) are already fully non-functional. Options: (a) delete them as part of this change, replacing with the new provider's files; (b) leave them as inert dead code in case of future SportMonks re-adoption (e.g. if you later upgrade to a paid plan that covers the World Cup). **Recommend (a)** — dead, never-functional code adds reviewer confusion with no offsetting value, and reintroducing SportMonks later would need a fresh proposal anyway given the plan/coverage problem. Your call.
+1. **File/branding renaming**: rename to provider-neutral names: `lib/worldcup-sync.js` (engine), `lib/team-name-map.js` (ES->EN names, no ids), `lib/match-status-map.js` (`finished`/`time_elapsed` parser). Old `lib/sportmonks-*.js` files are **deleted**, not kept as references.
+2. **Activation/env-var gating**: explicit opt-in flag `WORLDCUP_SYNC_ENABLED=true`. Sync does not start unless this is set, regardless of environment. Logs a clear "sync disabled" message when absent, same convention as the old token gate (boolean flag instead of secret).
+3. **Disposition of dead SportMonks code**: **delete completely**. User explicitly required zero remaining SportMonks traces ("asegurate que no quede nada de sportmonks") — this means `lib/sportmonks-sync.js`, `lib/sportmonks-team-map.js`, `lib/sportmonks-states.js` must be removed, AND apply phase must grep the full repo for any other `sportmonks`/`SportMonks`/`SPORTMONKS` string (server.js import line, comments, openspec docs referencing file paths that no longer exist) and clean up all of them as part of this change.
 
-## Assumptions carried over from prior proposal (flag if wrong)
+## Assumptions — confirmed by user
 
-- **A. Sync-always-overwrites policy**: an admin's manual correction via `PUT /api/fixtures/:id` can be silently overwritten by the next sync cycle if the provider's data changes. No "locked after manual edit" state exists. If you want manual overrides to stick until explicitly reset, that's a new requirement requiring a design change (e.g. a `manuallyOverridden` flag check before sync writes).
-- **B. Silent skip on match-failure**: if a fixture's team name can't be matched against the provider's name table (e.g. incomplete table, provider renames a team), the sync skips that fixture and logs a `console.warn`, retrying next cycle — no audit-log entry, no admin-facing UI signal. If you want this surfaced more visibly to admins, that changes scope.
-- **C. Knockout fixtures fully out of scope**: no sync attempted on `m-073`..`m-104` until admins fill in real team names; no errors logged for these (they're filtered out before matching is attempted, same as today's `isSyncCandidate` pattern).
+- **A. Sync-always-overwrites policy** — **confirmed unchanged**. An admin's manual correction via `PUT /api/fixtures/:id` can be overwritten by the next sync cycle if the provider's data differs. No "locked after manual edit" state.
+- **B. Match-failure visibility** — **upgraded from silent-warn-only**: when a fixture's team name can't be matched against the provider's data this cycle, the sync MUST both `console.warn` (for server-side debugging) AND write a new audit log entry (action e.g. `fixture_sync_unmatched`, design phase to define exact name/payload) so admins can see unmatched fixtures from the existing audit UI, not just server logs.
+- **C. Knockout fixtures fully out of scope** — **confirmed unchanged**. No sync attempted on `m-073`..`m-104` until admins fill in real team names; no errors/audit entries logged for these (filtered out before matching is attempted, same as today's `isSyncCandidate` pattern — this is an expected exclusion, not a failure).
 
-## Proposal question round
+## Proposal question round — resolved
 
-See conversation — questions covering manual-override durability, knockout scope confirmation, match-failure visibility, dead-code disposition, and env-var defaulting were offered to the user before finalizing. Assumptions A, B, C above and Decisions 1-3 reflect the default framing pending explicit confirmation or correction.
+All 5 questions answered by the user in conversation:
+1. Manual-override durability: keep sync-always-overwrites (Assumption A confirmed).
+2. Knockout scope: confirmed out of scope (Assumption C confirmed).
+3. Match-failure visibility: both console.warn AND audit log entry (Assumption B upgraded).
+4. Dead SportMonks code: delete completely, zero traces left (Decision 3).
+5. Env-var gating: explicit opt-in flag `WORLDCUP_SYNC_ENABLED` (Decision 2).
