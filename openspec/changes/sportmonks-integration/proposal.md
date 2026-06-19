@@ -36,12 +36,12 @@ Admin currently must manually enter scores via `PUT /api/fixtures/:id` for every
 4. `sportmonksFixtureId` added per fixture as the stable join key; sync never matches by team name.
 5. Manual vs. sync provenance is tracked (likely a `source` field value of `'manual'` or `'sync'`) so the design phase can define exact precedence/locking rules.
 
-## Decisions needed before design can finalize
+## Decisions — resolved
 
-1. **Node version confirmation** — must be >=18 to use built-in `fetch` without adding a dependency; project has no `engines` field today.
-2. **Polling cadence** — tension between freshness (live matches), SportMonks rate limits, and the 1-minute prediction lock window. Needs an explicit interval (e.g. 30s/60s).
-3. **`sportmonksFixtureId` population** — manual one-time mapping list authored by admin, vs. an automated lookup/matching script run once against fixtures.json.
-4. **Manual-edit precedence** — does a manual `PUT` lock that fixture against sync until some condition, or does sync always win on next poll?
+1. **Node version**: confirmed >=18 (prod runs v24.16.0, local v26.1.0). Built-in `fetch` used, no new HTTP dependency.
+2. **Polling cadence**: 60s.
+3. **Team/match resolution**: no `sportmonksFixtureId` persisted. Instead, resolve each World Cup team's SportMonks `teamId` **once** via a static translation table (`nombreLocal → sportmonksTeamId`, ~32-48 entries, fixed for the tournament). Each sync queries `GET /football/fixtures/teams/{teamId}/between/{date}/{date}?include=scores` directly per match — no day-wide listing, no fuzzy name matching per poll. Knockout-stage fixtures with placeholder team names (`"2A"`, `"W74"`, etc., ids m-073 to m-104) are out of scope for sync until the admin resolves the actual team into `fixtures.json`.
+4. **Manual-edit precedence**: sync always overwrites on next poll. The manual `PUT /api/fixtures/:id` path stays enabled (not removed, not disabled) as a fallback/override, but it has no special protection against being superseded by the next sync tick.
 
 ## Where
 
