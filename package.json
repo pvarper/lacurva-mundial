@@ -5,8 +5,8 @@
   "description": "World Cup fixture and prediction app with JSON persistence.",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "start": "PORT=3001 node server.js",
-    "dev": "PORT=3001 node --watch server.js",
+    "start": "PORT=3001 node --env-file-if-exists=.env server.js",
+    "dev": "PORT=3001 node --watch --env-file-if-exists=.env server.js",
     "build:css": "tailwindcss -i public/css/tailwind.css -o public/css/tailwind.output.css",
     "watch:css": "tailwindcss -i public/css/tailwind.css -o public/css/tailwind.output.css --watch"
   },
