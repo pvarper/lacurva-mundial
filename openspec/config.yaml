@@ -1,0 +1,65 @@
+---
+# OpenSpec configuration for lacurva-mundial
+# SDD project context and testing capabilities
+
+project: lacurva-mundial
+stack: Node.js, Express, vanilla JavaScript, JSON persistence
+initialized: 2026-06-19
+
+context: |
+  World Cup prediction web app. Single-page app with server-side sessions,
+  authentication, prediction management, scoring, and audit logging.
+  Express backend, JSON file persistence (no database). pnpm package manager.
+
+strict_tdd: false
+
+testing:
+  unit:
+    available: false
+  integration:
+    available: false
+  e2e:
+    available: false
+  coverage:
+    available: false
+  linter:
+    available: false
+  type_checker:
+    available: false
+  formatter:
+    available: false
+  syntax_validator:
+    available: true
+    command: node --check server.js
+
+verification:
+  - node --check server.js (backend syntax)
+  - pnpm install --frozen-lockfile (dependency integrity)
+  - git diff --check (git hygiene)
+
+phase_rules:
+  proposal:
+    - Scope to features, fixes, or refactors aligned with PRD.md
+    - No test infrastructure setup required at proposal time
+    - Plan manual verification steps (node --check, manual app testing)
+  spec:
+    - Define acceptance criteria and product outcomes
+    - If future test framework addition is proposed, spec it separately
+  design:
+    - Architecture decisions for Express middleware, data flow, security
+    - Reference existing patterns in nodejs-express-server skill
+  tasks:
+    - Work units estimated for 1-3 hour chunks
+    - Include verification steps (syntax check, manual testing)
+    - Mark data file changes carefully (audit-log.json is runtime state)
+  apply:
+    - Manual verification: node --check server.js
+    - Manual app testing in browser at http://localhost:3001
+    - Commit only intended files (avoid data/ runtime files)
+  verify:
+    - Check syntax validation passes
+    - Confirm manual testing steps documented
+    - No automated test assertion expected (unavailable)
+  archive:
+    - Record manual verification steps used
+    - Note any future test infrastructure recommendations

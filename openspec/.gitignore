@@ -1,0 +1,6 @@
+# OpenSpec artifacts — uncomment to ignore locally generated specs
+# *
+
+# Keep config.yaml committed for team context
+# !config.yaml
+# !.gitignore
