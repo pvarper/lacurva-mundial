@@ -5,7 +5,7 @@ const express = require('express');
 const session = require('express-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { startSportmonksSync } = require('./lib/sportmonks-sync');
+const { startWorldcupSync } = require('./lib/worldcup-sync');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -668,9 +668,8 @@ app.listen(PORT, () => {
   console.log(`La Curva Mundial running at http://localhost:${PORT}`);
 });
 
-startSportmonksSync({
+startWorldcupSync({
   readJson,
   writeJson,
-  recordAuditLog,
-  apiToken: process.env.SPORTMONKS_API_TOKEN
+  recordAuditLog
 });
