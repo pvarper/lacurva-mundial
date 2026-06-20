@@ -5,9 +5,10 @@
 **FINAL CONTRACT** (overrides proposal.md and spec.md wherever they conflict):
 
 `GET /api/audit-log`:
-- `date` omitted or invalid format → defaults to **today** (`America/La_Paz`, computed server-side)
+- `date` omitted → defaults to **today** (`America/La_Paz`, computed server-side)
+- `date=YYYY-MM-DD` (valid format) → returns entries matching that Bolivia-local day (reversed)
+- `date=invalid-format` → returns `400 Bad Request`
 - `date=all` → explicit opt-out, returns full history (reversed, newest first)
-- `date=YYYY-MM-DD` → returns entries matching that Bolivia-local day (reversed)
 
 This matches `design.md`'s "Decision: `date` query param semantics" section, NOT proposal.md line 36 ("omitting `date` returns full history") or `specs/audit-log-date-filtering/spec.md` lines 20-25 and line 41 (both currently describe absent-date-returns-full-history). Task 6 below fixes that stale wording. `sdd-apply` MUST implement the today-default/`all`-opt-out behavior regardless of what the uncorrected spec text says at apply time.
 
