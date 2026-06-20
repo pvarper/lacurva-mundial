@@ -883,25 +883,21 @@ function formatAuditDetail(detail) {
 }
 
 async function loadAuditLog() {
-  state.auditLogs = await api('/api/audit-log');
+  state.auditShowingAll = false;
+  if (!elements.auditDateFilter.value) {
+    elements.auditDateFilter.value = todayBoliviaDate();
+  }
+  state.auditLogs = await api('/api/audit-log?date=' + elements.auditDateFilter.value);
   renderAuditLog();
 }
 
 function filteredAuditLogs() {
-  const date = elements.auditDateFilter.value;
   const user = elements.auditUserFilter.value.trim().toLowerCase();
   const action = elements.auditActionFilter.value;
   return state.auditLogs.filter((entry) => {
-    const boliviaDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/La_Paz',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(new Date(entry.timestamp));
-    const matchesDate = !date || boliviaDate === date;
     const matchesUser = !user || String(entry.username || '').toLowerCase().includes(user);
     const matchesAction = !action || entry.action === action;
-    return matchesDate && matchesUser && matchesAction;
+    return matchesUser && matchesAction;
   });
 }
 
@@ -933,10 +929,12 @@ function renderAuditLog() {
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">No hay acciones registradas.</td></tr>';
 }
 
-function clearAuditFilters() {
-  elements.auditDateFilter.value = '';
+async function clearAuditFilters() {
   elements.auditUserFilter.value = '';
   elements.auditActionFilter.value = '';
+  elements.auditDateFilter.value = '';
+  state.auditShowingAll = true;
+  state.auditLogs = await api('/api/audit-log?date=all');
   renderAuditLog();
 }
 
@@ -1095,7 +1093,7 @@ elements.dateCarouselTrack.addEventListener('click', (e) => {
   if (!pill) return;
   selectPredDate(pill.dataset.date);
 });
-elements.auditDateFilter.addEventListener('change', renderAuditLog);
+elements.auditDateFilter.addEventListener('change', loadAuditLog);
 elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
