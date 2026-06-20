@@ -1,6 +1,6 @@
-# Delta Spec: Prediction Lock Status
+# Spec: Prediction Lock Status
 
-## ADDED Requirements
+## REQUIREMENTS
 
 ### Requirement: Prediction lock MUST consider match status
 `isPredictionLocked(match)` MUST return `true` when `match.status !== 'scheduled'`

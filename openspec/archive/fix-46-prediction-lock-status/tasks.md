@@ -12,7 +12,7 @@
 - Depends on Task 1. Sequential.
 
 ## 3. Manual API verification (no test framework in repo)
-- [ ] Start the app (`pnpm start`) and exercise `POST /api/predictions`:
+- [x] Start the app (`pnpm start`) and exercise `POST /api/predictions`:
   - a match with `status: 'live'` and a future `date` → expect HTTP 423
     (spec: "Submitting a prediction for a live match").
   - a match with `status: 'final'` and a future `date` → expect HTTP 423.
