@@ -208,7 +208,8 @@ async function clearFailedAttempts(user, users) {
 }
 
 function isPredictionLocked(match) {
-  return new Date(match.date).getTime() - Date.now() <= PREDICTION_LOCK_MS;
+  return match.status !== 'scheduled' ||
+    new Date(match.date).getTime() - Date.now() <= PREDICTION_LOCK_MS;
 }
 
 function getOutcome(homeScore, awayScore) {

@@ -1,14 +1,14 @@
 # Tasks: Fix prediction lock to respect match status
 
 ## 1. Update `isPredictionLocked` (server.js:210-212)
-- [ ] Change the function body to return `true` when `match.status !== 'scheduled'`
+- [x] Change the function body to return `true` when `match.status !== 'scheduled'`
       OR the existing date-buffer condition holds, per the spec
       (`Prediction lock MUST consider match status`,
       `Prediction lock MUST preserve existing date-buffer behavior for scheduled matches`).
 - Sequential. No parallelism — single function, single file.
 
 ## 2. Static verification
-- [ ] Run `node --check server.js` and confirm it passes (spec: "`node --check server.js` passes").
+- [x] Run `node --check server.js` and confirm it passes (spec: "`node --check server.js` passes").
 - Depends on Task 1. Sequential.
 
 ## 3. Manual API verification (no test framework in repo)
@@ -21,9 +21,9 @@
 - Depends on Task 1. Sequential.
 
 ## 4. Diff review and commit
-- [ ] Confirm `git diff` touches only `server.js` (the `isPredictionLocked` function),
+- [x] Confirm `git diff` touches only `server.js` (the `isPredictionLocked` function),
       no frontend files modified (spec constraint: "No frontend files are modified").
-- [ ] Commit with conventional commit message, e.g.
+- [x] Commit with conventional commit message, e.g.
       `fix(predictions): lock predictions when match status is live or final`.
 - Depends on Tasks 1-3. Sequential.
 
