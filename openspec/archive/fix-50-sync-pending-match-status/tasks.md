@@ -58,8 +58,10 @@ This does not change the code-guard task at all; it only widens task 2's data-ed
 
 - [x] 3.1 `node --check server.js` and `node --check lib/worldcup-sync.js` — syntax
       sanity per project convention (no test harness exists).
+      - Verified: both pass (re-verified in verify report).
 - [x] 3.2 Manually inspect `data/fixtures.json`: grep for `"status": "scheduled"` and
       confirm zero matches have a non-null `homeScore`/`awayScore` alongside them.
+      - Verified: 0 polluted fixtures found in current live state.
 - [x] 3.3 Manual/code-path check of `applyFixtureSync()` behavior (no test harness, so
       reason through or exercise via a throwaway script if convenient):
       - scheduled + raw 0/0 in → written record has `null`/`null`.
@@ -67,11 +69,14 @@ This does not change the code-guard task at all; it only widens task 2's data-ed
         (no `writeJson` call), confirming the unchanged-check still short-circuits
         post-fix.
       - status `live` with real scores → scores pass through unmodified.
+      - Verified: guard placement and logic confirmed correct in verify report.
 - [x] 3.4 Load the frontend fixtures view (or reason from `public/js/app.js`'s
       existing `homeScore !== null` convention) and confirm previously-polluted
       fixtures now render "Pendiente", not "0 - 0".
+      - Verified: relies on pre-existing unchanged `homeScore !== null` convention.
 - [x] 3.5 `git diff --check` before committing — confirm only `lib/worldcup-sync.js`
       and `data/fixtures.json` changed, and the diff is the guard + backfill only.
+      - Verified: commit b8849d2 is the only change (+9 lines in worldcup-sync.js).
 
 ## Review Workload Forecast
 
