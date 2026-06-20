@@ -17,12 +17,26 @@ Let the audit log endpoint and bitácora view scope results to a single Bolivia-
 - THEN the response MUST contain only entries whose `timestamp`, converted to `America/La_Paz`, falls on `2026-06-19`
 - AND entries from other days MUST be excluded
 
-#### Scenario: Omitting the date parameter returns full history
+#### Scenario: Omitting the date parameter defaults to today
 
 - GIVEN the audit log contains entries spanning many days
 - WHEN a request is made to `GET /api/audit-log` with no `date` parameter
+- THEN the response MUST contain only entries from today's calendar day in `America/La_Paz`, computed server-side
+- AND entries from other days MUST be excluded
+
+#### Scenario: Explicit `date=all` returns full history
+
+- GIVEN the audit log contains entries spanning many days
+- WHEN a request is made to `GET /api/audit-log?date=all`
 - THEN the response MUST contain all entries, unfiltered by date
 - AND this supports an admin explicitly clearing the date filter to view full history
+
+#### Scenario: Invalid date format returns an error
+
+- GIVEN a request is made to `GET /api/audit-log?date=not-a-date`
+- WHEN the `date` parameter does not match `YYYY-MM-DD` and is not `all`
+- THEN the response MUST be `400 Bad Request`
+- AND no audit log data is returned
 
 #### Scenario: Entries near day boundary respect Bolivia timezone, not UTC
 

@@ -33,7 +33,7 @@ The audit log has three related issues:
 ## Acceptance Criteria
 
 - Audit log file grows without truncation; no `.slice(-1000)` or equivalent cap remains in `recordAuditLog()`.
-- `GET /api/audit-log?date=YYYY-MM-DD` returns only entries from that Bolivia-local calendar day; omitting `date` returns full history (admin "view all" still works).
+- `GET /api/audit-log?date=YYYY-MM-DD` returns only entries from that Bolivia-local calendar day; omitting `date` defaults to today's entries (Bolivia time); `date=all` returns full history (admin "view all" opt-out).
 - Bitácora view loads defaulting to today's entries (Bolivia time) without requiring the admin to pick a date first.
 - Fixture sync polling no longer creates any `fixture_synced` or `fixture_sync_unmatched` audit-log entries, even on repeated identical syncs.
 - Existing user/action client-side filters in the bitácora view continue to work unchanged.

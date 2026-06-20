@@ -123,6 +123,16 @@ function sanitizeUser(user) {
   };
 }
 
+const BOLIVIA_DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/La_Paz' });
+
+function boliviaDateOf(timestamp) {
+  return BOLIVIA_DATE_FORMATTER.format(new Date(timestamp));
+}
+
+function todayBoliviaDate() {
+  return BOLIVIA_DATE_FORMATTER.format(new Date());
+}
+
 async function recordAuditLog(req, action, detail = {}) {
   try {
     const logs = await readAuditLogs();
@@ -136,7 +146,7 @@ async function recordAuditLog(req, action, detail = {}) {
       detail,
       ip: req.ip
     });
-    await writeJson('audit-log.json', logs.slice(-1000));
+    await writeJson('audit-log.json', logs);
   } catch (error) {
     console.error('Could not write audit log:', error.message);
   }
@@ -321,7 +331,22 @@ app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => 
 
 app.get('/api/audit-log', requireAdmin, asyncHandler(async (req, res) => {
   const logs = await readAuditLogs();
-  res.json(logs.slice().reverse());
+  const requestedDate = req.query.date;
+
+  if (requestedDate === 'all') {
+    return res.json(logs.slice().reverse());
+  }
+
+  let targetDate = todayBoliviaDate();
+  if (requestedDate !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(requestedDate))) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+    targetDate = requestedDate;
+  }
+
+  const filtered = logs.filter((entry) => boliviaDateOf(entry.timestamp) === targetDate);
+  return res.json(filtered.slice().reverse());
 }));
 
 app.get('/api/session', (req, res) => {
@@ -671,6 +696,5 @@ app.listen(PORT, () => {
 
 startWorldcupSync({
   readJson,
-  writeJson,
-  recordAuditLog
+  writeJson
 });

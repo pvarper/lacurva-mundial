@@ -13,12 +13,12 @@ This matches `design.md`'s "Decision: `date` query param semantics" section, NOT
 
 ## Task List
 
-### 1. `server.js` — remove retention cap
+### 1. [x] `server.js` — remove retention cap
 - **Spec**: `audit-log-retention` / Requirement: Unbounded Audit Log Persistence
 - **Action**: In `recordAuditLog()` (~line 139), change `writeJson('audit-log.json', logs.slice(-1000))` to `writeJson('audit-log.json', logs)`.
 - **Parallel**: yes (independent of tasks 2-3)
 
-### 2. `server.js` — add `date` query param handling to `GET /api/audit-log`
+### 2. [x] `server.js` — add `date` query param handling to `GET /api/audit-log`
 - **Spec**: `audit-log-date-filtering` / Requirement: Server-Side Date Query Parameter (with the Task 0 override applied instead of the literal scenario text)
 - **Action**:
   - Add/reuse a Bolivia-date helper (`Intl.DateTimeFormat('en-CA', { timeZone: 'America/La_Paz' })`) to compute `todayBoliviaDate()` server-side and to convert a log entry's `timestamp` to its Bolivia-local date.
@@ -29,7 +29,7 @@ This matches `design.md`'s "Decision: `date` query param semantics" section, NOT
 - **Depends on**: none (independent of Task 1, but same file — sequence after Task 1 to avoid edit overlap in the same function block)
 - **Parallel**: sequential with Task 1 (same file), parallel with Task 3 (different file)
 
-### 3. `lib/worldcup-sync.js` — remove sync audit log calls
+### 3. [x] `lib/worldcup-sync.js` — remove sync audit log calls
 - **Spec**: `audit-log-sync-noise-suppression` / Requirement: Fixture Sync Events Excluded From Audit Log
 - **Action**:
   - Remove `await recordAuditLog(SYNC_REQUEST_CONTEXT, 'fixture_synced', {...})` in `applyFixtureSync` (~line 112) and its destructured `recordAuditLog` reference (~line 96) if no longer used elsewhere in that function.
@@ -38,7 +38,7 @@ This matches `design.md`'s "Decision: `date` query param semantics" section, NOT
   - Check `server.js`'s `startWorldcupSync({...})` call (~line 675): if `recordAuditLog` is passed in the `deps` object and nothing in the sync module's call chain (`runSyncCycle` → `syncSingleFixture` → `applyFixtureSync`/`recordUnmatched`) uses it anymore, remove it from `deps` there too.
 - **Parallel**: yes (independent file from Tasks 1-2)
 
-### 4. `public/js/app.js` — server-filtered date wiring
+### 4. [x] `public/js/app.js` — server-filtered date wiring
 - **Spec**: `audit-log-date-filtering` / Requirement: Bitácora Default Date On Load + Requirement: Client-Side Filters Remain Independent of Date
 - **Action**:
   - `loadAuditLog()` (~885-888): if `elements.auditDateFilter.value` is empty, set it to `todayBoliviaDate()` first (mirror `loadPredictions()` pattern). Call `api('/api/audit-log?date=' + elements.auditDateFilter.value)`.
@@ -47,12 +47,12 @@ This matches `design.md`'s "Decision: `date` query param semantics" section, NOT
 - **Depends on**: Task 2 (server endpoint contract must exist first, but can be implemented in parallel and verified together)
 - **Parallel**: can be written in parallel with Tasks 1-3; verify together at the end
 
-### 5. Verify `recordAuditLog` deps cleanup didn't break other callers
+### 5. [x] Verify `recordAuditLog` deps cleanup didn't break other callers
 - **Action**: After Task 3, grep `server.js` and `lib/worldcup-sync.js` for any remaining `recordAuditLog` references to confirm no dangling/unused imports or destructured names remain, and that admin/user-action calls to `recordAuditLog` elsewhere in `server.js` are untouched.
 - **Depends on**: Task 3
 - **Parallel**: sequential after Task 3
 
-### 6. Correct stale "omit date = full history" wording in proposal.md and spec.md
+### 6. [x] Correct stale "omit date = full history" wording in proposal.md and spec.md
 - **Spec**: cross-cutting — documentation accuracy
 - **Action**:
   - `proposal.md` line 36: change "omitting `date` returns full history (admin 'view all' still works)" → "omitting `date` defaults to today's entries (Bolivia time); `date=all` returns full history (admin 'view all' opt-out)".
@@ -63,12 +63,12 @@ This matches `design.md`'s "Decision: `date` query param semantics" section, NOT
 - **Depends on**: none, but should land in the same PR as Tasks 1-4 so docs and code never diverge
 - **Parallel**: yes, independent of code tasks, but bundle into the same commit/PR per `single-pr` delivery strategy
 
-### 7. Static verification
+### 7. [x] Static verification
 - **Action**: Run `node --check server.js && node --check lib/worldcup-sync.js`. Both must exit 0.
 - **Depends on**: Tasks 1, 2, 3
 - **Parallel**: sequential, run after code tasks complete
 
-### 8. Manual verification checklist (no automated test framework exists)
+### 8. [ ] Manual verification checklist (no automated test framework exists, requires running app — not executed in this apply batch)
 - **Action**, execute and confirm each:
   1. Seed/append >1000 entries to `data/audit-log.json` (or simulate via repeated `recordAuditLog` calls), confirm the file retains all entries after a new write (Task 1 / `audit-log-retention` spec).
   2. `GET /api/audit-log` with no `date` param → confirm response contains only today's (Bolivia time) entries.
