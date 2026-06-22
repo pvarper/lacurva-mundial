@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_MAX_AGE_MS = 120 * 60 * 1000;
+const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS) || 120 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
 
@@ -278,8 +278,8 @@ function parseFixtureScore(value) {
 }
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 5,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,

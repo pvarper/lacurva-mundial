@@ -35,6 +35,7 @@ Use `pnpm` only. Do not use `npm install`, `npm run`, or npm lockfiles.
 | `data/users.json` | User records and password hashes. Treat as sensitive runtime data. |
 | `data/predictions.json` | User prediction state. Runtime data. |
 | `data/audit-log.json` | Audit trail state. Runtime data. |
+| `data/settings.json` | Admin-managed runtime settings (prediction lock, lockout policy, worldcup sync, fixture refresh). Self-creates with defaults on first boot if missing. Runtime data, not committed. |
 | `docs/PRD.md` | Product requirements and acceptance criteria. |
 
 ## Product Rules
@@ -55,6 +56,7 @@ Use `pnpm` only. Do not use `npm install`, `npm run`, or npm lockfiles.
 - Do not rely on hidden UI for security; backend middleware must enforce permissions.
 - Do not commit real users, real predictions, audit logs with IP addresses, `.env`, or local tool metadata.
 - Set `SESSION_SECRET` in production instead of relying on the development fallback in `server.js`.
+- The following settings remain `.env`-only and are intentionally out of scope for the admin Settings UI / `data/settings.json` (see change #52): `SESSION_MAX_AGE_MS` (session inactivity timeout, hardcoded fallback 120 minutes), `LOGIN_RATE_LIMIT_WINDOW_MS` (login rate-limit window, hardcoded fallback 15 minutes), `LOGIN_RATE_LIMIT_MAX` (max login attempts per window, hardcoded fallback 5). Set these via deploy environment variables if non-default values are needed; unset values fall back to the hardcoded constants in `server.js`.
 
 ## Git Workflow
 
