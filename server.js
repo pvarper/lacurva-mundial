@@ -37,7 +37,10 @@ const rules = [
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
-  { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
+  { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
+  { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).' },
+  { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.' },
+  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.' }
 ];
 
 app.use(helmet({
@@ -269,6 +272,10 @@ function calculatePredictionPoints(prediction, match) {
   const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
   const actualOutcome = getOutcome(match.homeScore, match.awayScore);
   return predictedOutcome === actualOutcome ? 3 : 0;
+}
+
+function predictionGoalDiff(prediction, match) {
+  return Math.abs(prediction.homeScore - match.homeScore) + Math.abs(prediction.awayScore - match.awayScore);
 }
 
 function parseFixtureScore(value) {
@@ -624,15 +631,35 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   const liveMatch = fixtures.find((m) => m.status === 'live') || null;
   const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-    const points = userPredictions.reduce((total, prediction) => {
+    let points = 0;
+    let exactCount = 0;
+    let goalDiffOnThree = 0;
+    let goalDiffOnZero = 0;
+    userPredictions.forEach((prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
-      return match ? total + calculatePredictionPoints(prediction, match) : total;
-    }, 0);
+      if (!match) return;
+      const predictionPoints = calculatePredictionPoints(prediction, match);
+      points += predictionPoints;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      if (predictionPoints === 5) {
+        exactCount += 1;
+      } else if (predictionPoints === 3) {
+        goalDiffOnThree += predictionGoalDiff(prediction, match);
+      } else {
+        goalDiffOnZero += predictionGoalDiff(prediction, match);
+      }
+    });
     const livePrediction = liveMatch
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
-    return { userId: user.id, username: user.username, points, livePrediction };
-  }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
+    return { userId: user.id, username: user.username, points, exactCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
+  }).sort((a, b) =>
+    b.points - a.points ||
+    b.exactCount - a.exactCount ||
+    a.goalDiffOnThree - b.goalDiffOnThree ||
+    a.goalDiffOnZero - b.goalDiffOnZero ||
+    a.username.localeCompare(b.username)
+  );
   res.json({ standings, liveMatch });
 }));
 
