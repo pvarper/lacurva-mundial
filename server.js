@@ -113,7 +113,13 @@ async function readAuditLogs() {
 
 async function loadSettings() {
   try {
-    settingsCache = await readJson('settings.json');
+    const stored = await readJson('settings.json');
+    settingsCache = {
+      ...SETTINGS_DEFAULTS,
+      ...stored,
+      worldcupSync: { ...SETTINGS_DEFAULTS.worldcupSync, ...stored.worldcupSync },
+      standingsTiebreak: { ...SETTINGS_DEFAULTS.standingsTiebreak, ...stored.standingsTiebreak }
+    };
   } catch (error) {
     console.error('Could not read settings, falling back to defaults:', error.message);
     settingsCache = { ...SETTINGS_DEFAULTS };
