@@ -384,7 +384,7 @@ app.get('/api/audit-log', requireAdmin, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/session', (req, res) => {
-  res.json({ user: req.session.user || null, inactivityLimitMs: SESSION_MAX_AGE_MS });
+  res.json({ user: req.session.user || null, inactivityLimitMs: SESSION_MAX_AGE_MS, fixtureRefreshMs: settingsCache.fixtureRefreshMs });
 });
 
 app.get('/api/users', requireAdmin, asyncHandler(async (req, res) => {
