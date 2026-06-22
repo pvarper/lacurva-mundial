@@ -677,7 +677,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
   let rank = 1;
   standings.forEach((row, index) => {
-    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank = index + 1;
+    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
     row.rank = rank;
   });
   res.json({ standings, liveMatch });
