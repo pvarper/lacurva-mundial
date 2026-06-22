@@ -45,7 +45,8 @@ const rules = [
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
   { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).' },
   { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.' },
-  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.' }
+  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.' },
+  { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las 3 reglas anteriores, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
 app.use(helmet({
