@@ -5,7 +5,7 @@ const express = require('express');
 const session = require('express-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { startWorldcupSync } = require('./lib/worldcup-sync');
+const { startWorldcupSync, stopWorldcupSync } = require('./lib/worldcup-sync');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -114,8 +114,18 @@ async function loadSettings() {
 }
 
 async function applySettings(newSettings) {
+  const previous = settingsCache;
   settingsCache = newSettings;
   await writeJson('settings.json', newSettings);
+
+  const syncChanged = !previous ||
+    previous.worldcupSync.enabled !== newSettings.worldcupSync.enabled ||
+    previous.worldcupSync.pollIntervalMs !== newSettings.worldcupSync.pollIntervalMs;
+
+  if (syncChanged) {
+    stopWorldcupSync();
+    startWorldcupSync({ readJson, writeJson }, newSettings.worldcupSync);
+  }
 }
 
 function scrypt(password, salt, keylen) {
@@ -714,11 +724,12 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json({ error: message });
 });
 
-app.listen(PORT, () => {
-  console.log(`La Curva Mundial running at http://localhost:${PORT}`);
-});
+async function boot() {
+  await loadSettings();
+  app.listen(PORT, () => {
+    console.log(`La Curva Mundial running at http://localhost:${PORT}`);
+  });
+  startWorldcupSync({ readJson, writeJson }, settingsCache.worldcupSync);
+}
 
-startWorldcupSync({
-  readJson,
-  writeJson
-});
+boot();
