@@ -199,11 +199,6 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-const LOCKOUT_ATTEMPTS = 3;
-const LOCKOUT_DURATION_MS = 10 * 60 * 1000;
-const MAX_TEMPORARY_LOCKOUTS = 3;
-const LOCKOUT_RESET_MS = 60 * 60 * 1000;
-
 function getLockoutStatus(user) {
   if (user.permanentlyBlocked) return { blocked: true, permanent: true, remainingMs: null };
   if (user.lockedUntil) {
@@ -217,7 +212,7 @@ function resetStaleCounters(user) {
   if (user.permanentlyBlocked) return false;
   const lastFailed = user.lastFailedAt ? new Date(user.lastFailedAt).getTime() : null;
   if (!lastFailed) return false;
-  if (Date.now() - lastFailed < LOCKOUT_RESET_MS) return false;
+  if (Date.now() - lastFailed < settingsCache.lockoutResetMs) return false;
   user.failedAttempts = 0;
   user.lockedUntil = null;
   user.temporaryLockoutCount = 0;
@@ -228,11 +223,11 @@ function resetStaleCounters(user) {
 async function recordFailedAttempt(user, users) {
   user.lastFailedAt = new Date().toISOString();
   user.failedAttempts = (user.failedAttempts || 0) + 1;
-  if (user.failedAttempts >= LOCKOUT_ATTEMPTS) {
-    user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString();
+  if (user.failedAttempts >= settingsCache.lockoutAttempts) {
+    user.lockedUntil = new Date(Date.now() + settingsCache.lockoutDurationMs).toISOString();
     user.failedAttempts = 0;
     user.temporaryLockoutCount = (user.temporaryLockoutCount || 0) + 1;
-    if (user.temporaryLockoutCount >= MAX_TEMPORARY_LOCKOUTS) {
+    if (user.temporaryLockoutCount >= settingsCache.maxTemporaryLockouts) {
       user.permanentlyBlocked = true;
     }
   }
@@ -248,7 +243,7 @@ async function clearFailedAttempts(user, users) {
 
 function isPredictionLocked(match) {
   return match.status !== 'scheduled' ||
-    new Date(match.date).getTime() - Date.now() <= PREDICTION_LOCK_MS;
+    new Date(match.date).getTime() - Date.now() <= settingsCache.predictionLockMs;
 }
 
 function getOutcome(homeScore, awayScore) {
@@ -319,7 +314,7 @@ app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
       return res.status(423).json({ error: 'Your account has been permanently blocked. Contact an administrator.' });
     }
     if (lockoutAfter.blocked) {
-      return res.status(423).json({ error: `Account temporarily locked for ${LOCKOUT_DURATION_MS / 60000} minutes due to repeated failed attempts.`, remainingSecs: Math.ceil(LOCKOUT_DURATION_MS / 1000) });
+      return res.status(423).json({ error: `Account temporarily locked for ${settingsCache.lockoutDurationMs / 60000} minutes due to repeated failed attempts.`, remainingSecs: Math.ceil(settingsCache.lockoutDurationMs / 1000) });
     }
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
