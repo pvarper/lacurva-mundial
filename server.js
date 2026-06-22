@@ -27,7 +27,12 @@ const SETTINGS_DEFAULTS = {
     enabled: false,
     pollIntervalMs: 10 * 1000
   },
-  fixtureRefreshMs: 30 * 1000
+  fixtureRefreshMs: 30 * 1000,
+  standingsTiebreak: {
+    exactCountEnabled: true,
+    goalDiffOnThreeEnabled: true,
+    goalDiffOnZeroEnabled: true
+  }
 };
 
 let settingsCache = { ...SETTINGS_DEFAULTS };
@@ -653,13 +658,16 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
     return { userId: user.id, username: user.username, points, exactCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
-  }).sort((a, b) =>
-    b.points - a.points ||
-    b.exactCount - a.exactCount ||
-    a.goalDiffOnThree - b.goalDiffOnThree ||
-    a.goalDiffOnZero - b.goalDiffOnZero ||
-    a.username.localeCompare(b.username)
-  );
+  }).sort((a, b) => {
+    const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+    return (
+      b.points - a.points ||
+      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
+      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
+      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0) ||
+      a.username.localeCompare(b.username)
+    );
+  });
   res.json({ standings, liveMatch });
 }));
 
@@ -701,7 +709,8 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
   const body = req.body || {};
   const merged = {
     ...settingsCache,
-    worldcupSync: { ...settingsCache.worldcupSync }
+    worldcupSync: { ...settingsCache.worldcupSync },
+    standingsTiebreak: { ...settingsCache.standingsTiebreak }
   };
 
   function isFiniteNumber(value) {
@@ -770,6 +779,17 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
       return res.status(400).json({ error: 'fixtureRefreshMs must be an integer between 5000 and 300000.' });
     }
     merged.fixtureRefreshMs = value;
+  }
+
+  if (body.standingsTiebreak && typeof body.standingsTiebreak === 'object') {
+    for (const key of ['exactCountEnabled', 'goalDiffOnThreeEnabled', 'goalDiffOnZeroEnabled']) {
+      if (body.standingsTiebreak[key] !== undefined) {
+        if (typeof body.standingsTiebreak[key] !== 'boolean') {
+          return res.status(400).json({ error: `standingsTiebreak.${key} must be a boolean.` });
+        }
+        merged.standingsTiebreak[key] = body.standingsTiebreak[key];
+      }
+    }
   }
 
   if (merged.lockoutResetMs < merged.lockoutDurationMs) {
