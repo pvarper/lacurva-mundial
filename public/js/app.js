@@ -763,6 +763,7 @@ async function loadStandingsDetail() {
         <td>${escapeHtml(row.username)}</td>
         <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
         <td>${row.exactCount}</td>
+        <td>${row.threeCount}</td>
         <td>${row.goalDiffOnThree}</td>
         <td>${row.goalDiffOnZero}</td>
       </tr>
