@@ -4,3 +4,6 @@ node_modules/
 npm-debug.log*
 package-lock.json
 data/settings.json
+.agents/
+.claude/
+skills-lock.json
