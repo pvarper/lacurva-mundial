@@ -729,8 +729,8 @@ async function loadStandings() {
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
-  elements.standingsBody.innerHTML = standings.map((row, index) => {
-    const rank = index + 1;
+  elements.standingsBody.innerHTML = standings.map((row) => {
+    const rank = row.rank;
     const trophy = rank <= 3
       ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
@@ -752,8 +752,8 @@ async function loadStandings() {
 async function loadStandingsDetail() {
   const { standings } = await api('/api/standings');
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
-  elements.standingsDetailBody.innerHTML = standings.map((row, index) => {
-    const rank = index + 1;
+  elements.standingsDetailBody.innerHTML = standings.map((row) => {
+    const rank = row.rank;
     const trophy = rank <= 3
       ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';

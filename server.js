@@ -664,15 +664,21 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
     return { userId: user.id, username: user.username, points, exactCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
-  }).sort((a, b) => {
-    const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  });
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  function compareRank(a, b) {
     return (
       b.points - a.points ||
       (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
       (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
-      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0) ||
-      a.username.localeCompare(b.username)
+      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
     );
+  }
+  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
+  let rank = 1;
+  standings.forEach((row, index) => {
+    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank = index + 1;
+    row.rank = rank;
   });
   res.json({ standings, liveMatch });
 }));
