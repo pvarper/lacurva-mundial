@@ -14,9 +14,23 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SESSION_MAX_AGE_MS = 120 * 60 * 1000;
-const PREDICTION_LOCK_MS = 1 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
+
+const SETTINGS_DEFAULTS = {
+  predictionLockMs: 1 * 60 * 1000,
+  lockoutAttempts: 3,
+  lockoutDurationMs: 10 * 60 * 1000,
+  maxTemporaryLockouts: 3,
+  lockoutResetMs: 60 * 60 * 1000,
+  worldcupSync: {
+    enabled: false,
+    pollIntervalMs: 10 * 1000
+  },
+  fixtureRefreshMs: 30 * 1000
+};
+
+let settingsCache = { ...SETTINGS_DEFAULTS };
 
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
@@ -87,6 +101,21 @@ async function readAuditLogs() {
     console.error('Could not read audit log:', error.message);
     return [];
   }
+}
+
+async function loadSettings() {
+  try {
+    settingsCache = await readJson('settings.json');
+  } catch (error) {
+    console.error('Could not read settings, falling back to defaults:', error.message);
+    settingsCache = { ...SETTINGS_DEFAULTS };
+    await writeJson('settings.json', settingsCache);
+  }
+}
+
+async function applySettings(newSettings) {
+  settingsCache = newSettings;
+  await writeJson('settings.json', newSettings);
 }
 
 function scrypt(password, salt, keylen) {
