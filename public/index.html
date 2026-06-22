@@ -86,6 +86,9 @@
             <button data-view="standingsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Acumulada
             </button>
+            <button data-view="standingsDetailView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-table w-4"></i> Tabla Acumulada Detalle
+            </button>
             <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1">Info</p>
             <button data-view="rulesView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-info-circle w-4"></i> Reglas
@@ -298,6 +301,30 @@
               <table>
                 <thead><tr></tr></thead>
                 <tbody id="standingsBody" aria-live="polite" aria-atomic="false"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- TABLA ACUMULADA DETALLE -->
+          <section id="standingsDetailView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Tabla Acumulada Detalle</h2>
+              <p class="text-slate-500 text-sm">Desglose de los criterios de desempate por usuario.</p>
+            </div>
+            <p id="standingsDetailMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Posición</th>
+                    <th>Usuario</th>
+                    <th>Puntos</th>
+                    <th>Aciertos exactos (5pts)</th>
+                    <th>Dif. goles aciertos (3pts)</th>
+                    <th>Dif. goles sin acierto (0pts)</th>
+                  </tr>
+                </thead>
+                <tbody id="standingsDetailBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
           </section>
