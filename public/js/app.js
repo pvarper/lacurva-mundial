@@ -923,7 +923,7 @@ async function loadRules() {
   const { rules } = await api('/api/rules');
   const icons = ['bi-star-fill', 'bi-check2-circle', 'bi-x-circle', 'bi-clock', 'bi-shield-check', 'bi-trophy'];
   elements.rulesList.innerHTML = rules.map((rule, i) => `
-    <article class="rule-card">
+    <article class="rule-card${rule.enabled === false ? ' disabled' : ''}">
       <h3><i class="bi ${icons[i % icons.length]}" aria-hidden="true" style="color:#f2b705;margin-right:0.5rem"></i>${escapeHtml(rule.title)}</h3>
       <p>${escapeHtml(rule.description)}</p>
     </article>
