@@ -666,6 +666,95 @@ app.put('/api/prize-pool', requireAdmin, asyncHandler(async (req, res) => {
   res.json(prizePool);
 }));
 
+app.get('/api/settings', requireAdmin, (req, res) => {
+  res.json(settingsCache);
+});
+
+app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const merged = {
+    ...settingsCache,
+    worldcupSync: { ...settingsCache.worldcupSync }
+  };
+
+  function isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  if (body.predictionLockMs !== undefined) {
+    const value = Number(body.predictionLockMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 0 || value > 3600000) {
+      return res.status(400).json({ error: 'predictionLockMs must be an integer between 0 and 3600000.' });
+    }
+    merged.predictionLockMs = value;
+  }
+
+  if (body.lockoutAttempts !== undefined) {
+    const value = Number(body.lockoutAttempts);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1 || value > 20) {
+      return res.status(400).json({ error: 'lockoutAttempts must be an integer between 1 and 20.' });
+    }
+    merged.lockoutAttempts = value;
+  }
+
+  if (body.lockoutDurationMs !== undefined) {
+    const value = Number(body.lockoutDurationMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1000 || value > 86400000) {
+      return res.status(400).json({ error: 'lockoutDurationMs must be an integer between 1000 and 86400000.' });
+    }
+    merged.lockoutDurationMs = value;
+  }
+
+  if (body.maxTemporaryLockouts !== undefined) {
+    const value = Number(body.maxTemporaryLockouts);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1 || value > 20) {
+      return res.status(400).json({ error: 'maxTemporaryLockouts must be an integer between 1 and 20.' });
+    }
+    merged.maxTemporaryLockouts = value;
+  }
+
+  if (body.lockoutResetMs !== undefined) {
+    const value = Number(body.lockoutResetMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1000 || value > 604800000) {
+      return res.status(400).json({ error: 'lockoutResetMs must be an integer between 1000 and 604800000.' });
+    }
+    merged.lockoutResetMs = value;
+  }
+
+  if (body.worldcupSync && typeof body.worldcupSync === 'object') {
+    if (body.worldcupSync.enabled !== undefined) {
+      if (typeof body.worldcupSync.enabled !== 'boolean') {
+        return res.status(400).json({ error: 'worldcupSync.enabled must be a boolean.' });
+      }
+      merged.worldcupSync.enabled = body.worldcupSync.enabled;
+    }
+    if (body.worldcupSync.pollIntervalMs !== undefined) {
+      const value = Number(body.worldcupSync.pollIntervalMs);
+      if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 5000 || value > 300000) {
+        return res.status(400).json({ error: 'worldcupSync.pollIntervalMs must be an integer between 5000 and 300000.' });
+      }
+      merged.worldcupSync.pollIntervalMs = value;
+    }
+  }
+
+  if (body.fixtureRefreshMs !== undefined) {
+    const value = Number(body.fixtureRefreshMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 5000 || value > 300000) {
+      return res.status(400).json({ error: 'fixtureRefreshMs must be an integer between 5000 and 300000.' });
+    }
+    merged.fixtureRefreshMs = value;
+  }
+
+  if (merged.lockoutResetMs < merged.lockoutDurationMs) {
+    return res.status(400).json({ error: 'lockoutResetMs must be greater than or equal to lockoutDurationMs.' });
+  }
+
+  const previousSettings = settingsCache;
+  await applySettings(merged);
+  await recordAuditLog(req, 'settings_updated', { previous: previousSettings, updated: merged });
+  res.json(merged);
+}));
+
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
 
