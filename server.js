@@ -646,6 +646,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     let points = 0;
     let exactCount = 0;
     let threeCount = 0;
+    let zeroCount = 0;
     let goalDiffOnThree = 0;
     let goalDiffOnZero = 0;
     userPredictions.forEach((prediction) => {
@@ -660,13 +661,14 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
         threeCount += 1;
         goalDiffOnThree += predictionGoalDiff(prediction, match);
       } else {
+        zeroCount += 1;
         goalDiffOnZero += predictionGoalDiff(prediction, match);
       }
     });
     const livePrediction = liveMatch
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
-    return { userId: user.id, username: user.username, points, exactCount, threeCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
+    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
   });
   const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
   function compareRank(a, b) {
