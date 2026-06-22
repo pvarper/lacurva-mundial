@@ -5,7 +5,7 @@ const express = require('express');
 const session = require('express-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { startWorldcupSync } = require('./lib/worldcup-sync');
+const { startWorldcupSync, stopWorldcupSync } = require('./lib/worldcup-sync');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -13,10 +13,24 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_MAX_AGE_MS = 120 * 60 * 1000;
-const PREDICTION_LOCK_MS = 1 * 60 * 1000;
+const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS) || 120 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
+
+const SETTINGS_DEFAULTS = {
+  predictionLockMs: 1 * 60 * 1000,
+  lockoutAttempts: 3,
+  lockoutDurationMs: 10 * 60 * 1000,
+  maxTemporaryLockouts: 3,
+  lockoutResetMs: 60 * 60 * 1000,
+  worldcupSync: {
+    enabled: false,
+    pollIntervalMs: 10 * 1000
+  },
+  fixtureRefreshMs: 30 * 1000
+};
+
+let settingsCache = { ...SETTINGS_DEFAULTS };
 
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
@@ -86,6 +100,31 @@ async function readAuditLogs() {
   } catch (error) {
     console.error('Could not read audit log:', error.message);
     return [];
+  }
+}
+
+async function loadSettings() {
+  try {
+    settingsCache = await readJson('settings.json');
+  } catch (error) {
+    console.error('Could not read settings, falling back to defaults:', error.message);
+    settingsCache = { ...SETTINGS_DEFAULTS };
+    await writeJson('settings.json', settingsCache);
+  }
+}
+
+async function applySettings(newSettings) {
+  const previous = settingsCache;
+  settingsCache = newSettings;
+  await writeJson('settings.json', newSettings);
+
+  const syncChanged = !previous ||
+    previous.worldcupSync.enabled !== newSettings.worldcupSync.enabled ||
+    previous.worldcupSync.pollIntervalMs !== newSettings.worldcupSync.pollIntervalMs;
+
+  if (syncChanged) {
+    stopWorldcupSync();
+    startWorldcupSync({ readJson, writeJson }, newSettings.worldcupSync);
   }
 }
 
@@ -170,11 +209,6 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-const LOCKOUT_ATTEMPTS = 3;
-const LOCKOUT_DURATION_MS = 10 * 60 * 1000;
-const MAX_TEMPORARY_LOCKOUTS = 3;
-const LOCKOUT_RESET_MS = 60 * 60 * 1000;
-
 function getLockoutStatus(user) {
   if (user.permanentlyBlocked) return { blocked: true, permanent: true, remainingMs: null };
   if (user.lockedUntil) {
@@ -188,7 +222,7 @@ function resetStaleCounters(user) {
   if (user.permanentlyBlocked) return false;
   const lastFailed = user.lastFailedAt ? new Date(user.lastFailedAt).getTime() : null;
   if (!lastFailed) return false;
-  if (Date.now() - lastFailed < LOCKOUT_RESET_MS) return false;
+  if (Date.now() - lastFailed < settingsCache.lockoutResetMs) return false;
   user.failedAttempts = 0;
   user.lockedUntil = null;
   user.temporaryLockoutCount = 0;
@@ -199,11 +233,11 @@ function resetStaleCounters(user) {
 async function recordFailedAttempt(user, users) {
   user.lastFailedAt = new Date().toISOString();
   user.failedAttempts = (user.failedAttempts || 0) + 1;
-  if (user.failedAttempts >= LOCKOUT_ATTEMPTS) {
-    user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString();
+  if (user.failedAttempts >= settingsCache.lockoutAttempts) {
+    user.lockedUntil = new Date(Date.now() + settingsCache.lockoutDurationMs).toISOString();
     user.failedAttempts = 0;
     user.temporaryLockoutCount = (user.temporaryLockoutCount || 0) + 1;
-    if (user.temporaryLockoutCount >= MAX_TEMPORARY_LOCKOUTS) {
+    if (user.temporaryLockoutCount >= settingsCache.maxTemporaryLockouts) {
       user.permanentlyBlocked = true;
     }
   }
@@ -219,7 +253,7 @@ async function clearFailedAttempts(user, users) {
 
 function isPredictionLocked(match) {
   return match.status !== 'scheduled' ||
-    new Date(match.date).getTime() - Date.now() <= PREDICTION_LOCK_MS;
+    new Date(match.date).getTime() - Date.now() <= settingsCache.predictionLockMs;
 }
 
 function getOutcome(homeScore, awayScore) {
@@ -244,8 +278,8 @@ function parseFixtureScore(value) {
 }
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 5,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -290,7 +324,7 @@ app.post('/api/login', loginLimiter, asyncHandler(async (req, res) => {
       return res.status(423).json({ error: 'Your account has been permanently blocked. Contact an administrator.' });
     }
     if (lockoutAfter.blocked) {
-      return res.status(423).json({ error: `Account temporarily locked for ${LOCKOUT_DURATION_MS / 60000} minutes due to repeated failed attempts.`, remainingSecs: Math.ceil(LOCKOUT_DURATION_MS / 1000) });
+      return res.status(423).json({ error: `Account temporarily locked for ${settingsCache.lockoutDurationMs / 60000} minutes due to repeated failed attempts.`, remainingSecs: Math.ceil(settingsCache.lockoutDurationMs / 1000) });
     }
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
@@ -350,7 +384,7 @@ app.get('/api/audit-log', requireAdmin, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/session', (req, res) => {
-  res.json({ user: req.session.user || null, inactivityLimitMs: SESSION_MAX_AGE_MS });
+  res.json({ user: req.session.user || null, inactivityLimitMs: SESSION_MAX_AGE_MS, fixtureRefreshMs: settingsCache.fixtureRefreshMs });
 });
 
 app.get('/api/users', requireAdmin, asyncHandler(async (req, res) => {
@@ -632,6 +666,95 @@ app.put('/api/prize-pool', requireAdmin, asyncHandler(async (req, res) => {
   res.json(prizePool);
 }));
 
+app.get('/api/settings', requireAdmin, (req, res) => {
+  res.json(settingsCache);
+});
+
+app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const merged = {
+    ...settingsCache,
+    worldcupSync: { ...settingsCache.worldcupSync }
+  };
+
+  function isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  if (body.predictionLockMs !== undefined) {
+    const value = Number(body.predictionLockMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 0 || value > 3600000) {
+      return res.status(400).json({ error: 'predictionLockMs must be an integer between 0 and 3600000.' });
+    }
+    merged.predictionLockMs = value;
+  }
+
+  if (body.lockoutAttempts !== undefined) {
+    const value = Number(body.lockoutAttempts);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1 || value > 20) {
+      return res.status(400).json({ error: 'lockoutAttempts must be an integer between 1 and 20.' });
+    }
+    merged.lockoutAttempts = value;
+  }
+
+  if (body.lockoutDurationMs !== undefined) {
+    const value = Number(body.lockoutDurationMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1000 || value > 86400000) {
+      return res.status(400).json({ error: 'lockoutDurationMs must be an integer between 1000 and 86400000.' });
+    }
+    merged.lockoutDurationMs = value;
+  }
+
+  if (body.maxTemporaryLockouts !== undefined) {
+    const value = Number(body.maxTemporaryLockouts);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1 || value > 20) {
+      return res.status(400).json({ error: 'maxTemporaryLockouts must be an integer between 1 and 20.' });
+    }
+    merged.maxTemporaryLockouts = value;
+  }
+
+  if (body.lockoutResetMs !== undefined) {
+    const value = Number(body.lockoutResetMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 1000 || value > 604800000) {
+      return res.status(400).json({ error: 'lockoutResetMs must be an integer between 1000 and 604800000.' });
+    }
+    merged.lockoutResetMs = value;
+  }
+
+  if (body.worldcupSync && typeof body.worldcupSync === 'object') {
+    if (body.worldcupSync.enabled !== undefined) {
+      if (typeof body.worldcupSync.enabled !== 'boolean') {
+        return res.status(400).json({ error: 'worldcupSync.enabled must be a boolean.' });
+      }
+      merged.worldcupSync.enabled = body.worldcupSync.enabled;
+    }
+    if (body.worldcupSync.pollIntervalMs !== undefined) {
+      const value = Number(body.worldcupSync.pollIntervalMs);
+      if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 5000 || value > 300000) {
+        return res.status(400).json({ error: 'worldcupSync.pollIntervalMs must be an integer between 5000 and 300000.' });
+      }
+      merged.worldcupSync.pollIntervalMs = value;
+    }
+  }
+
+  if (body.fixtureRefreshMs !== undefined) {
+    const value = Number(body.fixtureRefreshMs);
+    if (!isFiniteNumber(value) || !Number.isInteger(value) || value < 5000 || value > 300000) {
+      return res.status(400).json({ error: 'fixtureRefreshMs must be an integer between 5000 and 300000.' });
+    }
+    merged.fixtureRefreshMs = value;
+  }
+
+  if (merged.lockoutResetMs < merged.lockoutDurationMs) {
+    return res.status(400).json({ error: 'lockoutResetMs must be greater than or equal to lockoutDurationMs.' });
+  }
+
+  const previousSettings = settingsCache;
+  await applySettings(merged);
+  await recordAuditLog(req, 'settings_updated', { previous: previousSettings, updated: merged });
+  res.json(merged);
+}));
+
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
 
@@ -690,11 +813,12 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json({ error: message });
 });
 
-app.listen(PORT, () => {
-  console.log(`La Curva Mundial running at http://localhost:${PORT}`);
-});
+async function boot() {
+  await loadSettings();
+  app.listen(PORT, () => {
+    console.log(`La Curva Mundial running at http://localhost:${PORT}`);
+  });
+  startWorldcupSync({ readJson, writeJson }, settingsCache.worldcupSync);
+}
 
-startWorldcupSync({
-  readJson,
-  writeJson
-});
+boot();

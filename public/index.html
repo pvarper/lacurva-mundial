@@ -97,6 +97,9 @@
             <button data-view="auditView" id="auditMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-journal-text w-4"></i> Bitácora
             </button>
+            <button data-view="settingsView" id="settingsMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-gear w-4"></i> Configuración
+            </button>
           </nav>
         </aside>
 
@@ -349,6 +352,80 @@
             </div>
           </section>
 
+          <!-- SETTINGS -->
+          <section id="settingsView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Configuración</h2>
+              <p class="text-slate-500 text-sm">Ajustes operativos del sistema en tiempo real.</p>
+            </div>
+            <form id="settingsForm" class="space-y-5">
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Cierre de Predicciones</h3>
+                <label class="block max-w-xs">
+                  <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tiempo de bloqueo antes del inicio (ms)</span>
+                  <input name="predictionLockMs" type="number" min="0" max="3600000" step="1000" required
+                    class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                </label>
+              </div>
+
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Política de Bloqueo de Cuentas</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <label class="block">
+                    <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Intentos fallidos antes de bloqueo temporal</span>
+                    <input name="lockoutAttempts" type="number" min="1" max="20" step="1" required
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  </label>
+                  <label class="block">
+                    <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Duración del bloqueo temporal (ms)</span>
+                    <input name="lockoutDurationMs" type="number" min="1000" max="86400000" step="1000" required
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  </label>
+                  <label class="block">
+                    <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Bloqueos temporales antes de bloqueo permanente</span>
+                    <input name="maxTemporaryLockouts" type="number" min="1" max="20" step="1" required
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  </label>
+                  <label class="block">
+                    <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ventana de reinicio de contador (ms)</span>
+                    <input name="lockoutResetMs" type="number" min="1000" max="604800000" step="1000" required
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  </label>
+                </div>
+              </div>
+
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Sincronización Worldcup</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="flex items-center gap-2">
+                    <input name="worldcupSyncEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Sincronización habilitada</span>
+                  </label>
+                  <label class="block">
+                    <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Intervalo de sondeo (ms)</span>
+                    <input name="worldcupSyncPollIntervalMs" type="number" min="5000" max="300000" step="1000" required
+                      class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                  </label>
+                </div>
+              </div>
+
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Actualización de Fixture</h3>
+                <label class="block max-w-xs">
+                  <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Intervalo de auto-refresco (ms)</span>
+                  <input name="fixtureRefreshMs" type="number" min="5000" max="300000" step="1000" required
+                    class="w-full bg-pitch-700 border border-white/12 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-gold transition">
+                </label>
+              </div>
+
+              <button type="submit" class="flex items-center justify-center gap-2 bg-gold hover:bg-gold-light text-pitch-950 font-bold py-2 px-5 rounded-lg transition text-sm">
+                <i aria-hidden="true" class="bi bi-check2"></i> Guardar configuración
+              </button>
+              <p id="settingsMessage" class="message text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            </form>
+          </section>
+
         </section><!-- /content -->
       </section><!-- /appView -->
 
@@ -420,6 +497,10 @@
           <button data-view="auditView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-journal-text text-lg"></i>
             <span class="text-[10px] font-bold">Bitácora</span>
+          </button>
+          <button data-view="settingsView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-gear text-lg"></i>
+            <span class="text-[10px] font-bold">Config</span>
           </button>
         </div>
       </nav>

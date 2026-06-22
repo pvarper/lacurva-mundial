@@ -1,6 +1,7 @@
 const state = {
   user: null,
   inactivityLimitMs: 120 * 60 * 1000,
+  fixtureRefreshMs: 30 * 1000,
   inactivityTimer: null,
   fixtureRefreshTimer: null,
   currentView: null,
@@ -10,8 +11,6 @@ const state = {
   dateCarouselIndex: 0,
   selectedPredDate: null,
 };
-
-const FIXTURE_REFRESH_MS = 30 * 1000;
 
 const fixtureStatusLabels = {
   scheduled: 'Programado',
@@ -67,7 +66,10 @@ const elements = {
   auditDateFilter: document.querySelector('#auditDateFilter'),
   auditUserFilter: document.querySelector('#auditUserFilter'),
   auditActionFilter: document.querySelector('#auditActionFilter'),
-  clearAuditFilters: document.querySelector('#clearAuditFilters')
+  clearAuditFilters: document.querySelector('#clearAuditFilters'),
+  settingsView: document.querySelector('#settingsView'),
+  settingsForm: document.querySelector('#settingsForm'),
+  settingsMessage: document.querySelector('#settingsMessage')
 };
 
 async function api(path, options = {}) {
@@ -152,6 +154,7 @@ function showView(viewId) {
   if (viewId === 'standingsView') loadStandings();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
+  if (viewId === 'settingsView') loadSettings();
 }
 
 function recordNavigation(viewId) {
@@ -204,7 +207,7 @@ function startFixtureAutoRefresh() {
     if (state.currentView !== 'fixturesView') return;
     if (document.activeElement?.closest('.fixture-update-form')) return;
     loadFixtures().catch(() => {});
-  }, FIXTURE_REFRESH_MS);
+  }, state.fixtureRefreshMs);
 }
 
 function stopFixtureAutoRefresh() {
@@ -796,6 +799,44 @@ async function updatePrizePool(form) {
   renderPrizePool();
 }
 
+function renderSettingsForm(settings) {
+  const form = elements.settingsForm;
+  form.elements.predictionLockMs.value = settings.predictionLockMs;
+  form.elements.lockoutAttempts.value = settings.lockoutAttempts;
+  form.elements.lockoutDurationMs.value = settings.lockoutDurationMs;
+  form.elements.maxTemporaryLockouts.value = settings.maxTemporaryLockouts;
+  form.elements.lockoutResetMs.value = settings.lockoutResetMs;
+  form.elements.worldcupSyncEnabled.checked = Boolean(settings.worldcupSync?.enabled);
+  form.elements.worldcupSyncPollIntervalMs.value = settings.worldcupSync?.pollIntervalMs;
+  form.elements.fixtureRefreshMs.value = settings.fixtureRefreshMs;
+}
+
+async function loadSettings() {
+  const settings = await api('/api/settings');
+  renderSettingsForm(settings);
+}
+
+async function saveSettings(form) {
+  const payload = {
+    predictionLockMs: Number(form.elements.predictionLockMs.value),
+    lockoutAttempts: Number(form.elements.lockoutAttempts.value),
+    lockoutDurationMs: Number(form.elements.lockoutDurationMs.value),
+    maxTemporaryLockouts: Number(form.elements.maxTemporaryLockouts.value),
+    lockoutResetMs: Number(form.elements.lockoutResetMs.value),
+    worldcupSync: {
+      enabled: form.elements.worldcupSyncEnabled.checked,
+      pollIntervalMs: Number(form.elements.worldcupSyncPollIntervalMs.value)
+    },
+    fixtureRefreshMs: Number(form.elements.fixtureRefreshMs.value)
+  };
+  const updated = await api('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+  renderSettingsForm(updated);
+  setMessage(elements.settingsMessage, 'Configuración guardada correctamente.', true);
+}
+
 function canViewStandingDetail() {
   return true;
 }
@@ -1054,6 +1095,19 @@ elements.prizePoolPanel.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
+elements.settingsForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await saveSettings(form);
+  } catch (error) {
+    setMessage(elements.settingsMessage, error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
 elements.standingDetailModalClose.addEventListener('click', closeStandingDetailModal);
 elements.standingDetailModal.addEventListener('click', (event) => {
   if (event.target === elements.standingDetailModal) closeStandingDetailModal();
@@ -1212,8 +1266,9 @@ document.querySelector('#predictionModalForm').addEventListener('submit', async 
 });
 
 api('/api/session')
-  .then(({ user, inactivityLimitMs }) => {
+  .then(({ user, inactivityLimitMs, fixtureRefreshMs }) => {
     state.inactivityLimitMs = inactivityLimitMs;
+    state.fixtureRefreshMs = fixtureRefreshMs;
     if (user) showAuthenticatedApp(user);
     else showLogin();
   })
