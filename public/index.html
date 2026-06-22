@@ -446,6 +446,27 @@
                 </label>
               </div>
 
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Reglas de Desempate — Tabla Acumulada</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label class="flex items-center gap-2">
+                    <input name="tiebreakExactCountEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 1: aciertos exactos (5pts)</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input name="tiebreakGoalDiffOnThreeEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 2: dif. goles aciertos (3pts)</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input name="tiebreakGoalDiffOnZeroEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 3: dif. goles sin acierto (0pts)</span>
+                  </label>
+                </div>
+              </div>
+
               <button type="submit" class="flex items-center justify-center gap-2 bg-gold hover:bg-gold-light text-pitch-950 font-bold py-2 px-5 rounded-lg transition text-sm">
                 <i aria-hidden="true" class="bi bi-check2"></i> Guardar configuración
               </button>
