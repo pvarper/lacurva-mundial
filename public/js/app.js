@@ -832,6 +832,9 @@ function renderSettingsForm(settings) {
   form.elements.worldcupSyncEnabled.checked = Boolean(settings.worldcupSync?.enabled);
   form.elements.worldcupSyncPollIntervalMs.value = settings.worldcupSync?.pollIntervalMs;
   form.elements.fixtureRefreshMs.value = settings.fixtureRefreshMs;
+  form.elements.tiebreakExactCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactCountEnabled);
+  form.elements.tiebreakGoalDiffOnThreeEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnThreeEnabled);
+  form.elements.tiebreakGoalDiffOnZeroEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnZeroEnabled);
 }
 
 async function loadSettings() {
@@ -850,7 +853,12 @@ async function saveSettings(form) {
       enabled: form.elements.worldcupSyncEnabled.checked,
       pollIntervalMs: Number(form.elements.worldcupSyncPollIntervalMs.value)
     },
-    fixtureRefreshMs: Number(form.elements.fixtureRefreshMs.value)
+    fixtureRefreshMs: Number(form.elements.fixtureRefreshMs.value),
+    standingsTiebreak: {
+      exactCountEnabled: form.elements.tiebreakExactCountEnabled.checked,
+      goalDiffOnThreeEnabled: form.elements.tiebreakGoalDiffOnThreeEnabled.checked,
+      goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked
+    }
   };
   const updated = await api('/api/settings', {
     method: 'PUT',
