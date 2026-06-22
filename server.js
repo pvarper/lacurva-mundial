@@ -27,7 +27,12 @@ const SETTINGS_DEFAULTS = {
     enabled: false,
     pollIntervalMs: 10 * 1000
   },
-  fixtureRefreshMs: 30 * 1000
+  fixtureRefreshMs: 30 * 1000,
+  standingsTiebreak: {
+    exactCountEnabled: true,
+    goalDiffOnThreeEnabled: true,
+    goalDiffOnZeroEnabled: true
+  }
 };
 
 let settingsCache = { ...SETTINGS_DEFAULTS };
@@ -37,7 +42,11 @@ const rules = [
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
-  { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' }
+  { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
+  { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
+  { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled' },
+  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled' },
+  { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las 3 reglas anteriores, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
 app.use(helmet({
@@ -105,7 +114,13 @@ async function readAuditLogs() {
 
 async function loadSettings() {
   try {
-    settingsCache = await readJson('settings.json');
+    const stored = await readJson('settings.json');
+    settingsCache = {
+      ...SETTINGS_DEFAULTS,
+      ...stored,
+      worldcupSync: { ...SETTINGS_DEFAULTS.worldcupSync, ...stored.worldcupSync },
+      standingsTiebreak: { ...SETTINGS_DEFAULTS.standingsTiebreak, ...stored.standingsTiebreak }
+    };
   } catch (error) {
     console.error('Could not read settings, falling back to defaults:', error.message);
     settingsCache = { ...SETTINGS_DEFAULTS };
@@ -269,6 +284,10 @@ function calculatePredictionPoints(prediction, match) {
   const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
   const actualOutcome = getOutcome(match.homeScore, match.awayScore);
   return predictedOutcome === actualOutcome ? 3 : 0;
+}
+
+function predictionGoalDiff(prediction, match) {
+  return Math.abs(prediction.homeScore - match.homeScore) + Math.abs(prediction.awayScore - match.awayScore);
 }
 
 function parseFixtureScore(value) {
@@ -624,15 +643,48 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   const liveMatch = fixtures.find((m) => m.status === 'live') || null;
   const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-    const points = userPredictions.reduce((total, prediction) => {
+    let points = 0;
+    let exactCount = 0;
+    let threeCount = 0;
+    let zeroCount = 0;
+    let goalDiffOnThree = 0;
+    let goalDiffOnZero = 0;
+    userPredictions.forEach((prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
-      return match ? total + calculatePredictionPoints(prediction, match) : total;
-    }, 0);
+      if (!match) return;
+      const predictionPoints = calculatePredictionPoints(prediction, match);
+      points += predictionPoints;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      if (predictionPoints === 5) {
+        exactCount += 1;
+      } else if (predictionPoints === 3) {
+        threeCount += 1;
+        goalDiffOnThree += predictionGoalDiff(prediction, match);
+      } else {
+        zeroCount += 1;
+        goalDiffOnZero += predictionGoalDiff(prediction, match);
+      }
+    });
     const livePrediction = liveMatch
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
-    return { userId: user.id, username: user.username, points, livePrediction };
-  }).sort((a, b) => b.points - a.points || a.username.localeCompare(b.username));
+    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
+  });
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  function compareRank(a, b) {
+    return (
+      b.points - a.points ||
+      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
+      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
+      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
+    );
+  }
+  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
+  let rank = 1;
+  standings.forEach((row, index) => {
+    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
+    row.rank = rank;
+  });
   res.json({ standings, liveMatch });
 }));
 
@@ -674,7 +726,8 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
   const body = req.body || {};
   const merged = {
     ...settingsCache,
-    worldcupSync: { ...settingsCache.worldcupSync }
+    worldcupSync: { ...settingsCache.worldcupSync },
+    standingsTiebreak: { ...settingsCache.standingsTiebreak }
   };
 
   function isFiniteNumber(value) {
@@ -745,6 +798,17 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
     merged.fixtureRefreshMs = value;
   }
 
+  if (body.standingsTiebreak && typeof body.standingsTiebreak === 'object') {
+    for (const key of ['exactCountEnabled', 'goalDiffOnThreeEnabled', 'goalDiffOnZeroEnabled']) {
+      if (body.standingsTiebreak[key] !== undefined) {
+        if (typeof body.standingsTiebreak[key] !== 'boolean') {
+          return res.status(400).json({ error: `standingsTiebreak.${key} must be a boolean.` });
+        }
+        merged.standingsTiebreak[key] = body.standingsTiebreak[key];
+      }
+    }
+  }
+
   if (merged.lockoutResetMs < merged.lockoutDurationMs) {
     return res.status(400).json({ error: 'lockoutResetMs must be greater than or equal to lockoutDurationMs.' });
   }
@@ -791,7 +855,12 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
 }));
 
 app.get('/api/rules', requireAuth, (req, res) => {
-  res.json({ rules });
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  const annotatedRules = rules.map((rule) => ({
+    ...rule,
+    enabled: rule.settingsKey ? Boolean(tiebreak[rule.settingsKey]) : true
+  }));
+  res.json({ rules: annotatedRules });
 });
 
 // eslint-disable-next-line no-unused-vars

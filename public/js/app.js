@@ -61,6 +61,8 @@ const elements = {
   fixturesMessage: document.querySelector('#fixturesMessage'),
   predictionsMessage: document.querySelector('#predictionsMessage'),
   standingsMessage: document.querySelector('#standingsMessage'),
+  standingsDetailBody: document.querySelector('#standingsDetailBody'),
+  standingsDetailMessage: document.querySelector('#standingsDetailMessage'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -152,6 +154,7 @@ function showView(viewId) {
     loadPredictions();
   }
   if (viewId === 'standingsView') loadStandings();
+  if (viewId === 'standingsDetailView') loadStandingsDetail();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
@@ -726,9 +729,8 @@ async function loadStandings() {
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
-  let rank = 1;
-  elements.standingsBody.innerHTML = standings.map((row, index) => {
-    if (index > 0 && standings[index - 1].points !== row.points) rank++;
+  elements.standingsBody.innerHTML = standings.map((row) => {
+    const rank = row.rank;
     const trophy = rank <= 3
       ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
@@ -742,6 +744,29 @@ async function loadStandings() {
         ${livePredCell}
         <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
         <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadStandingsDetail() {
+  const { standings } = await api('/api/standings');
+  const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
+  elements.standingsDetailBody.innerHTML = standings.map((row) => {
+    const rank = row.rank;
+    const trophy = rank <= 3
+      ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
+      : '';
+    return `
+      <tr>
+        <td class="font-bold">${rank}${trophy}</td>
+        <td>${escapeHtml(row.username)}</td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td>${row.exactCount}</td>
+        <td>${row.threeCount}</td>
+        <td>${row.zeroCount}</td>
+        <td>${row.goalDiffOnThree}</td>
+        <td>${row.goalDiffOnZero}</td>
       </tr>
     `;
   }).join('');
@@ -809,6 +834,9 @@ function renderSettingsForm(settings) {
   form.elements.worldcupSyncEnabled.checked = Boolean(settings.worldcupSync?.enabled);
   form.elements.worldcupSyncPollIntervalMs.value = settings.worldcupSync?.pollIntervalMs;
   form.elements.fixtureRefreshMs.value = settings.fixtureRefreshMs;
+  form.elements.tiebreakExactCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactCountEnabled);
+  form.elements.tiebreakGoalDiffOnThreeEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnThreeEnabled);
+  form.elements.tiebreakGoalDiffOnZeroEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnZeroEnabled);
 }
 
 async function loadSettings() {
@@ -827,7 +855,12 @@ async function saveSettings(form) {
       enabled: form.elements.worldcupSyncEnabled.checked,
       pollIntervalMs: Number(form.elements.worldcupSyncPollIntervalMs.value)
     },
-    fixtureRefreshMs: Number(form.elements.fixtureRefreshMs.value)
+    fixtureRefreshMs: Number(form.elements.fixtureRefreshMs.value),
+    standingsTiebreak: {
+      exactCountEnabled: form.elements.tiebreakExactCountEnabled.checked,
+      goalDiffOnThreeEnabled: form.elements.tiebreakGoalDiffOnThreeEnabled.checked,
+      goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked
+    }
   };
   const updated = await api('/api/settings', {
     method: 'PUT',
@@ -890,7 +923,7 @@ async function loadRules() {
   const { rules } = await api('/api/rules');
   const icons = ['bi-star-fill', 'bi-check2-circle', 'bi-x-circle', 'bi-clock', 'bi-shield-check', 'bi-trophy'];
   elements.rulesList.innerHTML = rules.map((rule, i) => `
-    <article class="rule-card">
+    <article class="rule-card${rule.enabled === false ? ' disabled' : ''}">
       <h3><i class="bi ${icons[i % icons.length]}" aria-hidden="true" style="color:#f2b705;margin-right:0.5rem"></i>${escapeHtml(rule.title)}</h3>
       <p>${escapeHtml(rule.description)}</p>
     </article>
