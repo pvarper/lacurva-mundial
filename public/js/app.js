@@ -1,6 +1,7 @@
 const state = {
   user: null,
   inactivityLimitMs: 120 * 60 * 1000,
+  fixtureRefreshMs: 30 * 1000,
   inactivityTimer: null,
   fixtureRefreshTimer: null,
   currentView: null,
@@ -10,8 +11,6 @@ const state = {
   dateCarouselIndex: 0,
   selectedPredDate: null,
 };
-
-const FIXTURE_REFRESH_MS = 30 * 1000;
 
 const fixtureStatusLabels = {
   scheduled: 'Programado',
@@ -204,7 +203,7 @@ function startFixtureAutoRefresh() {
     if (state.currentView !== 'fixturesView') return;
     if (document.activeElement?.closest('.fixture-update-form')) return;
     loadFixtures().catch(() => {});
-  }, FIXTURE_REFRESH_MS);
+  }, state.fixtureRefreshMs);
 }
 
 function stopFixtureAutoRefresh() {
@@ -1212,8 +1211,9 @@ document.querySelector('#predictionModalForm').addEventListener('submit', async 
 });
 
 api('/api/session')
-  .then(({ user, inactivityLimitMs }) => {
+  .then(({ user, inactivityLimitMs, fixtureRefreshMs }) => {
     state.inactivityLimitMs = inactivityLimitMs;
+    state.fixtureRefreshMs = fixtureRefreshMs;
     if (user) showAuthenticatedApp(user);
     else showLogin();
   })
