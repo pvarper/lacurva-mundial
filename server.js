@@ -43,9 +43,9 @@ const rules = [
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
-  { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).' },
-  { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.' },
-  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.' },
+  { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
+  { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled' },
+  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled' },
   { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las 3 reglas anteriores, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
@@ -855,7 +855,12 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
 }));
 
 app.get('/api/rules', requireAuth, (req, res) => {
-  res.json({ rules });
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  const annotatedRules = rules.map((rule) => ({
+    ...rule,
+    enabled: rule.settingsKey ? Boolean(tiebreak[rule.settingsKey]) : true
+  }));
+  res.json({ rules: annotatedRules });
 });
 
 // eslint-disable-next-line no-unused-vars
