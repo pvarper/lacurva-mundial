@@ -61,6 +61,8 @@ const elements = {
   fixturesMessage: document.querySelector('#fixturesMessage'),
   predictionsMessage: document.querySelector('#predictionsMessage'),
   standingsMessage: document.querySelector('#standingsMessage'),
+  standingsDetailBody: document.querySelector('#standingsDetailBody'),
+  standingsDetailMessage: document.querySelector('#standingsDetailMessage'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -152,6 +154,7 @@ function showView(viewId) {
     loadPredictions();
   }
   if (viewId === 'standingsView') loadStandings();
+  if (viewId === 'standingsDetailView') loadStandingsDetail();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
@@ -742,6 +745,28 @@ async function loadStandings() {
         ${livePredCell}
         <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
         <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadStandingsDetail() {
+  const { standings } = await api('/api/standings');
+  const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
+  let rank = 1;
+  elements.standingsDetailBody.innerHTML = standings.map((row, index) => {
+    if (index > 0 && standings[index - 1].points !== row.points) rank++;
+    const trophy = rank <= 3
+      ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
+      : '';
+    return `
+      <tr>
+        <td class="font-bold">${rank}${trophy}</td>
+        <td>${escapeHtml(row.username)}</td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td>${row.exactCount}</td>
+        <td>${row.goalDiffOnThree}</td>
+        <td>${row.goalDiffOnZero}</td>
       </tr>
     `;
   }).join('');
