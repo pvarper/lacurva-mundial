@@ -645,6 +645,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
     let points = 0;
     let exactCount = 0;
+    let threeCount = 0;
     let goalDiffOnThree = 0;
     let goalDiffOnZero = 0;
     userPredictions.forEach((prediction) => {
@@ -656,6 +657,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
       if (predictionPoints === 5) {
         exactCount += 1;
       } else if (predictionPoints === 3) {
+        threeCount += 1;
         goalDiffOnThree += predictionGoalDiff(prediction, match);
       } else {
         goalDiffOnZero += predictionGoalDiff(prediction, match);
@@ -664,7 +666,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     const livePrediction = liveMatch
       ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
       : null;
-    return { userId: user.id, username: user.username, points, exactCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
+    return { userId: user.id, username: user.username, points, exactCount, threeCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
   });
   const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
   function compareRank(a, b) {
