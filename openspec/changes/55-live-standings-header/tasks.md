@@ -52,7 +52,7 @@ Chain strategy: single-pr
 
 ## Phase 4: Styling (scope discipline)
 
-- [ ] 4.1 In `public/css/styles.css`, add `.standings-live-th` and `.standings-live-td`: narrow, monospace, live-accent, reduced padding.
+- [x] 4.1 In `public/css/styles.css`, add `.standings-live-th` and `.standings-live-td`: narrow, monospace, live-accent, reduced padding.
 - [ ] 4.2 Confirm selectors do not reuse `.score-display` or `.match-card`; visual check of fixtures view unchanged.
 
 ## Phase 5: Manual verification

@@ -584,6 +584,29 @@ td {
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
+.standings-live-th,
+.standings-live-td {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.standings-live-th {
+  padding: 0.55rem 0.55rem;
+  color: #38bdf8;
+  letter-spacing: 0.04em;
+}
+
+.standings-live-td {
+  padding: 0.65rem 0.55rem;
+  color: #e2e8f0;
+}
+
+.standings-live-td strong {
+  color: #38bdf8;
+}
+
 .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
 /* ── Buttons (JS-generated) ── */
