@@ -51,6 +51,7 @@ Standard
 - `node --check lib/team-abbrev.js`
 - `node --check public/js/app.js`
 - `git diff --check` before each commit
+- Focused corrective verification: confirmed `loadStandings()` now renders the live header with the actual `homeScore — awayScore` between abbreviated teams when the API provides live scores.
 - Isolated authenticated API verification on a temporary local server for:
   - 0 live matches
   - 1 live match (`MEX vs SUD`)
@@ -67,6 +68,7 @@ None — implementation matches the design, with one clarification from spec exa
 
 - The original helper implementation failed spec examples for diacritics (`MÉX`) and 2-word names (`AS`), so a follow-up fix commit normalized both cases.
 - The fixture seed data does not include the exact `1A` vs `W73` example from the task text; verification used the available placeholder fixture `1A` vs `3CEFHI` to validate unchanged passthrough behavior.
+- Corrective continuation: `loadStandings()` was still rendering only abbreviated team names in the live standings header even though `/api/standings` already exposed `homeScore` and `awayScore`; the header now includes the real live score with a safe fallback to `—`.
 
 ## Workload / PR Boundary
 
@@ -77,4 +79,4 @@ None — implementation matches the design, with one clarification from spec exa
 
 ## Status
 
-26/26 tasks complete. Ready for verify.
+26/26 tasks complete. Corrective continuation applied; ready for verify.

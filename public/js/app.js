@@ -723,10 +723,18 @@ async function loadStandings() {
   closeStandingDetailModal();
 
   const theadRow = elements.standingsBody.closest('table').querySelector('thead tr');
-  const liveColumns = liveMatches.map((match) => ({
-    id: match.id,
-    header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} vs ${escapeHtml(match.awayTeamShort)}</th>`
-  }));
+  const liveColumns = liveMatches.map((match) => {
+    const hasLiveScore = match.homeScore !== null && match.homeScore !== undefined
+      && match.awayScore !== null && match.awayScore !== undefined;
+    const liveScore = hasLiveScore
+      ? `${escapeHtml(match.homeScore)} — ${escapeHtml(match.awayScore)}`
+      : '—';
+
+    return {
+      id: match.id,
+      header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} ${liveScore} ${escapeHtml(match.awayTeamShort)}</th>`
+    };
+  });
   const liveHeader = liveColumns.map((column) => column.header).join('');
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
