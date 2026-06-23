@@ -6,6 +6,7 @@ const session = require('express-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { startWorldcupSync, stopWorldcupSync } = require('./lib/worldcup-sync');
+const { abbreviateTeamName } = require('./lib/team-abbrev');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -640,7 +641,21 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     readJson('fixtures.json'),
     readJson('predictions.json')
   ]);
-  const liveMatch = fixtures.find((m) => m.status === 'live') || null;
+  const liveMatches = fixtures
+    .filter((match) => match.status === 'live')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 2)
+    .map((match) => ({
+      id: match.id,
+      matchNumber: match.matchNumber,
+      date: match.date,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      homeTeamShort: abbreviateTeamName(match.homeTeam),
+      awayTeamShort: abbreviateTeamName(match.awayTeam),
+      homeScore: match.homeScore,
+      awayScore: match.awayScore
+    }));
   const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
     let points = 0;
@@ -665,10 +680,11 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
         goalDiffOnZero += predictionGoalDiff(prediction, match);
       }
     });
-    const livePrediction = liveMatch
-      ? (userPredictions.find((p) => p.matchId === liveMatch.id) || null)
-      : null;
-    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePrediction };
+    const livePredictions = Object.fromEntries(liveMatches.map((match) => [
+      match.id,
+      userPredictions.find((prediction) => prediction.matchId === match.id) || null
+    ]));
+    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePredictions };
   });
   const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
   function compareRank(a, b) {
@@ -685,7 +701,7 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
     row.rank = rank;
   });
-  res.json({ standings, liveMatch });
+  res.json({ standings, liveMatches });
 }));
 
 app.get('/api/prize-pool', requireAuth, asyncHandler(async (req, res) => {

@@ -37,11 +37,11 @@ Chain strategy: single-pr
 
 ## Phase 2: Backend (selection + shape)
 
-- [ ] 2.1 In `server.js` `/api/standings`, replace `liveMatch` with `liveMatches` (date asc, slice 0..2).
-- [ ] 2.2 Map each entry to `{ id, date, homeTeam, awayTeam, homeTeamShort, awayTeamShort, homeScore, awayScore }` using helper from 1.1.
-- [ ] 2.3 Replace per-row `livePrediction` with `livePredictions` keyed by `matchId` (value = prediction or `null`).
-- [ ] 2.4 Remove legacy `liveMatch` from response payload (single consumer: `loadStandings`).
-- [ ] 2.5 `node --check server.js`.
+- [x] 2.1 In `server.js` `/api/standings`, replace `liveMatch` with `liveMatches` (date asc, slice 0..2).
+- [x] 2.2 Map each entry to `{ id, date, homeTeam, awayTeam, homeTeamShort, awayTeamShort, homeScore, awayScore }` using helper from 1.1.
+- [x] 2.3 Replace per-row `livePrediction` with `livePredictions` keyed by `matchId` (value = prediction or `null`).
+- [x] 2.4 Remove legacy `liveMatch` from response payload (single consumer: `loadStandings`).
+- [x] 2.5 `node --check server.js`.
 
 ## Phase 3: Frontend (rendering)
 
