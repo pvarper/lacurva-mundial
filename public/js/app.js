@@ -717,15 +717,17 @@ function renderActivityFeed() {
 }
 
 async function loadStandings() {
-  const [{ standings, liveMatch }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  const [{ standings, liveMatches }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
   state.prizePool = prizePool;
   renderPrizePool();
   closeStandingDetailModal();
 
   const theadRow = elements.standingsBody.closest('table').querySelector('thead tr');
-  const liveHeader = liveMatch
-    ? `<th>En vivo: ${escapeHtml(liveMatch.homeTeam)} vs ${escapeHtml(liveMatch.awayTeam)}</th>`
-    : '';
+  const liveColumns = liveMatches.map((match) => ({
+    id: match.id,
+    header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} vs ${escapeHtml(match.awayTeamShort)}</th>`
+  }));
+  const liveHeader = liveColumns.map((column) => column.header).join('');
   theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
 
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
@@ -734,14 +736,18 @@ async function loadStandings() {
     const trophy = rank <= 3
       ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
-    const livePredCell = liveMatch
-      ? `<td>${row.livePrediction ? `<strong>${row.livePrediction.homeScore} — ${row.livePrediction.awayScore}</strong>` : '<span class="muted-text">—</span>'}</td>`
-      : '';
+    const livePredCells = liveColumns.map((column) => {
+      const prediction = row.livePredictions?.[column.id] || null;
+      const predictionText = prediction
+        ? `<strong>${escapeHtml(prediction.homeScore)} — ${escapeHtml(prediction.awayScore)}</strong>`
+        : '<span class="muted-text">—</span>';
+      return `<td class="standings-live-td">${predictionText}</td>`;
+    }).join('');
     return `
       <tr>
         <td class="font-bold">${rank}${trophy}</td>
         <td>${escapeHtml(row.username)}</td>
-        ${livePredCell}
+        ${livePredCells}
         <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
         <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
       </tr>

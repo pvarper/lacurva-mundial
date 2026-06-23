@@ -45,10 +45,10 @@ Chain strategy: single-pr
 
 ## Phase 3: Frontend (rendering)
 
-- [ ] 3.1 In `public/js/app.js` `loadStandings`, single map over `liveMatches` builds N `<th>` AND N `<td>` per row.
-- [ ] 3.2 Header text: `${homeTeamShort} vs ${awayTeamShort}`; `title` carries full names; escapeHtml on every dynamic string.
-- [ ] 3.3 Body cell: `homeScore — awayScore` (em-dash when `livePredictions[matchId]` is `null`).
-- [ ] 3.4 When `liveMatches.length === 0`, render baseline header `Posición | Usuario | Puntos | Opciones` and 4-cell rows.
+- [x] 3.1 In `public/js/app.js` `loadStandings`, single map over `liveMatches` builds N `<th>` AND N `<td>` per row.
+- [x] 3.2 Header text: `${homeTeamShort} vs ${awayTeamShort}`; `title` carries full names; escapeHtml on every dynamic string.
+- [x] 3.3 Body cell: `homeScore — awayScore` (em-dash when `livePredictions[matchId]` is `null`).
+- [x] 3.4 When `liveMatches.length === 0`, render baseline header `Posición | Usuario | Puntos | Opciones` and 4-cell rows.
 
 ## Phase 4: Styling (scope discipline)
 
