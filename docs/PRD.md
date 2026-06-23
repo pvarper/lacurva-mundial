@@ -82,6 +82,7 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 - The table shows each user and accumulated points.
 - The admin user must not appear in the accumulated table.
 - The role column is not shown in the accumulated table.
+- The accumulated table can show up to 2 concurrent live matches as compact 3-letter header columns.
 - Each row includes an option to view match-by-match prediction detail.
 - Normal users can only view their own match-by-match detail.
 - Admin users can view user details for administration.

@@ -53,21 +53,21 @@ Chain strategy: single-pr
 ## Phase 4: Styling (scope discipline)
 
 - [x] 4.1 In `public/css/styles.css`, add `.standings-live-th` and `.standings-live-td`: narrow, monospace, live-accent, reduced padding.
-- [ ] 4.2 Confirm selectors do not reuse `.score-display` or `.match-card`; visual check of fixtures view unchanged.
+- [x] 4.2 Confirm selectors do not reuse `.score-display` or `.match-card`; visual check of fixtures view unchanged.
 
 ## Phase 5: Manual verification
 
-- [ ] 5.1 `node --check server.js` and `node --check lib/team-abbrev.js`.
-- [ ] 5.2 `curl -b cookies /api/standings` with 0 live → `liveMatches: []`; legacy `liveMatch` absent.
-- [ ] 5.3 Flip 1 match to `status: 'live'` in `data/fixtures.json` → one `MEX vs SUD` column in Tabla Acumulada.
-- [ ] 5.4 Flip 2 matches (different kickoffs) → two columns in date order; header/body cell counts match.
-- [ ] 5.5 Flip 3+ matches → only 2 columns (earliest two).
-- [ ] 5.6 Trigger `ARG`/`ARG` collision (Argentina + Argelia both live) → full names on `title` hover; column order correct.
-- [ ] 5.7 Knockout placeholder set to `live` (`1A` vs `W73`) → placeholders pass through unchanged in header.
-- [ ] 5.8 Restore `data/fixtures.json` to pre-test state; confirm `data/audit-log.json` untouched.
+- [x] 5.1 `node --check server.js` and `node --check lib/team-abbrev.js`.
+- [x] 5.2 `curl -b cookies /api/standings` with 0 live → `liveMatches: []`; legacy `liveMatch` absent.
+- [x] 5.3 Flip 1 match to `status: 'live'` in `data/fixtures.json` → one `MEX vs SUD` column in Tabla Acumulada.
+- [x] 5.4 Flip 2 matches (different kickoffs) → two columns in date order; header/body cell counts match.
+- [x] 5.5 Flip 3+ matches → only 2 columns (earliest two).
+- [x] 5.6 Trigger `ARG`/`ARG` collision (Argentina + Argelia both live) → full names on `title` hover; column order correct.
+- [x] 5.7 Knockout placeholder set to `live` (`1A` vs `W73`) → placeholders pass through unchanged in header.
+- [x] 5.8 Restore `data/fixtures.json` to pre-test state; confirm `data/audit-log.json` untouched.
 
 ## Phase 6: Docs + commit hygiene
 
-- [ ] 6.1 Add one-line note to `docs/PRD.md` "Accumulated Table" section: up to 2 concurrent live matches with 3-letter codes.
-- [ ] 6.2 `git status`; ensure `data/audit-log.json` is not staged.
-- [ ] 6.3 `git diff --check` before each commit; commit per work unit (5 commits on `feat/55-live-standings-header`).
+- [x] 6.1 Add one-line note to `docs/PRD.md` "Accumulated Table" section: up to 2 concurrent live matches with 3-letter codes.
+- [x] 6.2 `git status`; ensure `data/audit-log.json` is not staged.
+- [x] 6.3 `git diff --check` before each commit; commit per work unit (5 commits on `feat/55-live-standings-header`).
