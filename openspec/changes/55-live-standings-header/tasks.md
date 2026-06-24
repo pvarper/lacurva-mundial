@@ -23,8 +23,8 @@ Chain strategy: single-pr
 |------|------|--------|-------|
 | 1 | Pure 3-letter helper | `feat(standings): add 3-letter team abbreviation helper` | `lib/team-abbrev.js` new; repl-test collisions + placeholders. |
 | 2 | Server selects ≤2 live | `feat(standings): expose up to 2 live matches with pre-computed abbreviations` | `server.js` /api/standings; remove legacy `liveMatch`; per-row `livePredictions`. |
-| 3 | UI 0/1/2 live columns | `feat(ui): render 0/1/2 live columns in Tabla Acumulada header` | `public/js/app.js` loadStandings; one-pass header+body. |
-| 4 | Compact monospace style | `feat(ui): style standings live columns as compact monospace` | `public/css/styles.css`; new `.standings-live-*`. |
+| 3 | UI 0/1/2 live columns | `feat(ui): render 0/1/2 live columns in Tabla Acumulada header` | `public/js/app.js` loadStandings; one-pass header+body with score-bearing headers. |
+| 4 | Compact monospace style | `feat(ui): style standings live columns as compact monospace` | `public/css/styles.css`; new `.standings-live-*` plus scoped standings alignment. |
 | 5 | PRD one-liner | `docs(standings): note up to 2 live matches in PRD` | `docs/PRD.md` "Accumulated Table". |
 
 ## Phase 1: Foundation (helper)
@@ -46,20 +46,20 @@ Chain strategy: single-pr
 ## Phase 3: Frontend (rendering)
 
 - [x] 3.1 In `public/js/app.js` `loadStandings`, single map over `liveMatches` builds N `<th>` AND N `<td>` per row.
-- [x] 3.2 Header text: `${homeTeamShort} vs ${awayTeamShort}`; `title` carries full names; escapeHtml on every dynamic string.
+- [x] 3.2 Header text: `${homeTeamShort} ${liveScore} ${awayTeamShort}` with `—` fallback; `title` carries full names; escapeHtml on every dynamic string.
 - [x] 3.3 Body cell: `homeScore — awayScore` (em-dash when `livePredictions[matchId]` is `null`).
 - [x] 3.4 When `liveMatches.length === 0`, render baseline header `Posición | Usuario | Puntos | Opciones` and 4-cell rows.
 
 ## Phase 4: Styling (scope discipline)
 
-- [x] 4.1 In `public/css/styles.css`, add `.standings-live-th` and `.standings-live-td`: narrow, monospace, live-accent, reduced padding.
+- [x] 4.1 In `public/css/styles.css`, add `.standings-live-th` and `.standings-live-td`: narrow, monospace, live-accent, reduced padding, plus scoped standings alignment/sizing.
 - [x] 4.2 Confirm selectors do not reuse `.score-display` or `.match-card`; visual check of fixtures view unchanged.
 
 ## Phase 5: Manual verification
 
 - [x] 5.1 `node --check server.js` and `node --check lib/team-abbrev.js`.
 - [x] 5.2 `curl -b cookies /api/standings` with 0 live → `liveMatches: []`; legacy `liveMatch` absent.
-- [x] 5.3 Flip 1 match to `status: 'live'` in `data/fixtures.json` → one `MEX vs SUD` column in Tabla Acumulada.
+- [x] 5.3 Flip 1 match to `status: 'live'` in `data/fixtures.json` → one `MEX 1 — 0 SUD` score-bearing column in Tabla Acumulada.
 - [x] 5.4 Flip 2 matches (different kickoffs) → two columns in date order; header/body cell counts match.
 - [x] 5.5 Flip 3+ matches → only 2 columns (earliest two).
 - [x] 5.6 Trigger `ARG`/`ARG` collision (Argentina + Argelia both live) → full names on `title` hover; column order correct.
@@ -68,6 +68,12 @@ Chain strategy: single-pr
 
 ## Phase 6: Docs + commit hygiene
 
-- [x] 6.1 Add one-line note to `docs/PRD.md` "Accumulated Table" section: up to 2 concurrent live matches with 3-letter codes.
+- [x] 6.1 Add one-line note to `docs/PRD.md` "Accumulated Table" section: up to 2 concurrent live matches with 3-letter codes and live score.
+
+## Phase 7: Corrective continuation
+
+- [x] 7.1 Align proposal/spec/design/tasks/apply-progress with the shipped score-bearing header behavior.
+- [x] 7.2 Tighten accumulated table column sizing/alignment so 0/1/2 live columns stay readable in the browser.
+- [x] 7.3 Re-run syntax and diff hygiene checks for the corrective continuation.
 - [x] 6.2 `git status`; ensure `data/audit-log.json` is not staged.
 - [x] 6.3 `git diff --check` before each commit; commit per work unit (5 commits on `feat/55-live-standings-header`).
