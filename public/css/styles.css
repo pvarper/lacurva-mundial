@@ -564,6 +564,9 @@ html, body { background-color: #1a2d45; }
 
 /* ── Tables ── */
 table { width: 100%; border-collapse: collapse; }
+.standings-table {
+  min-width: 100%;
+}
 th {
   padding: 0.7rem 1.25rem;
   text-align: left;
@@ -584,6 +587,25 @@ td {
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
+.standings-col-rank { width: 5.25rem; }
+.standings-col-user { width: auto; }
+.standings-col-points { width: 5.75rem; }
+.standings-col-actions { width: 6rem; }
+
+.standings-rank-th,
+.standings-rank-td,
+.standings-points-th,
+.standings-points-td,
+.standings-actions-th,
+.standings-actions-td {
+  text-align: center;
+}
+
+.standings-user-th,
+.standings-user-td {
+  min-width: 11rem;
+}
+
 .standings-live-th,
 .standings-live-td {
   width: 1%;
@@ -596,6 +618,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   padding: 0.55rem 0.55rem;
   color: #38bdf8;
   letter-spacing: 0.04em;
+  min-width: 8.75rem;
 }
 
 .standings-live-td {
@@ -605,6 +628,10 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 .standings-live-td strong {
   color: #38bdf8;
+}
+
+.standings-actions-td {
+  white-space: nowrap;
 }
 
 .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
