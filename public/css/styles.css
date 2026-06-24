@@ -1365,6 +1365,9 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   .section-heading { flex-direction: column; }
   .detail-heading { flex-direction: column; align-items: flex-start; }
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .standings-table { table-layout: auto; min-width: max-content; }
+  .standings-user-th,
+  .standings-user-td { white-space: nowrap; overflow: visible; text-overflow: clip; }
 }
 
 @media (max-width: 480px) {
