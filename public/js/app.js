@@ -717,16 +717,37 @@ function renderActivityFeed() {
 }
 
 async function loadStandings() {
-  const [{ standings, liveMatch }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  const [{ standings, liveMatches }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
   state.prizePool = prizePool;
   renderPrizePool();
   closeStandingDetailModal();
 
-  const theadRow = elements.standingsBody.closest('table').querySelector('thead tr');
-  const liveHeader = liveMatch
-    ? `<th>En vivo: ${escapeHtml(liveMatch.homeTeam)} vs ${escapeHtml(liveMatch.awayTeam)}</th>`
-    : '';
-  theadRow.innerHTML = `<th>Posición</th><th>Usuario</th>${liveHeader}<th>Puntos</th><th>Opciones</th>`;
+  const standingsTable = elements.standingsBody.closest('table');
+  const theadRow = standingsTable.querySelector('thead tr');
+  const standingsColgroup = standingsTable.querySelector('#standingsColgroup');
+  const liveColumns = liveMatches.map((match) => {
+    const hasLiveScore = match.homeScore !== null && match.homeScore !== undefined
+      && match.awayScore !== null && match.awayScore !== undefined;
+    const liveScore = hasLiveScore
+      ? `${escapeHtml(match.homeScore)} — ${escapeHtml(match.awayScore)}`
+      : '—';
+
+    return {
+      id: match.id,
+      header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} ${liveScore} ${escapeHtml(match.awayTeamShort)}</th>`
+    };
+  });
+  const totalColumns = 4 + liveColumns.length;
+  const equalColumnWidth = `${100 / totalColumns}%`;
+  standingsColgroup.innerHTML = `
+    <col class="standings-col-rank" style="width:${equalColumnWidth}">
+    <col class="standings-col-user" style="width:${equalColumnWidth}">
+    ${liveColumns.map(() => `<col class="standings-col-live" style="width:${equalColumnWidth}">`).join('')}
+    <col class="standings-col-points" style="width:${equalColumnWidth}">
+    <col class="standings-col-actions" style="width:${equalColumnWidth}">
+  `;
+  const liveHeader = liveColumns.map((column) => column.header).join('');
+  theadRow.innerHTML = `<th class="standings-rank-th">Posición</th><th class="standings-user-th">Usuario</th>${liveHeader}<th class="standings-points-th">Puntos</th><th class="standings-actions-th">Opciones</th>`;
 
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
   elements.standingsBody.innerHTML = standings.map((row) => {
@@ -734,16 +755,20 @@ async function loadStandings() {
     const trophy = rank <= 3
       ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
       : '';
-    const livePredCell = liveMatch
-      ? `<td>${row.livePrediction ? `<strong>${row.livePrediction.homeScore} — ${row.livePrediction.awayScore}</strong>` : '<span class="muted-text">—</span>'}</td>`
-      : '';
+    const livePredCells = liveColumns.map((column) => {
+      const prediction = row.livePredictions?.[column.id] || null;
+      const predictionText = prediction
+        ? `<strong>${escapeHtml(prediction.homeScore)} — ${escapeHtml(prediction.awayScore)}</strong>`
+        : '<span class="muted-text">—</span>';
+      return `<td class="standings-live-td">${predictionText}</td>`;
+    }).join('');
     return `
       <tr>
-        <td class="font-bold">${rank}${trophy}</td>
-        <td>${escapeHtml(row.username)}</td>
-        ${livePredCell}
-        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
-        <td>${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
+        <td class="font-bold standings-rank-td">${rank}${trophy}</td>
+        <td class="standings-user-td">${escapeHtml(row.username)}</td>
+        ${livePredCells}
+        <td class="standings-points-td"><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td class="standings-actions-td">${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
       </tr>
     `;
   }).join('');
