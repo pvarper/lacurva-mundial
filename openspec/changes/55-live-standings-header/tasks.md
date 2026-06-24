@@ -77,3 +77,9 @@ Chain strategy: single-pr
 - [x] 7.1 Align proposal/spec/design/tasks/apply-progress with the shipped score-bearing header behavior.
 - [x] 7.2 Tighten accumulated table column sizing/alignment so 0/1/2 live columns stay readable in the browser.
 - [x] 7.3 Re-run syntax and diff hygiene checks for the corrective continuation.
+
+## Phase 8: Corrective continuation follow-up
+
+- [x] 8.1 Refine proposal/spec/design wording so the verified 2-word abbreviation rule explicitly matches `Arabia Saudita -> ARS`.
+- [ ] 8.2 Center and evenly distribute Tabla Acumulada header/body columns so 0/1/2 live-column layouts share the same horizontal grid.
+- [ ] 8.3 Re-run syntax and diff hygiene checks for the follow-up continuation.

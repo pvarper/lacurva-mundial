@@ -36,6 +36,7 @@ Standard
 - [x] 7.1 Align proposal/spec/design/tasks/apply-progress with the shipped score-bearing header behavior.
 - [x] 7.2 Tighten accumulated table column sizing/alignment so 0/1/2 live columns stay readable in the browser.
 - [x] 7.3 Re-run syntax and diff hygiene checks for the corrective continuation.
+- [x] 8.1 Refine proposal/spec/design wording so the verified 2-word abbreviation rule explicitly matches `Arabia Saudita -> ARS`.
 
 ## Files Changed
 
@@ -70,7 +71,7 @@ Standard
 
 ## Deviations from Design
 
-None — implementation matches the updated design, with one clarification from spec examples: 2-word names use the first 2 letters of the first word plus the first letter of the second to keep a 3-character result.
+None — implementation matches the updated design.
 
 ## Issues Found
 
@@ -78,6 +79,7 @@ None — implementation matches the updated design, with one clarification from 
 - The fixture seed data does not include the exact `1A` vs `W73` example from the task text; verification used the available placeholder fixture `1A` vs `3CEFHI` to validate unchanged passthrough behavior.
 - Corrective continuation: `loadStandings()` was still rendering only abbreviated team names in the live standings header even though `/api/standings` already exposed `homeScore` and `awayScore`; the header now includes the real live score with a safe fallback to `—`.
 - Corrective continuation: the accumulated table needed explicit standings-only column sizing because two live columns made the generic auto-sized header/body layout look cramped and visually misaligned in the browser.
+- Follow-up continuation: proposal/spec/design wording had to be tightened because the verified 2-word abbreviation behavior is `first 2 letters of word 1 + first letter of word 2`, not a generic first-letter-per-word rule.
 
 ## Workload / PR Boundary
 
@@ -88,4 +90,4 @@ None — implementation matches the updated design, with one clarification from 
 
 ## Status
 
-29/29 tasks complete. Corrective continuation applied; ready for verify.
+30/32 tasks complete. Follow-up artifact clarification applied; layout/verification follow-up in progress.

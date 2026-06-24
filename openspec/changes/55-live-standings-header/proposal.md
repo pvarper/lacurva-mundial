@@ -14,8 +14,10 @@ suppresses the column when no match is live.
 ### In Scope
 - `GET /api/standings`: `liveMatch` → `liveMatches` (capped at 2);
   per-row `livePredictions` keyed by `matchId`.
-- New `lib/team-abbrev.js`: 3-letter helper. First letter per word
-  for multi-word names; first three letters otherwise. Pass
+- New `lib/team-abbrev.js`: 3-letter helper. Two-word names use the
+  first 2 letters of word 1 plus the first letter of word 2
+  (`Arabia Saudita` → `ARS`); 3+ word names use the first letter of
+  the first 3 words; single-word names use the first 3 letters. Pass
   placeholders (`1A`, `W73`) through unchanged.
 - Backend attaches `homeTeamShort` / `awayTeamShort` per live match;
   full names stay canonical for the `title` attribute.

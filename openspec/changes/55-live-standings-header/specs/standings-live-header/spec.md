@@ -80,11 +80,13 @@ user has not predicted that match.
 ### Requirement: 3-Letter Abbreviation Algorithm
 
 `abbreviateTeamName(name)` MUST return exactly 3 uppercase characters.
-For multi-word names it takes the first letter of each word (up to 3
-words). For single-word names it takes the first 3 letters. The
-algorithm accepts collisions (e.g. `Argentina` and `Argelia` both → `ARG`).
+For 2-word names it takes the first 2 letters of word 1 plus the first
+letter of word 2 (`Arabia Saudita` → `ARS`). For 3+ word names it takes
+the first letter of each of the first 3 words. For single-word names it
+takes the first 3 letters. The algorithm accepts collisions (e.g.
+`Argentina` and `Argelia` both → `ARG`).
 
-#### Scenario: Multi-word name uses first letter of each word
+#### Scenario: Two-word name keeps a 3-character result
 
 - GIVEN `abbreviateTeamName('Arabia Saudita')`
 - WHEN called
@@ -96,7 +98,7 @@ algorithm accepts collisions (e.g. `Argentina` and `Argelia` both → `ARG`).
 - WHEN called
 - THEN it returns `'MEX'`
 
-#### Scenario: More than three words is truncated to first three letters
+#### Scenario: More than three words is truncated to first three word initials
 
 - GIVEN `abbreviateTeamName('República Democrática del Congo')`
 - WHEN called

@@ -41,7 +41,7 @@ fallback when it does not. Abbreviation lives in a new pure
 
 | File | Action | Description |
 |------|--------|-------------|
-| `lib/team-abbrev.js` | Create | `abbreviateTeamName(name)`: passthrough for digit-led or ≤3-char placeholders; first letter of each word (≤3) for multi-word; first 3 letters for single-word. Pure, no I/O. |
+| `lib/team-abbrev.js` | Create | `abbreviateTeamName(name)`: passthrough for digit-led or ≤3-char placeholders; 2-word names use the first 2 letters of word 1 plus the first letter of word 2 (`Arabia Saudita` → `ARS`); 3+ word names use the first letter of the first 3 words; single-word names use the first 3 letters. Pure, no I/O. |
 | `server.js` | Modify | `/api/standings` (~637–689): `liveMatch` → `liveMatches` (slice 0..2, date asc, with `homeTeamShort`/`awayTeamShort`); per-row `livePrediction` → `livePredictions` keyed by `matchId`. |
 | `public/index.html` | Modify | Add a standings-only `colgroup` hook so dynamic column sizing stays inside the accumulated table. |
 | `public/js/app.js` | Modify | `loadStandings` (~719–764): map `liveMatches` once for both `<th>` and `<td>`, render score-bearing headers, and size the colgroup for 0/1/2 live columns; `title` carries full names; `escapeHtml` on every dynamic string. |
@@ -54,7 +54,7 @@ fallback when it does not. Abbreviation lives in a new pure
 // lib/team-abbrev.js
 function abbreviateTeamName(name) // returns 1..3 chars
 //  "Argentina"           -> "ARG"
-//  "Arabia Saudita"      -> "ARS"
+//  "Arabia Saudita"      -> "ARS" (2 letters from word 1 + 1 from word 2)
 //  "República ... Congo" -> "RDD"
 //  "1A", "W73", "L101"   -> unchanged (digit-led OR ≤3 chars)
 ```
