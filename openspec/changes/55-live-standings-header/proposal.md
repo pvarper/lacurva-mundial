@@ -55,8 +55,9 @@ iterates `liveMatches` for header and body in one pass. Locked:
 |------|--------|
 | `lib/team-abbrev.js` | New 3-letter helper. |
 | `server.js` `/api/standings` (~637–689) | `liveMatch` → `liveMatches`; per-row `livePredictions`. |
-| `public/js/app.js` `loadStandings` (~719–750) | 0/1/2 live columns from same array. |
-| `public/css/styles.css` | `.standings-live-*` block. |
+| `public/index.html` | Standings-only `colgroup` hook for dynamic column sizing. |
+| `public/js/app.js` `loadStandings` (~719–764) | 0/1/2 live columns from same array plus score-bearing headers and colgroup sizing. |
+| `public/css/styles.css` | `.standings-live-*` block plus scoped standings alignment rules. |
 | `docs/PRD.md` | One-line "Accumulated Table" update. |
 
 ## Risks

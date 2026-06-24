@@ -69,11 +69,11 @@ Chain strategy: single-pr
 ## Phase 6: Docs + commit hygiene
 
 - [x] 6.1 Add one-line note to `docs/PRD.md` "Accumulated Table" section: up to 2 concurrent live matches with 3-letter codes and live score.
+- [x] 6.2 `git status`; ensure `data/audit-log.json` is not staged.
+- [x] 6.3 `git diff --check` before each commit; commit per work unit on `feat/55-live-standings-header`.
 
 ## Phase 7: Corrective continuation
 
 - [x] 7.1 Align proposal/spec/design/tasks/apply-progress with the shipped score-bearing header behavior.
 - [x] 7.2 Tighten accumulated table column sizing/alignment so 0/1/2 live columns stay readable in the browser.
 - [x] 7.3 Re-run syntax and diff hygiene checks for the corrective continuation.
-- [x] 6.2 `git status`; ensure `data/audit-log.json` is not staged.
-- [x] 6.3 `git diff --check` before each commit; commit per work unit (5 commits on `feat/55-live-standings-header`).

@@ -91,7 +91,7 @@ No test script in `package.json`; strict TDD disabled.
 
 No migration. `liveMatches` and `livePredictions` replace `liveMatch` and
 `livePrediction`; single consumer is `loadStandings`, updated in the same
-change. Rollback = revert the 5 commits.
+change. Rollback = revert the work-unit commits for this change.
 
 ## Open Questions
 

@@ -62,7 +62,7 @@ Standard
 - Corrective continuation browser/layout validation: confirmed the standings table keeps readable column boundaries and aligned header/body cells with 0, 1, or 2 live columns after adding the standings-only colgroup and width classes.
 - Isolated authenticated API verification on a temporary local server for:
   - 0 live matches
-  - 1 live match (`MEX vs SUD`)
+  - 1 live match (`MEX 1 — 0 SUD`)
   - 2 live matches in date order
   - 3+ live matches capped to 2
   - `ARG` collision preservation
