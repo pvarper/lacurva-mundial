@@ -566,6 +566,12 @@ html, body { background-color: #1a2d45; }
 table { width: 100%; border-collapse: collapse; }
 .standings-table {
   min-width: 100%;
+  table-layout: fixed;
+}
+.standings-table th,
+.standings-table td {
+  text-align: center;
+  vertical-align: middle;
 }
 th {
   padding: 0.7rem 1.25rem;
@@ -601,17 +607,19 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   text-align: center;
 }
 
-.standings-user-th,
-.standings-user-td {
-  min-width: 11rem;
-}
-
 .standings-live-th,
 .standings-live-td {
-  width: 1%;
   white-space: nowrap;
-  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: 'Courier New', Courier, monospace;
+}
+
+.standings-user-th,
+.standings-user-td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .standings-live-th {

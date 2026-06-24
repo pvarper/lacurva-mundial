@@ -737,13 +737,14 @@ async function loadStandings() {
       header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} ${liveScore} ${escapeHtml(match.awayTeamShort)}</th>`
     };
   });
-  const liveColumnWidthRem = liveColumns.length >= 2 ? 9.5 : 10.5;
+  const totalColumns = 4 + liveColumns.length;
+  const equalColumnWidth = `${100 / totalColumns}%`;
   standingsColgroup.innerHTML = `
-    <col class="standings-col-rank">
-    <col class="standings-col-user">
-    ${liveColumns.map(() => `<col class="standings-col-live" style="width:${liveColumnWidthRem}rem">`).join('')}
-    <col class="standings-col-points">
-    <col class="standings-col-actions">
+    <col class="standings-col-rank" style="width:${equalColumnWidth}">
+    <col class="standings-col-user" style="width:${equalColumnWidth}">
+    ${liveColumns.map(() => `<col class="standings-col-live" style="width:${equalColumnWidth}">`).join('')}
+    <col class="standings-col-points" style="width:${equalColumnWidth}">
+    <col class="standings-col-actions" style="width:${equalColumnWidth}">
   `;
   const liveHeader = liveColumns.map((column) => column.header).join('');
   theadRow.innerHTML = `<th class="standings-rank-th">Posición</th><th class="standings-user-th">Usuario</th>${liveHeader}<th class="standings-points-th">Puntos</th><th class="standings-actions-th">Opciones</th>`;

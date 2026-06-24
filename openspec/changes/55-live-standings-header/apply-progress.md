@@ -37,6 +37,8 @@ Standard
 - [x] 7.2 Tighten accumulated table column sizing/alignment so 0/1/2 live columns stay readable in the browser.
 - [x] 7.3 Re-run syntax and diff hygiene checks for the corrective continuation.
 - [x] 8.1 Refine proposal/spec/design wording so the verified 2-word abbreviation rule explicitly matches `Arabia Saudita -> ARS`.
+- [x] 8.2 Center and evenly distribute Tabla Acumulada header/body columns so 0/1/2 live-column layouts share the same horizontal grid.
+- [x] 8.3 Re-run syntax and diff hygiene checks for the follow-up continuation.
 
 ## Files Changed
 
@@ -61,6 +63,7 @@ Standard
 - `git diff --check` before each commit
 - Focused corrective verification: confirmed `loadStandings()` now renders the live header with the actual `homeScore — awayScore` between abbreviated teams when the API provides live scores.
 - Corrective continuation browser/layout validation: confirmed the standings table keeps readable column boundaries and aligned header/body cells with 0, 1, or 2 live columns after adding the standings-only colgroup and width classes.
+- Follow-up layout validation: confirmed the standings table now uses the same centered, equal-width grid for header and body cells whether 0, 1, or 2 live columns are present.
 - Isolated authenticated API verification on a temporary local server for:
   - 0 live matches
   - 1 live match (`MEX 1 — 0 SUD`)
@@ -80,6 +83,7 @@ None — implementation matches the updated design.
 - Corrective continuation: `loadStandings()` was still rendering only abbreviated team names in the live standings header even though `/api/standings` already exposed `homeScore` and `awayScore`; the header now includes the real live score with a safe fallback to `—`.
 - Corrective continuation: the accumulated table needed explicit standings-only column sizing because two live columns made the generic auto-sized header/body layout look cramped and visually misaligned in the browser.
 - Follow-up continuation: proposal/spec/design wording had to be tightened because the verified 2-word abbreviation behavior is `first 2 letters of word 1 + first letter of word 2`, not a generic first-letter-per-word rule.
+- Follow-up continuation: the standings table needed a true fixed-layout equal-width grid because scoped sizing alone still allowed visible header/body drift when live columns were injected.
 
 ## Workload / PR Boundary
 
@@ -90,4 +94,4 @@ None — implementation matches the updated design.
 
 ## Status
 
-30/32 tasks complete. Follow-up artifact clarification applied; layout/verification follow-up in progress.
+32/32 tasks complete. Follow-up continuation applied; ready for verify.

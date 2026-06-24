@@ -81,5 +81,5 @@ Chain strategy: single-pr
 ## Phase 8: Corrective continuation follow-up
 
 - [x] 8.1 Refine proposal/spec/design wording so the verified 2-word abbreviation rule explicitly matches `Arabia Saudita -> ARS`.
-- [ ] 8.2 Center and evenly distribute Tabla Acumulada header/body columns so 0/1/2 live-column layouts share the same horizontal grid.
-- [ ] 8.3 Re-run syntax and diff hygiene checks for the follow-up continuation.
+- [x] 8.2 Center and evenly distribute Tabla Acumulada header/body columns so 0/1/2 live-column layouts share the same horizontal grid.
+- [x] 8.3 Re-run syntax and diff hygiene checks for the follow-up continuation.
