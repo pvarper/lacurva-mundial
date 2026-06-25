@@ -766,6 +766,93 @@ app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
+app.get('/api/admin/picks', requireAdmin, asyncHandler(async (req, res) => {
+  const [fixtures, picks] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json')
+  ]);
+
+  res.json({
+    picks: picks.map(formatPopupPickRow),
+    ...getPicksLockState(fixtures)
+  });
+}));
+
+app.put('/api/admin/picks/:userId', requireAdmin, asyncHandler(async (req, res) => {
+  const validation = validatePicksBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const userId = String(req.params.userId || '');
+  const [users, fixtures, picks] = await Promise.all([
+    readJson('users.json'),
+    readJson('fixtures.json'),
+    readJson('picks.json')
+  ]);
+
+  const targetUser = users.find((candidate) => candidate.id === userId);
+  if (!targetUser) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  const timestamp = new Date().toISOString();
+  const updatedBy = `admin:${req.session.user.id}`;
+  const existing = picks.find((candidate) => candidate.userId === userId);
+  const previousValue = existing
+    ? {
+      champion: existing.champion,
+      runnerUp: existing.runnerUp,
+      topScorer: existing.topScorer,
+      updatedBy: existing.updatedBy || null,
+      updatedAt: existing.updatedAt || null
+    }
+    : null;
+
+  if (existing) {
+    Object.assign(existing, validation.value, {
+      username: targetUser.username,
+      updatedAt: timestamp,
+      updatedBy
+    });
+  } else {
+    picks.push({
+      id: crypto.randomUUID(),
+      userId,
+      username: targetUser.username,
+      ...validation.value,
+      submittedAt: timestamp,
+      updatedAt: timestamp,
+      updatedBy
+    });
+  }
+
+  await writeJson('picks.json', picks);
+
+  const current = picks.find((candidate) => candidate.userId === userId);
+  const newValue = {
+    champion: current.champion,
+    runnerUp: current.runnerUp,
+    topScorer: current.topScorer,
+    updatedBy: current.updatedBy,
+    updatedAt: current.updatedAt
+  };
+
+  await recordAuditLog(req, 'pick_override', {
+    targetUserId: targetUser.id,
+    targetUsername: targetUser.username,
+    previousValue,
+    newValue,
+    updatedBy
+  });
+
+  res.json({
+    pick: current,
+    picks: picks.map(formatPopupPickRow),
+    ...getPicksLockState(fixtures)
+  });
+}));
+
 app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) => {
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),

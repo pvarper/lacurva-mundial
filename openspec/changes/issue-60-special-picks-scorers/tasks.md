@@ -38,9 +38,9 @@ Chain strategy: pending
 
 ## Phase 2: Backend admin picks (PR 2)
 
-- [ ] 2.1 `GET /api/admin/picks` (requireAdmin): all rows + lock state.
-- [ ] 2.2 `PUT /api/admin/picks/:userId` (requireAdmin): 404 on miss; bypasses lock; `updatedBy:"admin:<id>"`.
-- [ ] 2.3 Append `pick_override` audit with `previousValue` + `newValue` + `updatedBy`; `node --check server.js`.
+- [x] 2.1 `GET /api/admin/picks` (requireAdmin): all rows + lock state.
+- [x] 2.2 `PUT /api/admin/picks/:userId` (requireAdmin): 404 on miss; bypasses lock; `updatedBy:"admin:<id>"`.
+- [x] 2.3 Append `pick_override` audit with `previousValue` + `newValue` + `updatedBy`; `node --check server.js`.
 
 ## Phase 3: Backend standings bonus + scorers (PR 3)
 
