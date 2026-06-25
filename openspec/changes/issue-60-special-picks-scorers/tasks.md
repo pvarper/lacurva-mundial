@@ -50,7 +50,7 @@ Chain strategy: pending
 - [x] 3.4 `POST /api/admin/scorers` (requireAdmin): integer validation 400s on `goals`/`matchesPlayed`; audit `scorer_manual_create`.
 - [x] 3.5 `PUT /api/admin/scorers/:id` (requireAdmin): 404 on miss; in-place; audit `scorer_manual_update`.
 - [x] 3.6 `DELETE /api/admin/scorers/:id` (requireAdmin): 404 on miss; audit `scorer_manual_delete`.
-- [ ] 3.7 `node --check server.js`; smoke final fixture → 10/6/4 in standings; non-admin 403; `goals:-1` 400.
+- [x] 3.7 `node --check server.js`; smoke final fixture → 10/6/4 in standings; non-admin 403; `goals:-1` 400.
 
 ## Phase 4: Frontend picks + admin picks (PR 4)
 
@@ -67,8 +67,8 @@ Chain strategy: pending
 - [x] 5.2 In `public/js/app.js`, add `state.scorers`; `loadScorers`; `renderScorersView` with POST/PUT/DELETE handlers.
 - [x] 5.3 In `public/css/styles.css`, add `.scorers-table`, `.scorers-banner`, `.scorers-admin-form`.
 - [x] 5.4 In `docs/PRD.md`, add sections: shared R16 lock, 10/6/4 bonus (gated on final), scorers V1 manual, admin override.
-- [ ] 5.5 Full smoke at `http://localhost:3001`: submit picks, eye-icon popup, admin override, scorers CRUD, seed final fixture → 10/6/4 in standings.
-- [ ] 5.6 `git status` (skip dirty `data/audit-log|fixtures|predictions|users.json`); `git diff --check`; per-work-unit commit with conventional message.
+- [x] 5.5 Full smoke at `http://localhost:3001`: submit picks, eye-icon popup, admin override, scorers CRUD, seed final fixture → 10/6/4 in standings.
+- [x] 5.6 `git status` (skip dirty `data/audit-log|fixtures|predictions|users.json`); `git diff --check`; per-work-unit commit with conventional message.
 
 ## Notes for Apply
 

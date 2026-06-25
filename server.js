@@ -365,7 +365,8 @@ function normalizeComparisonValue(value) {
 }
 
 function getFinalBonusOutcome(fixtures, scorers) {
-  const finalMatch = fixtures.find((fixture) => fixture.phase === 'Final');
+  const finalMatch = fixtures.find((fixture) => fixture.roundName === 'Final')
+    || fixtures.find((fixture) => fixture.phase === 'Final' && fixture.matchNumber === 104);
   if (!finalMatch || finalMatch.status !== 'final') {
     return {
       isFinalComplete: false,
