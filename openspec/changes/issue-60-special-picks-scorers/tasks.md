@@ -44,12 +44,12 @@ Chain strategy: pending
 
 ## Phase 3: Backend standings bonus + scorers (PR 3)
 
-- [ ] 3.1 In `/api/standings`, compute `bonusPoints` from `picks.json` only when a final fixture is `status:"final"`; +10/+6/+4 case-insensitive, independent.
-- [ ] 3.2 Add `bonusPoints` + `totalPoints = points + bonusPoints` to each row; rank stays on `points`.
-- [ ] 3.3 `GET /api/scorers` (requireAuth): returns `{ source:"manual", scorers }`.
-- [ ] 3.4 `POST /api/admin/scorers` (requireAdmin): integer validation 400s on `goals`/`matchesPlayed`; audit `scorer_manual_create`.
-- [ ] 3.5 `PUT /api/admin/scorers/:id` (requireAdmin): 404 on miss; in-place; audit `scorer_manual_update`.
-- [ ] 3.6 `DELETE /api/admin/scorers/:id` (requireAdmin): 404 on miss; audit `scorer_manual_delete`.
+- [x] 3.1 In `/api/standings`, compute `bonusPoints` from `picks.json` only when a final fixture is `status:"final"`; +10/+6/+4 case-insensitive, independent.
+- [x] 3.2 Add `bonusPoints` + `totalPoints = points + bonusPoints` to each row; rank stays on `points`.
+- [x] 3.3 `GET /api/scorers` (requireAuth): returns `{ source:"manual", scorers }`.
+- [x] 3.4 `POST /api/admin/scorers` (requireAdmin): integer validation 400s on `goals`/`matchesPlayed`; audit `scorer_manual_create`.
+- [x] 3.5 `PUT /api/admin/scorers/:id` (requireAdmin): 404 on miss; in-place; audit `scorer_manual_update`.
+- [x] 3.6 `DELETE /api/admin/scorers/:id` (requireAdmin): 404 on miss; audit `scorer_manual_delete`.
 - [ ] 3.7 `node --check server.js`; smoke final fixture → 10/6/4 in standings; non-admin 403; `goals:-1` 400.
 
 ## Phase 4: Frontend picks + admin picks (PR 4)

@@ -313,6 +313,39 @@ function validatePicksBody(body = {}) {
   return { ok: true, value: normalized };
 }
 
+function validateScorerBody(body = {}) {
+  const playerName = String(body.playerName || '').trim();
+  const team = String(body.team || '').trim();
+  const goals = Number(body.goals);
+  const matchesPlayed = Number(body.matchesPlayed);
+
+  if (!playerName || playerName.length > 80) {
+    return { ok: false, error: 'playerName must be between 1 and 80 characters.' };
+  }
+
+  if (!team || team.length > 80) {
+    return { ok: false, error: 'team must be between 1 and 80 characters.' };
+  }
+
+  if (!Number.isInteger(goals) || goals < 0) {
+    return { ok: false, error: 'goals must be a non-negative integer.' };
+  }
+
+  if (!Number.isInteger(matchesPlayed) || matchesPlayed < 0) {
+    return { ok: false, error: 'matchesPlayed must be a non-negative integer.' };
+  }
+
+  return {
+    ok: true,
+    value: {
+      playerName,
+      team,
+      goals,
+      matchesPlayed
+    }
+  };
+}
+
 function formatPopupPickRow(row) {
   return {
     userId: row.userId,
@@ -323,6 +356,149 @@ function formatPopupPickRow(row) {
     updatedBy: row.updatedBy || null,
     updatedAt: row.updatedAt || null
   };
+}
+
+function normalizeComparisonValue(value) {
+  return String(value || '').trim().toLocaleLowerCase('es');
+}
+
+function getFinalBonusOutcome(fixtures, scorers) {
+  const finalMatch = fixtures.find((fixture) => fixture.phase === 'Final');
+  if (!finalMatch || finalMatch.status !== 'final') {
+    return {
+      isFinalComplete: false,
+      champion: null,
+      runnerUp: null,
+      topScorers: []
+    };
+  }
+
+  let champion = null;
+  let runnerUp = null;
+  if (finalMatch.homeScore > finalMatch.awayScore) {
+    champion = finalMatch.homeTeam;
+    runnerUp = finalMatch.awayTeam;
+  } else if (finalMatch.awayScore > finalMatch.homeScore) {
+    champion = finalMatch.awayTeam;
+    runnerUp = finalMatch.homeTeam;
+  }
+
+  const topGoalCount = scorers.reduce((maxGoals, scorer) => Math.max(maxGoals, scorer.goals || 0), -1);
+  const topScorers = topGoalCount < 0
+    ? []
+    : scorers
+      .filter((scorer) => scorer.goals === topGoalCount)
+      .map((scorer) => scorer.playerName);
+
+  return {
+    isFinalComplete: true,
+    champion,
+    runnerUp,
+    topScorers
+  };
+}
+
+function calculatePickBonus(pick, outcome) {
+  if (!pick || !outcome.isFinalComplete) return 0;
+
+  let bonusPoints = 0;
+  const champion = normalizeComparisonValue(outcome.champion);
+  const runnerUp = normalizeComparisonValue(outcome.runnerUp);
+  const topScorers = new Set(outcome.topScorers.map(normalizeComparisonValue));
+
+  if (champion && normalizeComparisonValue(pick.champion) === champion) bonusPoints += 10;
+  if (runnerUp && normalizeComparisonValue(pick.runnerUp) === runnerUp) bonusPoints += 6;
+  if (topScorers.size && topScorers.has(normalizeComparisonValue(pick.topScorer))) bonusPoints += 4;
+
+  return bonusPoints;
+}
+
+function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
+  const liveMatches = fixtures
+    .filter((match) => match.status === 'live')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 2)
+    .map((match) => ({
+      id: match.id,
+      matchNumber: match.matchNumber,
+      date: match.date,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      homeTeamShort: abbreviateTeamName(match.homeTeam),
+      awayTeamShort: abbreviateTeamName(match.awayTeam),
+      homeScore: match.homeScore,
+      awayScore: match.awayScore
+    }));
+  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
+  const bonusOutcome = getFinalBonusOutcome(fixtures, scorers);
+
+  const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
+    const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
+    let points = 0;
+    let exactCount = 0;
+    let threeCount = 0;
+    let zeroCount = 0;
+    let goalDiffOnThree = 0;
+    let goalDiffOnZero = 0;
+
+    userPredictions.forEach((prediction) => {
+      const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
+      if (!match) return;
+      const predictionPoints = calculatePredictionPoints(prediction, match);
+      points += predictionPoints;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      if (predictionPoints === 5) {
+        exactCount += 1;
+      } else if (predictionPoints === 3) {
+        threeCount += 1;
+        goalDiffOnThree += predictionGoalDiff(prediction, match);
+      } else {
+        zeroCount += 1;
+        goalDiffOnZero += predictionGoalDiff(prediction, match);
+      }
+    });
+
+    const pick = picksByUserId.get(user.id) || null;
+    const bonusPoints = calculatePickBonus(pick, bonusOutcome);
+    const livePredictions = Object.fromEntries(liveMatches.map((match) => [
+      match.id,
+      userPredictions.find((prediction) => prediction.matchId === match.id) || null
+    ]));
+
+    return {
+      userId: user.id,
+      username: user.username,
+      points,
+      bonusPoints,
+      totalPoints: points + bonusPoints,
+      exactCount,
+      threeCount,
+      zeroCount,
+      goalDiffOnThree,
+      goalDiffOnZero,
+      livePredictions,
+      pick
+    };
+  });
+
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  function compareRank(a, b) {
+    return (
+      b.points - a.points ||
+      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
+      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
+      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
+    );
+  }
+
+  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
+  let rank = 1;
+  standings.forEach((row, index) => {
+    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
+    row.rank = rank;
+  });
+
+  return { standings, liveMatches };
 }
 
 function getOutcome(homeScore, awayScore) {
@@ -853,6 +1029,99 @@ app.put('/api/admin/picks/:userId', requireAdmin, asyncHandler(async (req, res) 
   });
 }));
 
+app.get('/api/scorers', requireAuth, asyncHandler(async (req, res) => {
+  const scorers = await readJson('scorers.json');
+  res.json({
+    source: 'manual',
+    scorers
+  });
+}));
+
+app.post('/api/admin/scorers', requireAdmin, asyncHandler(async (req, res) => {
+  const validation = validateScorerBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const scorers = await readJson('scorers.json');
+  const timestamp = new Date().toISOString();
+  const scorer = {
+    id: crypto.randomUUID(),
+    ...validation.value,
+    source: 'manual',
+    createdAt: timestamp,
+    lastUpdated: timestamp,
+    updatedBy: `admin:${req.session.user.id}`
+  };
+
+  scorers.push(scorer);
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_create', {
+    scorerId: scorer.id,
+    playerName: scorer.playerName,
+    team: scorer.team,
+    goals: scorer.goals,
+    matchesPlayed: scorer.matchesPlayed,
+    updatedBy: scorer.updatedBy
+  });
+
+  res.status(201).json({ scorer });
+}));
+
+app.put('/api/admin/scorers/:id', requireAdmin, asyncHandler(async (req, res) => {
+  const validation = validateScorerBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const scorerId = String(req.params.id || '');
+  const scorers = await readJson('scorers.json');
+  const scorer = scorers.find((candidate) => candidate.id === scorerId);
+  if (!scorer) {
+    return res.status(404).json({ error: 'Scorer not found.' });
+  }
+
+  Object.assign(scorer, validation.value, {
+    source: 'manual',
+    lastUpdated: new Date().toISOString(),
+    updatedBy: `admin:${req.session.user.id}`
+  });
+
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_update', {
+    scorerId: scorer.id,
+    playerName: scorer.playerName,
+    team: scorer.team,
+    goals: scorer.goals,
+    matchesPlayed: scorer.matchesPlayed,
+    updatedBy: scorer.updatedBy
+  });
+
+  res.json({ scorer });
+}));
+
+app.delete('/api/admin/scorers/:id', requireAdmin, asyncHandler(async (req, res) => {
+  const scorerId = String(req.params.id || '');
+  const scorers = await readJson('scorers.json');
+  const scorerIndex = scorers.findIndex((candidate) => candidate.id === scorerId);
+  if (scorerIndex === -1) {
+    return res.status(404).json({ error: 'Scorer not found.' });
+  }
+
+  const [deletedScorer] = scorers.splice(scorerIndex, 1);
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_delete', {
+    scorerId: deletedScorer.id,
+    playerName: deletedScorer.playerName,
+    team: deletedScorer.team,
+    goals: deletedScorer.goals,
+    matchesPlayed: deletedScorer.matchesPlayed,
+    updatedBy: `admin:${req.session.user.id}`
+  });
+
+  res.json({ ok: true });
+}));
+
 app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) => {
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),
@@ -883,71 +1152,14 @@ app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) =>
 }));
 
 app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
-  const [users, fixtures, predictions] = await Promise.all([
+  const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
-    readJson('predictions.json')
+    readJson('predictions.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
-  const liveMatches = fixtures
-    .filter((match) => match.status === 'live')
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 2)
-    .map((match) => ({
-      id: match.id,
-      matchNumber: match.matchNumber,
-      date: match.date,
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      homeTeamShort: abbreviateTeamName(match.homeTeam),
-      awayTeamShort: abbreviateTeamName(match.awayTeam),
-      homeScore: match.homeScore,
-      awayScore: match.awayScore
-    }));
-  const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
-    const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-    let points = 0;
-    let exactCount = 0;
-    let threeCount = 0;
-    let zeroCount = 0;
-    let goalDiffOnThree = 0;
-    let goalDiffOnZero = 0;
-    userPredictions.forEach((prediction) => {
-      const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
-      if (!match) return;
-      const predictionPoints = calculatePredictionPoints(prediction, match);
-      points += predictionPoints;
-      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
-      if (predictionPoints === 5) {
-        exactCount += 1;
-      } else if (predictionPoints === 3) {
-        threeCount += 1;
-        goalDiffOnThree += predictionGoalDiff(prediction, match);
-      } else {
-        zeroCount += 1;
-        goalDiffOnZero += predictionGoalDiff(prediction, match);
-      }
-    });
-    const livePredictions = Object.fromEntries(liveMatches.map((match) => [
-      match.id,
-      userPredictions.find((prediction) => prediction.matchId === match.id) || null
-    ]));
-    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePredictions };
-  });
-  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
-  function compareRank(a, b) {
-    return (
-      b.points - a.points ||
-      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
-      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
-      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
-    );
-  }
-  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
-  let rank = 1;
-  standings.forEach((row, index) => {
-    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
-    row.rank = rank;
-  });
+  const { standings, liveMatches } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
   res.json({ standings, liveMatches });
 }));
 
@@ -1085,10 +1297,12 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
 
-  const [users, fixtures, predictions] = await Promise.all([
+  const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
-    readJson('predictions.json')
+    readJson('predictions.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
   const user = users.find((candidate) => candidate.id === userId && candidate.role !== 'admin' && candidate.active !== false);
   if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -1112,9 +1326,13 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       points
     };
   });
-  const totalPoints = details.reduce((total, detail) => total + detail.points, 0);
+  const { standings } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
+  const standingRow = standings.find((row) => row.userId === user.id);
+  const matchPoints = details.reduce((total, detail) => total + detail.points, 0);
+  const bonusPoints = standingRow?.bonusPoints || 0;
+  const totalPoints = matchPoints + bonusPoints;
   await recordAuditLog(req, 'standing_detail_viewed', { targetUserId: user.id, targetUsername: user.username });
-  res.json({ user: sanitizeUser(user), totalPoints, details });
+  res.json({ user: sanitizeUser(user), matchPoints, bonusPoints, totalPoints, details });
 }));
 
 app.get('/api/rules', requireAuth, (req, res) => {
