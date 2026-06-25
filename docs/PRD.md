@@ -35,8 +35,11 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 | Create User | Admin only | Create new users. |
 | World Cup Fixture | Authenticated users | View all matches, scores, and status. |
 | Predictions | Authenticated users | Submit and review personal predictions. |
+| Special Picks | Authenticated users | Choose champion, runner-up, and top scorer before the round-of-16 lock. |
 | Accumulated Table | Authenticated users | View points by user. |
+| Scorers | Authenticated users | Review the admin-maintained top scorers table. |
 | Rules | Authenticated users | Explain scoring and prediction lock rules. |
+| Admin Picks | Admin only | Override any user's special picks after the lock. |
 | Audit Log | Admin only | Review user actions across the system. |
 
 ## Functional Requirements
@@ -77,6 +80,24 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 - A match becomes locked 10 minutes before kickoff.
 - Locked matches cannot receive new predictions or updates.
 
+### Special Picks
+
+- Each authenticated user can save exactly one champion, one runner-up, and one top-scorer pick.
+- Special picks stay editable until 1 minute before the first round-of-16 kickoff.
+- Once the special-picks lock is active, normal users cannot create or edit special picks.
+- Admin users can still override any user's special picks after the lock.
+- Correct special picks add bonus points only after the final fixture is marked as `final`.
+- The bonus values are fixed at champion `+10`, runner-up `+6`, and top scorer `+4`.
+- No tie analysis or point splitting applies: every matching user receives the full documented bonus.
+
+### Scorers
+
+- Authenticated users can view the tournament scorers table.
+- V1 scorer data is fully manual and stored in `data/scorers.json`.
+- The scorers view must display an `Admin-maintained` source banner.
+- Admin users can create, update, and delete scorer rows at any time.
+- Admin scorer edits remain allowed even if a future automatic source is added.
+
 ### Accumulated Table
 
 - The table shows each user and accumulated points.
@@ -91,6 +112,8 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 - Correct winner or draw gives 3 points.
 - No match gives 0 points.
 - Matches without final scores do not contribute points.
+- Each row also shows `bonusPoints` and `totalPoints`, where `totalPoints = match points + bonus points`.
+- Ranking order stays based on match points and the existing tiebreakers, not on bonus points.
 
 ### Rules
 

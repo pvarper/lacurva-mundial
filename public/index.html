@@ -77,6 +77,9 @@
             <button data-view="predictionsView" class="active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-pencil-square w-4"></i> Mis Predicciones
             </button>
+            <button data-view="picksView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-stars w-4"></i> Picks Especiales
+            </button>
             <button data-view="activityView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-activity w-4"></i> Actividad Reciente
             </button>
@@ -85,6 +88,9 @@
             </button>
             <button data-view="standingsView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Acumulada
+            </button>
+            <button data-view="scorersView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-person-badge w-4"></i> Goleadores
             </button>
             <button data-view="standingsDetailView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-table w-4"></i> Tabla Acumulada Detalle
@@ -96,6 +102,9 @@
             <p id="adminSectionLabel" class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1 hidden">Admin</p>
             <button data-view="usersView" id="usersMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-person-plus w-4"></i> Usuarios
+            </button>
+            <button data-view="adminPicksView" id="adminPicksMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-sliders w-4"></i> Admin Picks
             </button>
             <button data-view="auditView" id="auditMenu" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-journal-text w-4"></i> Bitácora
@@ -266,6 +275,22 @@
             </div>
           </section>
 
+          <!-- PICKS ESPECIALES -->
+          <section id="picksView" class="view hidden p-4 md:p-6">
+            <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-4">
+              <div class="flex-1">
+                <h2 class="text-xl font-black text-white mb-1">Picks Especiales</h2>
+                <p class="text-slate-500 text-sm">Elegí campeón, subcampeón y goleador del torneo.</p>
+              </div>
+              <button id="openPicksPopupButton" class="secondary-button flex items-center justify-center gap-2 text-sm" type="button">
+                <i aria-hidden="true" class="bi bi-eye"></i> Ver picks
+              </button>
+            </div>
+            <p id="picksMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="picksLockBanner"></div>
+            <div id="picksFormContainer"></div>
+          </section>
+
           <!-- ACTIVIDAD RECIENTE -->
           <section id="activityView" class="view hidden p-4 md:p-6">
             <div class="section-heading flex flex-col sm:flex-row sm:items-start gap-4 mb-4">
@@ -306,6 +331,54 @@
             </div>
           </section>
 
+          <!-- GOLEADORES -->
+          <section id="scorersView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Goleadores del Torneo</h2>
+              <p class="text-slate-500 text-sm">Referencia manual para validar el pick de goleador.</p>
+            </div>
+            <p id="scorersMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="scorersBanner" class="scorers-banner mb-4"></div>
+            <form id="scorersAdminForm" class="admin-only hidden scorers-admin-form mb-5">
+              <input type="hidden" name="scorerId">
+              <label>
+                <span>Jugador</span>
+                <input name="playerName" maxlength="80" required>
+              </label>
+              <label>
+                <span>Selección</span>
+                <input name="team" maxlength="80" required>
+              </label>
+              <label>
+                <span>Goles</span>
+                <input name="goals" type="number" min="0" step="1" required>
+              </label>
+              <label>
+                <span>Partidos jugados</span>
+                <input name="matchesPlayed" type="number" min="0" step="1" required>
+              </label>
+              <div class="scorers-admin-actions">
+                <button type="submit" class="save-btn"><i aria-hidden="true" class="bi bi-check-lg"></i> Guardar</button>
+                <button type="button" id="cancelScorerEditButton" class="secondary-button hidden">Cancelar edición</button>
+              </div>
+            </form>
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
+              <table class="scorers-table">
+                <thead>
+                  <tr>
+                    <th>Jugador</th>
+                    <th>Selección</th>
+                    <th>Goles</th>
+                    <th>PJ</th>
+                    <th>Fuente</th>
+                    <th class="admin-only hidden">Opciones</th>
+                  </tr>
+                </thead>
+                <tbody id="scorersTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
           <!-- TABLA ACUMULADA DETALLE -->
           <section id="standingsDetailView" class="view hidden p-4 md:p-6">
             <div class="mb-5">
@@ -319,7 +392,9 @@
                   <tr>
                     <th>Posición</th>
                     <th>Usuario</th>
-                    <th>Puntos</th>
+                    <th>Puntos partido</th>
+                    <th>Bonus</th>
+                    <th>Total</th>
                     <th>Aciertos exactos (5pts)</th>
                     <th>Cantidad aciertos (3pts)</th>
                     <th>Cantidad fallos (0pts)</th>
@@ -362,8 +437,14 @@
                 <option value="user_created">Usuario creado</option>
                 <option value="user_updated">Usuario editado</option>
                 <option value="user_deactivated">Usuario desactivado</option>
+                <option value="pick_created">Pick creado</option>
+                <option value="pick_updated">Pick actualizado</option>
+                <option value="pick_override">Pick sobrescrito</option>
                 <option value="prediction_created">Predicción creada</option>
                 <option value="prediction_updated">Predicción editada</option>
+                <option value="scorer_manual_create">Goleador creado</option>
+                <option value="scorer_manual_update">Goleador editado</option>
+                <option value="scorer_manual_delete">Goleador eliminado</option>
                 <option value="standing_detail_viewed">Detalle de tabla visto</option>
               </select>
               <button id="clearAuditFilters" class="secondary-button filter-clear-button flex items-center justify-center gap-1.5 text-xs" type="button">
@@ -477,6 +558,31 @@
             </form>
           </section>
 
+          <!-- ADMIN PICKS -->
+          <section id="adminPicksView" class="view hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Admin Picks</h2>
+              <p class="text-slate-500 text-sm">Sobrescribí picks de usuarios incluso después del lock.</p>
+            </div>
+            <p id="adminPicksMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="adminPicksLockBanner"></div>
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Campeón</th>
+                    <th>Subcampeón</th>
+                    <th>Goleador</th>
+                    <th>Actualizado por</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody id="adminPicksTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
         </section><!-- /content -->
       </section><!-- /appView -->
 
@@ -525,6 +631,10 @@
             <i aria-hidden="true" class="bi bi-pencil-square text-lg"></i>
             <span class="text-[10px] font-bold">Mis Pred.</span>
           </button>
+          <button data-view="picksView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-stars text-lg"></i>
+            <span class="text-[10px] font-bold">Picks</span>
+          </button>
           <button data-view="activityView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-activity text-lg"></i>
             <span class="text-[10px] font-bold">Actividad</span>
@@ -537,6 +647,10 @@
             <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
             <span class="text-[10px] font-bold">Tabla</span>
           </button>
+          <button data-view="scorersView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-person-badge text-lg"></i>
+            <span class="text-[10px] font-bold">Goleadores</span>
+          </button>
           <button data-view="standingsDetailView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-table text-lg"></i>
             <span class="text-[10px] font-bold">Detalle</span>
@@ -548,6 +662,10 @@
           <button data-view="usersView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-people text-lg"></i>
             <span class="text-[10px] font-bold">Usuarios</span>
+          </button>
+          <button data-view="adminPicksView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-sliders text-lg"></i>
+            <span class="text-[10px] font-bold">Admin Picks</span>
           </button>
           <button data-view="auditView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-journal-text text-lg"></i>
@@ -575,6 +693,57 @@
           <div class="standing-detail-modal-body">
             <div id="standingDetailModalContent" class="table-wrap overflow-x-auto"></div>
           </div>
+        </div>
+      </div>
+
+      <div id="picksPopupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 prediction-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="picksPopupTitle">
+        <div class="picks-eye-popup-card">
+          <div class="standing-detail-modal-header">
+            <div>
+              <h3 id="picksPopupTitle" class="standing-detail-modal-username">Picks de usuarios</h3>
+              <p class="standing-detail-modal-pts">Campeón, subcampeón y goleador elegidos.</p>
+            </div>
+            <button id="picksPopupClose" type="button" class="prediction-modal-close" aria-label="Cerrar">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="standing-detail-modal-body table-wrap overflow-x-auto">
+            <table>
+              <thead><tr id="picksPopupHead"></tr></thead>
+              <tbody id="picksPopupBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="adminPicksModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 prediction-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="adminPicksModalTitle">
+        <div class="admin-picks-modal-card">
+          <div class="standing-detail-modal-header">
+            <div>
+              <h3 id="adminPicksModalTitle" class="standing-detail-modal-username">Editar picks</h3>
+              <p id="adminPicksModalSubtitle" class="standing-detail-modal-pts"></p>
+            </div>
+            <button id="adminPicksModalClose" type="button" class="prediction-modal-close" aria-label="Cerrar">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+          </div>
+          <form id="adminPicksForm" class="prediction-modal-body admin-picks-modal-form">
+            <input type="hidden" name="userId">
+            <label>
+              <span>Campeón</span>
+              <input name="champion" maxlength="80" required>
+            </label>
+            <label>
+              <span>Subcampeón</span>
+              <input name="runnerUp" maxlength="80" required>
+            </label>
+            <label>
+              <span>Goleador</span>
+              <input name="topScorer" maxlength="80" required>
+            </label>
+            <button type="submit" class="prediction-modal-submit"><i aria-hidden="true" class="bi bi-check-lg"></i> Guardar override</button>
+            <p id="adminPicksModalMessage" class="message"></p>
+          </form>
         </div>
       </div>
 

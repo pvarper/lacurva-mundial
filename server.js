@@ -43,6 +43,8 @@ const rules = [
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
+  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 16vos.' },
+  { title: 'Bonus final', description: 'Los bonus especiales recién se suman cuando la final figure como FINALIZADO. Si varios usuarios aciertan, todos reciben el puntaje completo.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
   { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
   { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled' },
@@ -600,8 +602,8 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
-  const publicViews = ['fixturesView', 'predictionsView', 'standingsView', 'rulesView', 'activityView'];
-  const adminViews = ['usersView', 'auditView'];
+  const publicViews = ['fixturesView', 'predictionsView', 'picksView', 'standingsView', 'standingsDetailView', 'rulesView', 'activityView', 'scorersView'];
+  const adminViews = ['usersView', 'auditView', 'settingsView', 'adminPicksView'];
   if (!publicViews.includes(view) && !adminViews.includes(view)) {
     return res.status(400).json({ error: 'Invalid view.' });
   }
@@ -943,13 +945,29 @@ app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/admin/picks', requireAdmin, asyncHandler(async (req, res) => {
-  const [fixtures, picks] = await Promise.all([
+  const [users, fixtures, picks] = await Promise.all([
+    readJson('users.json'),
     readJson('fixtures.json'),
     readJson('picks.json')
   ]);
+  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
+  const rows = users
+    .filter((user) => user.active !== false)
+    .map((user) => {
+      const pick = picksByUserId.get(user.id);
+      return formatPopupPickRow({
+        userId: user.id,
+        username: user.username,
+        champion: pick?.champion || '',
+        runnerUp: pick?.runnerUp || '',
+        topScorer: pick?.topScorer || '',
+        updatedBy: pick?.updatedBy || null,
+        updatedAt: pick?.updatedAt || null
+      });
+    });
 
   res.json({
-    picks: picks.map(formatPopupPickRow),
+    picks: rows,
     ...getPicksLockState(fixtures)
   });
 }));

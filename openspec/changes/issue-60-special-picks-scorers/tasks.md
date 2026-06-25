@@ -54,19 +54,19 @@ Chain strategy: pending
 
 ## Phase 4: Frontend picks + admin picks (PR 4)
 
-- [ ] 4.1 In `public/index.html`, add `#picksView` (3 input cards + Save + eye-icon + lock banner) and `#adminPicksView` (table + override modal).
-- [ ] 4.2 Add sidebar + bottom-nav buttons; gate admin with `.admin-only hidden`.
-- [ ] 4.3 In `public/js/app.js`, add `state.picks`/`state.adminPicks`; extend `showView()` whitelist; add `loadPicks`/`loadAdminPicks`.
-- [ ] 4.4 `renderPicksView`: cards with `<datalist>` from scorers; lock-aware Save; eye-icon popup table; admin sees `updatedBy`.
-- [ ] 4.5 `renderAdminPicksView`: all-rows table; override modal pre-fills 3 fields; submit calls `PUT /api/admin/picks/:userId`.
-- [ ] 4.6 In `public/css/styles.css`, add `.picks-card`, `.picks-lock-banner`, `.picks-eye-popup`, `.admin-picks-modal`.
+- [x] 4.1 In `public/index.html`, add `#picksView` (3 input cards + Save + eye-icon + lock banner) and `#adminPicksView` (table + override modal).
+- [x] 4.2 Add sidebar + bottom-nav buttons; gate admin with `.admin-only hidden`.
+- [x] 4.3 In `public/js/app.js`, add `state.picks`/`state.adminPicks`; extend `showView()` whitelist; add `loadPicks`/`loadAdminPicks`.
+- [x] 4.4 `renderPicksView`: cards with `<datalist>` from scorers; lock-aware Save; eye-icon popup table; admin sees `updatedBy`.
+- [x] 4.5 `renderAdminPicksView`: all-rows table; override modal pre-fills 3 fields; submit calls `PUT /api/admin/picks/:userId`.
+- [x] 4.6 In `public/css/styles.css`, add `.picks-card`, `.picks-lock-banner`, `.picks-eye-popup`, `.admin-picks-modal`.
 
 ## Phase 5: Frontend scorers + docs + smoke (PR 5)
 
-- [ ] 5.1 In `public/index.html`, add `#scorersView` (table + `Admin-maintained` banner + admin CRUD form) and nav button.
-- [ ] 5.2 In `public/js/app.js`, add `state.scorers`; `loadScorers`; `renderScorersView` with POST/PUT/DELETE handlers.
-- [ ] 5.3 In `public/css/styles.css`, add `.scorers-table`, `.scorers-banner`, `.scorers-admin-form`.
-- [ ] 5.4 In `docs/PRD.md`, add sections: shared R16 lock, 10/6/4 bonus (gated on final), scorers V1 manual, admin override.
+- [x] 5.1 In `public/index.html`, add `#scorersView` (table + `Admin-maintained` banner + admin CRUD form) and nav button.
+- [x] 5.2 In `public/js/app.js`, add `state.scorers`; `loadScorers`; `renderScorersView` with POST/PUT/DELETE handlers.
+- [x] 5.3 In `public/css/styles.css`, add `.scorers-table`, `.scorers-banner`, `.scorers-admin-form`.
+- [x] 5.4 In `docs/PRD.md`, add sections: shared R16 lock, 10/6/4 bonus (gated on final), scorers V1 manual, admin override.
 - [ ] 5.5 Full smoke at `http://localhost:3001`: submit picks, eye-icon popup, admin override, scorers CRUD, seed final fixture → 10/6/4 in standings.
 - [ ] 5.6 `git status` (skip dirty `data/audit-log|fixtures|predictions|users.json`); `git diff --check`; per-work-unit commit with conventional message.
 
