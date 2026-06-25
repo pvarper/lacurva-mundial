@@ -43,6 +43,8 @@ const rules = [
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
+  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 16vos.' },
+  { title: 'Bonus final', description: 'Los bonus especiales recién se suman cuando la final figure como FINALIZADO. Si varios usuarios aciertan, todos reciben el puntaje completo.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
   { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
   { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled' },
@@ -272,6 +274,286 @@ function isPredictionLocked(match) {
     new Date(match.date).getTime() - Date.now() <= settingsCache.predictionLockMs;
 }
 
+function getPicksLockState(fixtures) {
+  const roundOf16 = fixtures
+    .filter((fixture) => fixture.phase === '16vos')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!roundOf16.length) {
+    return {
+      locked: false,
+      lockAt: null,
+      firstR16Kickoff: null
+    };
+  }
+
+  const firstR16Kickoff = roundOf16[0].date;
+  const lockAtDate = new Date(new Date(firstR16Kickoff).getTime() - 60 * 1000);
+
+  return {
+    locked: Date.now() >= lockAtDate.getTime(),
+    lockAt: lockAtDate.toISOString(),
+    firstR16Kickoff
+  };
+}
+
+function getPicksOptions(fixtures, scorers) {
+  const teams = new Set();
+  const r16 = (fixtures || []).filter((fixture) => fixture.phase === '16vos');
+  for (const fixture of r16) {
+    for (const key of ['homeTeam', 'awayTeam']) {
+      const value = String(fixture[key] || '').trim();
+      if (value) teams.add(value);
+    }
+  }
+  const scorerNames = new Set();
+  for (const scorer of scorers || []) {
+    const name = String(scorer && scorer.playerName || '').trim();
+    if (name) scorerNames.add(name);
+  }
+  return {
+    teams: [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
+    scorerNames: [...scorerNames].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  };
+}
+
+function validatePicksBody(body = {}, { teams = [], scorerNames = [] } = {}) {
+  const fields = ['champion', 'runnerUp', 'topScorer'];
+  const normalized = {};
+  const teamSet = new Set(teams);
+  const scorerSet = new Set(scorerNames);
+
+  for (const field of fields) {
+    const value = String(body[field] || '').trim();
+    if (!value || value.length > 80) {
+      return {
+        ok: false,
+        error: `${field} must be between 1 and 80 characters.`
+      };
+    }
+    normalized[field] = value;
+  }
+
+  if (!teamSet.has(normalized.champion)) {
+    return {
+      ok: false,
+      error: 'El campeón debe ser uno de los equipos disponibles.'
+    };
+  }
+
+  if (!teamSet.has(normalized.runnerUp)) {
+    return {
+      ok: false,
+      error: 'El subcampeón debe ser uno de los equipos disponibles.'
+    };
+  }
+
+  if (!scorerSet.has(normalized.topScorer)) {
+    return {
+      ok: false,
+      error: 'El goleador debe ser uno de los goleadores disponibles.'
+    };
+  }
+
+  if (normalized.champion === normalized.runnerUp) {
+    return {
+      ok: false,
+      error: 'El campeón y el subcampeón no pueden ser el mismo equipo.'
+    };
+  }
+
+  return { ok: true, value: normalized };
+}
+
+function validateScorerBody(body = {}) {
+  const playerName = String(body.playerName || '').trim();
+  const team = String(body.team || '').trim();
+  const goals = Number(body.goals);
+  const matchesPlayed = Number(body.matchesPlayed);
+
+  if (!playerName || playerName.length > 80) {
+    return { ok: false, error: 'playerName must be between 1 and 80 characters.' };
+  }
+
+  if (!team || team.length > 80) {
+    return { ok: false, error: 'team must be between 1 and 80 characters.' };
+  }
+
+  if (!Number.isInteger(goals) || goals < 0) {
+    return { ok: false, error: 'goals must be a non-negative integer.' };
+  }
+
+  if (!Number.isInteger(matchesPlayed) || matchesPlayed < 0) {
+    return { ok: false, error: 'matchesPlayed must be a non-negative integer.' };
+  }
+
+  return {
+    ok: true,
+    value: {
+      playerName,
+      team,
+      goals,
+      matchesPlayed
+    }
+  };
+}
+
+function formatPopupPickRow(row) {
+  return {
+    userId: row.userId,
+    user: row.username,
+    champion: row.champion,
+    runnerUp: row.runnerUp,
+    topScorer: row.topScorer,
+    updatedBy: row.updatedBy || null,
+    updatedAt: row.updatedAt || null
+  };
+}
+
+function normalizeComparisonValue(value) {
+  return String(value || '').trim().toLocaleLowerCase('es');
+}
+
+function getFinalBonusOutcome(fixtures, scorers) {
+  const finalMatch = fixtures.find((fixture) => fixture.roundName === 'Final')
+    || fixtures.find((fixture) => fixture.phase === 'Final' && fixture.matchNumber === 104);
+  if (!finalMatch || finalMatch.status !== 'final') {
+    return {
+      isFinalComplete: false,
+      champion: null,
+      runnerUp: null,
+      topScorers: []
+    };
+  }
+
+  let champion = null;
+  let runnerUp = null;
+  if (finalMatch.homeScore > finalMatch.awayScore) {
+    champion = finalMatch.homeTeam;
+    runnerUp = finalMatch.awayTeam;
+  } else if (finalMatch.awayScore > finalMatch.homeScore) {
+    champion = finalMatch.awayTeam;
+    runnerUp = finalMatch.homeTeam;
+  }
+
+  const topGoalCount = scorers.reduce((maxGoals, scorer) => Math.max(maxGoals, scorer.goals || 0), -1);
+  const topScorers = topGoalCount < 0
+    ? []
+    : scorers
+      .filter((scorer) => scorer.goals === topGoalCount)
+      .map((scorer) => scorer.playerName);
+
+  return {
+    isFinalComplete: true,
+    champion,
+    runnerUp,
+    topScorers
+  };
+}
+
+function calculatePickBonus(pick, outcome) {
+  if (!pick || !outcome.isFinalComplete) return 0;
+
+  let bonusPoints = 0;
+  const champion = normalizeComparisonValue(outcome.champion);
+  const runnerUp = normalizeComparisonValue(outcome.runnerUp);
+  const topScorers = new Set(outcome.topScorers.map(normalizeComparisonValue));
+
+  if (champion && normalizeComparisonValue(pick.champion) === champion) bonusPoints += 10;
+  if (runnerUp && normalizeComparisonValue(pick.runnerUp) === runnerUp) bonusPoints += 6;
+  if (topScorers.size && topScorers.has(normalizeComparisonValue(pick.topScorer))) bonusPoints += 4;
+
+  return bonusPoints;
+}
+
+function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
+  const liveMatches = fixtures
+    .filter((match) => match.status === 'live')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 2)
+    .map((match) => ({
+      id: match.id,
+      matchNumber: match.matchNumber,
+      date: match.date,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      homeTeamShort: abbreviateTeamName(match.homeTeam),
+      awayTeamShort: abbreviateTeamName(match.awayTeam),
+      homeScore: match.homeScore,
+      awayScore: match.awayScore
+    }));
+  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
+  const bonusOutcome = getFinalBonusOutcome(fixtures, scorers);
+
+  const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
+    const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
+    let points = 0;
+    let exactCount = 0;
+    let threeCount = 0;
+    let zeroCount = 0;
+    let goalDiffOnThree = 0;
+    let goalDiffOnZero = 0;
+
+    userPredictions.forEach((prediction) => {
+      const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
+      if (!match) return;
+      const predictionPoints = calculatePredictionPoints(prediction, match);
+      points += predictionPoints;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      if (predictionPoints === 5) {
+        exactCount += 1;
+      } else if (predictionPoints === 3) {
+        threeCount += 1;
+        goalDiffOnThree += predictionGoalDiff(prediction, match);
+      } else {
+        zeroCount += 1;
+        goalDiffOnZero += predictionGoalDiff(prediction, match);
+      }
+    });
+
+    const pick = picksByUserId.get(user.id) || null;
+    const bonusPoints = calculatePickBonus(pick, bonusOutcome);
+    const livePredictions = Object.fromEntries(liveMatches.map((match) => [
+      match.id,
+      userPredictions.find((prediction) => prediction.matchId === match.id) || null
+    ]));
+
+    return {
+      userId: user.id,
+      username: user.username,
+      points,
+      bonusPoints,
+      totalPoints: points + bonusPoints,
+      exactCount,
+      threeCount,
+      zeroCount,
+      goalDiffOnThree,
+      goalDiffOnZero,
+      livePredictions,
+      pick
+    };
+  });
+
+  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  function compareRank(a, b) {
+    return (
+      b.points - a.points ||
+      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
+      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
+      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
+    );
+  }
+
+  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
+  let rank = 1;
+  standings.forEach((row, index) => {
+    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
+    row.rank = rank;
+  });
+
+  return { standings, liveMatches };
+}
+
 function getOutcome(homeScore, awayScore) {
   if (homeScore > awayScore) return 'home';
   if (homeScore < awayScore) return 'away';
@@ -371,8 +653,8 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
-  const publicViews = ['fixturesView', 'predictionsView', 'standingsView', 'rulesView', 'activityView'];
-  const adminViews = ['usersView', 'auditView'];
+  const publicViews = ['fixturesView', 'predictionsView', 'picksView', 'standingsView', 'standingsDetailView', 'rulesView', 'activityView', 'scorersView'];
+  const adminViews = ['usersView', 'auditView', 'settingsView'];
   if (!publicViews.includes(view) && !adminViews.includes(view)) {
     return res.status(400).json({ error: 'Invalid view.' });
   }
@@ -606,6 +888,231 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.get('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const [users, fixtures, picks, scorers] = await Promise.all([
+    readJson('users.json'),
+    readJson('fixtures.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const currentPick = picks.find((pick) => pick.userId === req.session.user.id) || null;
+  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
+  const rows = users
+    .filter((user) => user.active !== false)
+    .map((user) => {
+      const pick = picksByUserId.get(user.id);
+      return formatPopupPickRow({
+        userId: user.id,
+        username: user.username,
+        champion: pick?.champion || '',
+        runnerUp: pick?.runnerUp || '',
+        topScorer: pick?.topScorer || '',
+        updatedBy: pick?.updatedBy || null,
+        updatedAt: pick?.updatedAt || null
+      });
+    });
+  const { teams } = getPicksOptions(fixtures, scorers);
+
+  res.json({
+    pick: currentPick,
+    picks: rows,
+    teams,
+    ...lockState
+  });
+}));
+
+app.post('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const [fixtures, picks, scorers] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const isAdmin = req.session.user.role === 'admin';
+
+  if (lockState.locked && !isAdmin) {
+    return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const options = getPicksOptions(fixtures, scorers);
+  const validation = validatePicksBody(req.body, options);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const existing = picks.find((pick) => pick.userId === req.session.user.id);
+  if (existing) {
+    return res.status(409).json({ error: 'Picks already exist for this user.' });
+  }
+
+  const timestamp = new Date().toISOString();
+  const pick = {
+    id: crypto.randomUUID(),
+    userId: req.session.user.id,
+    username: req.session.user.username,
+    ...validation.value,
+    submittedAt: timestamp,
+    updatedAt: timestamp,
+    updatedBy: 'user'
+  };
+
+  picks.push(pick);
+  await writeJson('picks.json', picks);
+  await recordAuditLog(req, 'pick_created', {
+    targetUserId: pick.userId,
+    targetUsername: pick.username,
+    picks: validation.value,
+    updatedBy: pick.updatedBy
+  });
+
+  res.status(201).json({
+    pick,
+    picks: picks.map(formatPopupPickRow),
+    teams: options.teams,
+    ...lockState
+  });
+}));
+
+app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const [fixtures, picks, scorers] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const isAdmin = req.session.user.role === 'admin';
+
+  if (lockState.locked && !isAdmin) {
+    return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const options = getPicksOptions(fixtures, scorers);
+  const validation = validatePicksBody(req.body, options);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const pick = picks.find((candidate) => candidate.userId === req.session.user.id);
+  if (!pick) {
+    return res.status(404).json({ error: 'Picks not found.' });
+  }
+
+  Object.assign(pick, validation.value, {
+    username: req.session.user.username,
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'user'
+  });
+
+  await writeJson('picks.json', picks);
+  await recordAuditLog(req, 'pick_updated', {
+    targetUserId: pick.userId,
+    targetUsername: pick.username,
+    picks: validation.value,
+    updatedBy: pick.updatedBy
+  });
+
+  res.json({
+    pick,
+    picks: picks.map(formatPopupPickRow),
+    teams: options.teams,
+    ...lockState
+  });
+}));
+
+app.get('/api/scorers', requireAuth, asyncHandler(async (req, res) => {
+  const scorers = await readJson('scorers.json');
+  res.json({
+    source: 'manual',
+    scorers
+  });
+}));
+
+app.post('/api/admin/scorers', requireAdmin, asyncHandler(async (req, res) => {
+  const validation = validateScorerBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const scorers = await readJson('scorers.json');
+  const timestamp = new Date().toISOString();
+  const scorer = {
+    id: crypto.randomUUID(),
+    ...validation.value,
+    source: 'manual',
+    createdAt: timestamp,
+    lastUpdated: timestamp,
+    updatedBy: `admin:${req.session.user.id}`
+  };
+
+  scorers.push(scorer);
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_create', {
+    scorerId: scorer.id,
+    playerName: scorer.playerName,
+    team: scorer.team,
+    goals: scorer.goals,
+    matchesPlayed: scorer.matchesPlayed,
+    updatedBy: scorer.updatedBy
+  });
+
+  res.status(201).json({ scorer });
+}));
+
+app.put('/api/admin/scorers/:id', requireAdmin, asyncHandler(async (req, res) => {
+  const validation = validateScorerBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const scorerId = String(req.params.id || '');
+  const scorers = await readJson('scorers.json');
+  const scorer = scorers.find((candidate) => candidate.id === scorerId);
+  if (!scorer) {
+    return res.status(404).json({ error: 'Scorer not found.' });
+  }
+
+  Object.assign(scorer, validation.value, {
+    source: 'manual',
+    lastUpdated: new Date().toISOString(),
+    updatedBy: `admin:${req.session.user.id}`
+  });
+
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_update', {
+    scorerId: scorer.id,
+    playerName: scorer.playerName,
+    team: scorer.team,
+    goals: scorer.goals,
+    matchesPlayed: scorer.matchesPlayed,
+    updatedBy: scorer.updatedBy
+  });
+
+  res.json({ scorer });
+}));
+
+app.delete('/api/admin/scorers/:id', requireAdmin, asyncHandler(async (req, res) => {
+  const scorerId = String(req.params.id || '');
+  const scorers = await readJson('scorers.json');
+  const scorerIndex = scorers.findIndex((candidate) => candidate.id === scorerId);
+  if (scorerIndex === -1) {
+    return res.status(404).json({ error: 'Scorer not found.' });
+  }
+
+  const [deletedScorer] = scorers.splice(scorerIndex, 1);
+  await writeJson('scorers.json', scorers);
+  await recordAuditLog(req, 'scorer_manual_delete', {
+    scorerId: deletedScorer.id,
+    playerName: deletedScorer.playerName,
+    team: deletedScorer.team,
+    goals: deletedScorer.goals,
+    matchesPlayed: deletedScorer.matchesPlayed,
+    updatedBy: `admin:${req.session.user.id}`
+  });
+
+  res.json({ ok: true });
+}));
+
 app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) => {
   const [users, fixtures, predictions] = await Promise.all([
     readJson('users.json'),
@@ -636,71 +1143,14 @@ app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) =>
 }));
 
 app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
-  const [users, fixtures, predictions] = await Promise.all([
+  const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
-    readJson('predictions.json')
+    readJson('predictions.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
-  const liveMatches = fixtures
-    .filter((match) => match.status === 'live')
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 2)
-    .map((match) => ({
-      id: match.id,
-      matchNumber: match.matchNumber,
-      date: match.date,
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      homeTeamShort: abbreviateTeamName(match.homeTeam),
-      awayTeamShort: abbreviateTeamName(match.awayTeam),
-      homeScore: match.homeScore,
-      awayScore: match.awayScore
-    }));
-  const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
-    const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-    let points = 0;
-    let exactCount = 0;
-    let threeCount = 0;
-    let zeroCount = 0;
-    let goalDiffOnThree = 0;
-    let goalDiffOnZero = 0;
-    userPredictions.forEach((prediction) => {
-      const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
-      if (!match) return;
-      const predictionPoints = calculatePredictionPoints(prediction, match);
-      points += predictionPoints;
-      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
-      if (predictionPoints === 5) {
-        exactCount += 1;
-      } else if (predictionPoints === 3) {
-        threeCount += 1;
-        goalDiffOnThree += predictionGoalDiff(prediction, match);
-      } else {
-        zeroCount += 1;
-        goalDiffOnZero += predictionGoalDiff(prediction, match);
-      }
-    });
-    const livePredictions = Object.fromEntries(liveMatches.map((match) => [
-      match.id,
-      userPredictions.find((prediction) => prediction.matchId === match.id) || null
-    ]));
-    return { userId: user.id, username: user.username, points, exactCount, threeCount, zeroCount, goalDiffOnThree, goalDiffOnZero, livePredictions };
-  });
-  const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
-  function compareRank(a, b) {
-    return (
-      b.points - a.points ||
-      (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
-      (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
-      (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
-    );
-  }
-  standings.sort((a, b) => compareRank(a, b) || a.username.localeCompare(b.username));
-  let rank = 1;
-  standings.forEach((row, index) => {
-    if (index > 0 && compareRank(standings[index - 1], row) !== 0) rank += 1;
-    row.rank = rank;
-  });
+  const { standings, liveMatches } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
   res.json({ standings, liveMatches });
 }));
 
@@ -838,10 +1288,12 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
 
-  const [users, fixtures, predictions] = await Promise.all([
+  const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
-    readJson('predictions.json')
+    readJson('predictions.json'),
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
   const user = users.find((candidate) => candidate.id === userId && candidate.role !== 'admin' && candidate.active !== false);
   if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -865,9 +1317,13 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       points
     };
   });
-  const totalPoints = details.reduce((total, detail) => total + detail.points, 0);
+  const { standings } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
+  const standingRow = standings.find((row) => row.userId === user.id);
+  const matchPoints = details.reduce((total, detail) => total + detail.points, 0);
+  const bonusPoints = standingRow?.bonusPoints || 0;
+  const totalPoints = matchPoints + bonusPoints;
   await recordAuditLog(req, 'standing_detail_viewed', { targetUserId: user.id, targetUsername: user.username });
-  res.json({ user: sanitizeUser(user), totalPoints, details });
+  res.json({ user: sanitizeUser(user), matchPoints, bonusPoints, totalPoints, details });
 }));
 
 app.get('/api/rules', requireAuth, (req, res) => {

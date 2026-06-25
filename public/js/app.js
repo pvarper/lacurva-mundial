@@ -6,6 +6,8 @@ const state = {
   fixtureRefreshTimer: null,
   currentView: null,
   predictions: [],
+  picks: { pick: null, picks: [], locked: false, lockAt: null, firstR16Kickoff: null },
+  scorers: { source: 'manual', scorers: [] },
   prizePool: null,
   auditLogs: [],
   dateCarouselIndex: 0,
@@ -43,6 +45,10 @@ const elements = {
   predictionsList: document.querySelector('#predictionsList'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
+  picksMessage: document.querySelector('#picksMessage'),
+  picksLockBanner: document.querySelector('#picksLockBanner'),
+  picksFormContainer: document.querySelector('#picksFormContainer'),
+  picksCommunityTableBody: document.querySelector('#picksCommunityTableBody'),
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
@@ -61,6 +67,11 @@ const elements = {
   fixturesMessage: document.querySelector('#fixturesMessage'),
   predictionsMessage: document.querySelector('#predictionsMessage'),
   standingsMessage: document.querySelector('#standingsMessage'),
+  scorersMessage: document.querySelector('#scorersMessage'),
+  scorersBanner: document.querySelector('#scorersBanner'),
+  scorersAdminForm: document.querySelector('#scorersAdminForm'),
+  cancelScorerEditButton: document.querySelector('#cancelScorerEditButton'),
+  scorersTableBody: document.querySelector('#scorersTableBody'),
   standingsDetailBody: document.querySelector('#standingsDetailBody'),
   standingsDetailMessage: document.querySelector('#standingsDetailMessage'),
   rulesList: document.querySelector('#rulesList'),
@@ -123,6 +134,13 @@ function setMessage(element, message, success = false) {
   element.classList.toggle('success', success);
 }
 
+function presentError(error) {
+  if (error.message === 'picks_locked') {
+    return 'Los picks especiales ya están cerrados para usuarios normales.';
+  }
+  return error.message;
+}
+
 function setSidebarVisible(visible) {
   elements.appView.classList.toggle('sidebar-collapsed', !visible);
   elements.showSidebarButton.classList.toggle('hidden', visible);
@@ -150,10 +168,12 @@ function showView(viewId) {
   if (viewId === 'predictionsView') {
     loadPredictions();
   }
+  if (viewId === 'picksView') loadPicks();
   if (viewId === 'activityView') {
     loadPredictions();
   }
   if (viewId === 'standingsView') loadStandings();
+  if (viewId === 'scorersView') loadScorers();
   if (viewId === 'standingsDetailView') loadStandingsDetail();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
@@ -716,6 +736,185 @@ function renderActivityFeed() {
   }).join('');
 }
 
+function formatLockBanner(lockState, adminBypass = false) {
+  if (!lockState?.firstR16Kickoff) {
+    return '<div class="picks-lock-banner muted">Aún no hay un partido de 16vos cargado para calcular el cierre.</div>';
+  }
+
+  if (lockState.locked) {
+    return `<div class="picks-lock-banner ${adminBypass ? 'admin-open' : 'locked'}">
+      <strong>${adminBypass ? 'Lock activo para usuarios' : 'Picks cerrados'}</strong>
+      <span>${adminBypass ? 'Como admin todavía podés editar.' : 'El cierre ocurrió 1 minuto antes del primer partido de 16vos.'}</span>
+    </div>`;
+  }
+
+  return `<div class="picks-lock-banner open">
+    <strong>Picks abiertos</strong>
+    <span>Se cierran el ${escapeHtml(formatDate(lockState.lockAt))}.</span>
+  </div>`;
+}
+
+function uniqueScorerNames() {
+  const seen = new Set();
+  for (const scorer of state.scorers.scorers || []) {
+    const name = String(scorer && scorer.playerName || '').trim();
+    if (name) seen.add(name);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+}
+
+function picksTeams() {
+  const teams = Array.isArray(state.picks.teams) ? state.picks.teams : [];
+  return [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+}
+
+function buildPicksOptions({ allowed, current, exclude }) {
+  const allowedList = Array.isArray(allowed) ? allowed : [];
+  const currentValue = String(current || '').trim();
+  const excludeValue = String(exclude || '').trim();
+  const seen = new Set();
+  const values = [];
+
+  for (const value of allowedList) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed || trimmed === excludeValue || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    values.push(trimmed);
+  }
+
+  if (currentValue && !seen.has(currentValue) && currentValue !== excludeValue) {
+    values.push(currentValue);
+  }
+
+  return values;
+}
+
+function renderPicksSelect({ name, placeholder, allowed, current, exclude = '', required = true }) {
+  const values = buildPicksOptions({ allowed, current, exclude });
+  const currentValue = String(current || '').trim();
+  const isValid = values.includes(currentValue);
+  const options = [`<option value="" disabled ${required && !isValid ? 'selected' : ''}>${escapeHtml(placeholder)}</option>`];
+  for (const value of values) {
+    const selected = value === currentValue ? 'selected' : '';
+    options.push(`<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(value)}</option>`);
+  }
+  return `<select name="${escapeHtml(name)}" ${required ? 'required' : ''}>${options.join('')}</select>`;
+}
+
+function refreshRunnerUpOptions() {
+  const form = elements.picksFormContainer.querySelector('#picksForm');
+  if (!form) return;
+  const championSelect = form.querySelector('select[name="champion"]');
+  const runnerUpSelect = form.querySelector('select[name="runnerUp"]');
+  if (!championSelect || !runnerUpSelect) return;
+  const currentRunnerUp = runnerUpSelect.value;
+  const championValue = championSelect.value;
+  runnerUpSelect.innerHTML = renderPicksSelect({
+    name: 'runnerUp',
+    placeholder: 'Seleccioná…',
+    allowed: picksTeams(),
+    current: currentRunnerUp,
+    exclude: championValue
+  });
+}
+
+function renderPicksCommunityTable() {
+  const rows = state.picks.picks || [];
+  if (!elements.picksCommunityTableBody) return;
+  elements.picksCommunityTableBody.innerHTML = rows.map((pick) => `
+    <tr>
+      <td>${escapeHtml(pick.user)}</td>
+      <td>${escapeHtml(pick.champion || '—')}</td>
+      <td>${escapeHtml(pick.runnerUp || '—')}</td>
+      <td>${escapeHtml(pick.topScorer || '—')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="muted-text">Todavía no hay picks guardados.</td></tr>';
+}
+
+function renderPicksView() {
+  const pick = state.picks.pick || {};
+  const isAdmin = state.user?.role === 'admin';
+  const saveDisabled = state.picks.locked && !isAdmin;
+  const teams = picksTeams();
+  const scorers = uniqueScorerNames();
+  const championValue = String(pick.champion || '').trim();
+  elements.picksLockBanner.innerHTML = formatLockBanner(state.picks, isAdmin);
+  elements.picksFormContainer.innerHTML = `
+    <form id="picksForm" class="picks-form-grid">
+      <article class="picks-card">
+        <span class="picks-card-kicker">+10 puntos</span>
+        <h3>Campeón</h3>
+        ${renderPicksSelect({ name: 'champion', placeholder: 'Seleccioná…', allowed: teams, current: pick.champion })}
+      </article>
+      <article class="picks-card">
+        <span class="picks-card-kicker">+6 puntos</span>
+        <h3>Subcampeón</h3>
+        ${renderPicksSelect({ name: 'runnerUp', placeholder: 'Seleccioná…', allowed: teams, current: pick.runnerUp, exclude: championValue })}
+      </article>
+      <article class="picks-card">
+        <span class="picks-card-kicker">+4 puntos</span>
+        <h3>Goleador</h3>
+        ${renderPicksSelect({ name: 'topScorer', placeholder: 'Seleccioná…', allowed: scorers, current: pick.topScorer })}
+      </article>
+      <div class="picks-actions-row">
+        <button type="submit" class="prediction-modal-submit" ${saveDisabled ? 'disabled' : ''}>
+          <i aria-hidden="true" class="bi bi-check-lg"></i> Guardar picks
+        </button>
+      </div>
+    </form>
+  `;
+  renderPicksCommunityTable();
+}
+
+async function loadPicks() {
+  const [picksData, scorersData] = await Promise.all([api('/api/picks'), api('/api/scorers')]);
+  state.picks = picksData;
+  state.scorers = scorersData;
+  renderPicksView();
+}
+
+function renderScorersView() {
+  const scorers = state.scorers.scorers || [];
+  const isAdmin = state.user?.role === 'admin';
+  elements.scorersBanner.textContent = state.scorers.source === 'manual' ? 'Admin-maintained' : state.scorers.source;
+  elements.scorersTableBody.innerHTML = scorers.map((scorer) => `
+    <tr>
+      <td>${escapeHtml(scorer.playerName)}</td>
+      <td>${escapeHtml(scorer.team)}</td>
+      <td>${escapeHtml(scorer.goals)}</td>
+      <td>${escapeHtml(scorer.matchesPlayed)}</td>
+      <td>${escapeHtml(scorer.source)}</td>
+      <td class="${isAdmin ? '' : 'hidden'}">${isAdmin ? `
+        <div class="scorers-table-actions">
+          <button type="button" class="secondary-button" data-action="edit-scorer" data-scorer-id="${escapeHtml(scorer.id)}">Editar</button>
+          <button type="button" class="danger-button" data-action="delete-scorer" data-scorer-id="${escapeHtml(scorer.id)}">Eliminar</button>
+        </div>` : ''}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="${isAdmin ? 6 : 5}" class="muted-text">No hay goleadores cargados todavía.</td></tr>`;
+}
+
+async function loadScorers() {
+  state.scorers = await api('/api/scorers');
+  renderScorersView();
+}
+
+function populateScorerForm(scorerId) {
+  const scorer = (state.scorers.scorers || []).find((candidate) => candidate.id === scorerId);
+  if (!scorer) return;
+  elements.scorersAdminForm.elements.scorerId.value = scorer.id;
+  elements.scorersAdminForm.elements.playerName.value = scorer.playerName;
+  elements.scorersAdminForm.elements.team.value = scorer.team;
+  elements.scorersAdminForm.elements.goals.value = scorer.goals;
+  elements.scorersAdminForm.elements.matchesPlayed.value = scorer.matchesPlayed;
+  elements.cancelScorerEditButton.classList.remove('hidden');
+}
+
+function resetScorerForm() {
+  elements.scorersAdminForm.reset();
+  elements.scorersAdminForm.elements.scorerId.value = '';
+  elements.cancelScorerEditButton.classList.add('hidden');
+}
+
 async function loadStandings() {
   const [{ standings, liveMatches }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
   state.prizePool = prizePool;
@@ -737,17 +936,19 @@ async function loadStandings() {
       header: `<th class="standings-live-th" title="${escapeHtml(match.homeTeam)} vs ${escapeHtml(match.awayTeam)}">${escapeHtml(match.homeTeamShort)} ${liveScore} ${escapeHtml(match.awayTeamShort)}</th>`
     };
   });
-  const totalColumns = 4 + liveColumns.length;
+  const totalColumns = 6 + liveColumns.length;
   const equalColumnWidth = `${100 / totalColumns}%`;
   standingsColgroup.innerHTML = `
     <col class="standings-col-rank" style="width:${equalColumnWidth}">
     <col class="standings-col-user" style="width:${equalColumnWidth}">
     ${liveColumns.map(() => `<col class="standings-col-live" style="width:${equalColumnWidth}">`).join('')}
     <col class="standings-col-points" style="width:${equalColumnWidth}">
+    <col class="standings-col-points" style="width:${equalColumnWidth}">
+    <col class="standings-col-points" style="width:${equalColumnWidth}">
     <col class="standings-col-actions" style="width:${equalColumnWidth}">
   `;
   const liveHeader = liveColumns.map((column) => column.header).join('');
-  theadRow.innerHTML = `<th class="standings-rank-th">Posición</th><th class="standings-user-th">Usuario</th>${liveHeader}<th class="standings-points-th">Puntos</th><th class="standings-actions-th">Opciones</th>`;
+  theadRow.innerHTML = `<th class="standings-rank-th">Posición</th><th class="standings-user-th">Usuario</th>${liveHeader}<th class="standings-points-th">Partido</th><th class="standings-points-th">Bonus</th><th class="standings-points-th">Total</th><th class="standings-actions-th">Opciones</th>`;
 
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
   elements.standingsBody.innerHTML = standings.map((row) => {
@@ -767,7 +968,9 @@ async function loadStandings() {
         <td class="font-bold standings-rank-td">${rank}${trophy}</td>
         <td class="standings-user-td">${escapeHtml(row.username)}</td>
         ${livePredCells}
-        <td class="standings-points-td"><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td class="standings-points-td"><strong style="color:#38bdf8;font-size:1rem">${row.points}</strong></td>
+        <td class="standings-points-td"><strong style="color:#22c55e;font-size:1rem">${row.bonusPoints}</strong></td>
+        <td class="standings-points-td"><strong style="color:#f2b705;font-size:1rem">${row.totalPoints}</strong></td>
         <td class="standings-actions-td">${canViewStandingDetail(row) ? `<button type="button" class="secondary-button icon-button" data-action="view-standing-detail" data-user-id="${escapeHtml(row.userId)}" title="Ver detalle" aria-label="Ver detalle"><i class="bi bi-eye" aria-hidden="true"></i></button>` : '<span class="muted-text">—</span>'}</td>
       </tr>
     `;
@@ -786,7 +989,9 @@ async function loadStandingsDetail() {
       <tr>
         <td class="font-bold">${rank}${trophy}</td>
         <td>${escapeHtml(row.username)}</td>
-        <td><strong style="color:#f2b705;font-size:1rem">${row.points}</strong></td>
+        <td><strong style="color:#38bdf8;font-size:1rem">${row.points}</strong></td>
+        <td><strong style="color:#22c55e;font-size:1rem">${row.bonusPoints}</strong></td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.totalPoints}</strong></td>
         <td>${row.exactCount}</td>
         <td>${row.threeCount}</td>
         <td>${row.zeroCount}</td>
@@ -917,7 +1122,7 @@ async function loadStandingDetail(userId) {
   elements.standingDetailModalTitle.innerHTML =
     `<i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}`;
   elements.standingDetailModalPts.innerHTML =
-    `Total acumulado: <strong style="color:#f2b705">${data.totalPoints}</strong> pts`;
+    `Total: <strong style="color:#f2b705">${data.totalPoints}</strong> pts · Partido: <strong style="color:#38bdf8">${data.matchPoints}</strong> · Bonus: <strong style="color:#22c55e">${data.bonusPoints}</strong>`;
   elements.standingDetailModalContent.innerHTML = `
     <table>
       <thead>
@@ -963,12 +1168,18 @@ function actionLabel(action) {
     menu_viewed: 'Menú visitado',
     user_created: 'Usuario creado',
     user_updated: 'Usuario editado',
-    user_deactivated: 'Usuario desactivado',
-    prediction_created: 'Predicción creada',
-    prediction_updated: 'Predicción editada',
-    prize_pool_updated: 'Premios actualizados',
-    standing_detail_viewed: 'Detalle de tabla visto'
-  };
+      user_deactivated: 'Usuario desactivado',
+      pick_created: 'Pick creado',
+      pick_updated: 'Pick actualizado',
+      pick_override: 'Pick sobrescrito',
+      prediction_created: 'Predicción creada',
+      prediction_updated: 'Predicción editada',
+      scorer_manual_create: 'Goleador creado',
+      scorer_manual_update: 'Goleador editado',
+      scorer_manual_delete: 'Goleador eliminado',
+      prize_pool_updated: 'Premios actualizados',
+      standing_detail_viewed: 'Detalle de tabla visto'
+    };
   return labels[action] || action;
 }
 
@@ -976,6 +1187,8 @@ function formatAuditDetail(detail) {
   if (!detail || typeof detail !== 'object') return '';
   if (detail.view) return `Vista: ${detail.view}`;
   if (detail.targetUsername) return `Usuario: ${detail.targetUsername}`;
+  if (detail.playerName) return `Jugador: ${detail.playerName}`;
+  if (detail.picks) return `Picks: ${detail.picks.champion} / ${detail.picks.runnerUp} / ${detail.picks.topScorer}`;
   if (detail.matchNumber) return `Partido ${detail.matchNumber}: ${detail.homeTeam} vs ${detail.awayTeam} (${detail.homeScore}-${detail.awayScore})`;
   if (detail.username) return `Usuario: ${detail.username}`;
   return JSON.stringify(detail);
@@ -1130,6 +1343,32 @@ elements.usersTableBody.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
+elements.picksFormContainer.addEventListener('change', (event) => {
+  if (!event.target.matches('select[name="champion"]')) return;
+  refreshRunnerUpOptions();
+});
+elements.picksFormContainer.addEventListener('submit', async (event) => {
+  const form = event.target.closest('#picksForm');
+  if (!form) return;
+  event.preventDefault();
+  const payload = {
+    champion: form.elements.champion.value.trim(),
+    runnerUp: form.elements.runnerUp.value.trim(),
+    topScorer: form.elements.topScorer.value.trim()
+  };
+  const method = state.picks.pick ? 'PUT' : 'POST';
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await api('/api/picks', { method, body: JSON.stringify(payload) });
+    await loadPicks();
+    setMessage(elements.picksMessage, 'Picks guardados correctamente.', true);
+  } catch (error) {
+    setMessage(elements.picksMessage, presentError(error));
+  } finally {
+    button.disabled = false;
+  }
+});
 elements.standingsBody.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action="view-standing-detail"]');
   if (!button) return;
@@ -1137,6 +1376,52 @@ elements.standingsBody.addEventListener('click', async (event) => {
     await loadStandingDetail(button.dataset.userId);
   } catch (error) {
     setMessage(elements.standingsMessage, error.message);
+  }
+});
+elements.scorersAdminForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const scorerId = form.elements.scorerId.value;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await api(scorerId ? `/api/admin/scorers/${encodeURIComponent(scorerId)}` : '/api/admin/scorers', {
+      method: scorerId ? 'PUT' : 'POST',
+      body: JSON.stringify({
+        playerName: form.elements.playerName.value.trim(),
+        team: form.elements.team.value.trim(),
+        goals: Number(form.elements.goals.value),
+        matchesPlayed: Number(form.elements.matchesPlayed.value)
+      })
+    });
+    resetScorerForm();
+    await loadScorers();
+    setMessage(elements.scorersMessage, 'Tabla de goleadores actualizada.', true);
+    if (state.currentView === 'picksView') await loadPicks();
+  } catch (error) {
+    setMessage(elements.scorersMessage, presentError(error));
+  } finally {
+    button.disabled = false;
+  }
+});
+elements.cancelScorerEditButton.addEventListener('click', resetScorerForm);
+elements.scorersTableBody.addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const scorerId = button.dataset.scorerId;
+  try {
+    if (button.dataset.action === 'edit-scorer') {
+      populateScorerForm(scorerId);
+      return;
+    }
+    if (button.dataset.action === 'delete-scorer') {
+      await api(`/api/admin/scorers/${encodeURIComponent(scorerId)}`, { method: 'DELETE' });
+      await loadScorers();
+      if (state.currentView === 'picksView') await loadPicks();
+      setMessage(elements.scorersMessage, 'Goleador eliminado correctamente.', true);
+    }
+  } catch (error) {
+    setMessage(elements.scorersMessage, presentError(error));
   }
 });
 elements.prizePoolPanel.addEventListener('submit', async (event) => {
