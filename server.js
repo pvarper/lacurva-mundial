@@ -272,6 +272,59 @@ function isPredictionLocked(match) {
     new Date(match.date).getTime() - Date.now() <= settingsCache.predictionLockMs;
 }
 
+function getPicksLockState(fixtures) {
+  const roundOf16 = fixtures
+    .filter((fixture) => fixture.phase === '16vos')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!roundOf16.length) {
+    return {
+      locked: false,
+      lockAt: null,
+      firstR16Kickoff: null
+    };
+  }
+
+  const firstR16Kickoff = roundOf16[0].date;
+  const lockAtDate = new Date(new Date(firstR16Kickoff).getTime() - 60 * 1000);
+
+  return {
+    locked: Date.now() >= lockAtDate.getTime(),
+    lockAt: lockAtDate.toISOString(),
+    firstR16Kickoff
+  };
+}
+
+function validatePicksBody(body = {}) {
+  const fields = ['champion', 'runnerUp', 'topScorer'];
+  const normalized = {};
+
+  for (const field of fields) {
+    const value = String(body[field] || '').trim();
+    if (!value || value.length > 80) {
+      return {
+        ok: false,
+        error: `${field} must be between 1 and 80 characters.`
+      };
+    }
+    normalized[field] = value;
+  }
+
+  return { ok: true, value: normalized };
+}
+
+function formatPopupPickRow(row) {
+  return {
+    userId: row.userId,
+    user: row.username,
+    champion: row.champion,
+    runnerUp: row.runnerUp,
+    topScorer: row.topScorer,
+    updatedBy: row.updatedBy || null,
+    updatedAt: row.updatedAt || null
+  };
+}
+
 function getOutcome(homeScore, awayScore) {
   if (homeScore > awayScore) return 'home';
   if (homeScore < awayScore) return 'away';
@@ -604,6 +657,113 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   await writeJson('predictions.json', predictions);
   await recordAuditLog(req, action, { matchId, matchNumber: match.matchNumber, homeTeam: match.homeTeam, awayTeam: match.awayTeam, homeScore, awayScore });
   res.json({ ok: true });
+}));
+
+app.get('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const [fixtures, picks] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const currentPick = picks.find((pick) => pick.userId === req.session.user.id) || null;
+
+  res.json({
+    pick: currentPick,
+    picks: picks.map(formatPopupPickRow),
+    ...lockState
+  });
+}));
+
+app.post('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const validation = validatePicksBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const [fixtures, picks] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const isAdmin = req.session.user.role === 'admin';
+
+  if (lockState.locked && !isAdmin) {
+    return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const existing = picks.find((pick) => pick.userId === req.session.user.id);
+  if (existing) {
+    return res.status(409).json({ error: 'Picks already exist for this user.' });
+  }
+
+  const timestamp = new Date().toISOString();
+  const pick = {
+    id: crypto.randomUUID(),
+    userId: req.session.user.id,
+    username: req.session.user.username,
+    ...validation.value,
+    submittedAt: timestamp,
+    updatedAt: timestamp,
+    updatedBy: 'user'
+  };
+
+  picks.push(pick);
+  await writeJson('picks.json', picks);
+  await recordAuditLog(req, 'pick_created', {
+    targetUserId: pick.userId,
+    targetUsername: pick.username,
+    picks: validation.value,
+    updatedBy: pick.updatedBy
+  });
+
+  res.status(201).json({
+    pick,
+    picks: picks.map(formatPopupPickRow),
+    ...lockState
+  });
+}));
+
+app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
+  const validation = validatePicksBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const [fixtures, picks] = await Promise.all([
+    readJson('fixtures.json'),
+    readJson('picks.json')
+  ]);
+  const lockState = getPicksLockState(fixtures);
+  const isAdmin = req.session.user.role === 'admin';
+
+  if (lockState.locked && !isAdmin) {
+    return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const pick = picks.find((candidate) => candidate.userId === req.session.user.id);
+  if (!pick) {
+    return res.status(404).json({ error: 'Picks not found.' });
+  }
+
+  Object.assign(pick, validation.value, {
+    username: req.session.user.username,
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'user'
+  });
+
+  await writeJson('picks.json', picks);
+  await recordAuditLog(req, 'pick_updated', {
+    targetUserId: pick.userId,
+    targetUsername: pick.username,
+    picks: validation.value,
+    updatedBy: pick.updatedBy
+  });
+
+  res.json({
+    pick,
+    picks: picks.map(formatPopupPickRow),
+    ...lockState
+  });
 }));
 
 app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) => {
