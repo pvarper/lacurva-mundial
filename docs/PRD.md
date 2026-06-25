@@ -35,11 +35,10 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 | Create User | Admin only | Create new users. |
 | World Cup Fixture | Authenticated users | View all matches, scores, and status. |
 | Predictions | Authenticated users | Submit and review personal predictions. |
-| Special Picks | Authenticated users | Choose champion, runner-up, and top scorer before the round-of-16 lock. |
+| Special Picks | Authenticated users | Choose champion, runner-up, and top scorer before the round-of-16 lock. Includes an inline community table of every user's pick visible to all authenticated users. |
 | Accumulated Table | Authenticated users | View points by user. |
 | Scorers | Authenticated users | Review the admin-maintained top scorers table. |
 | Rules | Authenticated users | Explain scoring and prediction lock rules. |
-| Admin Picks | Admin only | Override any user's special picks after the lock. |
 | Audit Log | Admin only | Review user actions across the system. |
 
 ## Functional Requirements
@@ -84,8 +83,8 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 
 - Each authenticated user can save exactly one champion, one runner-up, and one top-scorer pick.
 - Special picks stay editable until 1 minute before the first round-of-16 kickoff.
-- Once the special-picks lock is active, normal users cannot create or edit special picks.
-- Admin users can still override any user's special picks after the lock.
+- Once the special-picks lock is active, no user can create or edit special picks.
+- Below the personal pick form, the Special Picks view shows an inline community table (`Usuario`, `Campeón`, `Subcampeón`, `Goleador`) listing every active user, with `—` for users who have not submitted a pick yet. The table is visible to all authenticated users; it is not admin-only and does not include any edit or override column.
 - Correct special picks add bonus points only after the final fixture is marked as `final`.
 - The bonus values are fixed at champion `+10`, runner-up `+6`, and top scorer `+4`.
 - No tie analysis or point splitting applies: every matching user receives the full documented bonus.

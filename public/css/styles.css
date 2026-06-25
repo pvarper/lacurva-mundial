@@ -1312,7 +1312,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   font-weight: 800;
 }
 .picks-card input,
-.admin-picks-modal-form input,
+.picks-card select,
 .scorers-admin-form input {
   width: 100%;
   background: #0f1f33;
@@ -1323,12 +1323,27 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   font-size: 0.9rem;
   font-family: inherit;
 }
+.picks-card select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+    linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.2rem;
+}
 .picks-card input:focus,
-.admin-picks-modal-form input:focus,
+.picks-card select:focus,
 .scorers-admin-form input:focus {
   outline: none;
   border-color: #38bdf8;
   box-shadow: 0 0 0 3px rgba(56,189,248,0.12);
+}
+.picks-card select option {
+  background: #0f1f33;
+  color: #e2e8f0;
 }
 .picks-actions-row {
   grid-column: 1 / -1;
@@ -1351,26 +1366,14 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .picks-lock-banner.admin-open { border-color: rgba(242,183,5,0.22); background: rgba(242,183,5,0.08); }
 .picks-lock-banner.admin-open strong { color: #f2b705; }
 .picks-lock-banner.muted strong { color: #cbd5e1; }
-.picks-eye-popup-card,
-.admin-picks-modal-card {
-  width: min(760px, 100%);
-  background: #172b42;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 28px 80px rgba(0,0,0,0.45);
-}
-.admin-picks-modal-form,
 .scorers-admin-form {
   display: grid;
   gap: 0.85rem;
 }
-.admin-picks-modal-form label,
 .scorers-admin-form label {
   display: grid;
   gap: 0.35rem;
 }
-.admin-picks-modal-form span,
 .scorers-admin-form span {
   font-size: 0.72rem;
   text-transform: uppercase;

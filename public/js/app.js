@@ -7,7 +7,6 @@ const state = {
   currentView: null,
   predictions: [],
   picks: { pick: null, picks: [], locked: false, lockAt: null, firstR16Kickoff: null },
-  adminPicks: { picks: [], locked: false, lockAt: null, firstR16Kickoff: null },
   scorers: { source: 'manual', scorers: [] },
   prizePool: null,
   auditLogs: [],
@@ -46,14 +45,10 @@ const elements = {
   predictionsList: document.querySelector('#predictionsList'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
-  openPicksPopupButton: document.querySelector('#openPicksPopupButton'),
   picksMessage: document.querySelector('#picksMessage'),
   picksLockBanner: document.querySelector('#picksLockBanner'),
   picksFormContainer: document.querySelector('#picksFormContainer'),
-  picksPopupModal: document.querySelector('#picksPopupModal'),
-  picksPopupHead: document.querySelector('#picksPopupHead'),
-  picksPopupBody: document.querySelector('#picksPopupBody'),
-  picksPopupClose: document.querySelector('#picksPopupClose'),
+  picksCommunityTableBody: document.querySelector('#picksCommunityTableBody'),
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
@@ -80,14 +75,6 @@ const elements = {
   standingsDetailBody: document.querySelector('#standingsDetailBody'),
   standingsDetailMessage: document.querySelector('#standingsDetailMessage'),
   rulesList: document.querySelector('#rulesList'),
-  adminPicksMessage: document.querySelector('#adminPicksMessage'),
-  adminPicksLockBanner: document.querySelector('#adminPicksLockBanner'),
-  adminPicksTableBody: document.querySelector('#adminPicksTableBody'),
-  adminPicksModal: document.querySelector('#adminPicksModal'),
-  adminPicksModalSubtitle: document.querySelector('#adminPicksModalSubtitle'),
-  adminPicksModalClose: document.querySelector('#adminPicksModalClose'),
-  adminPicksModalMessage: document.querySelector('#adminPicksModalMessage'),
-  adminPicksForm: document.querySelector('#adminPicksForm'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
   auditUserFilter: document.querySelector('#auditUserFilter'),
@@ -191,7 +178,6 @@ function showView(viewId) {
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
-  if (viewId === 'adminPicksView') loadAdminPicks();
 }
 
 function recordNavigation(viewId) {
@@ -768,49 +754,107 @@ function formatLockBanner(lockState, adminBypass = false) {
   </div>`;
 }
 
-function scorerNameOptions() {
-  const names = [...new Set((state.scorers.scorers || []).map((scorer) => scorer.playerName).filter(Boolean))];
-  return names.map((name) => `<option value="${escapeHtml(name)}"></option>`).join('');
+function uniqueScorerNames() {
+  const seen = new Set();
+  for (const scorer of state.scorers.scorers || []) {
+    const name = String(scorer && scorer.playerName || '').trim();
+    if (name) seen.add(name);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
-function renderPicksPopup() {
-  const isAdmin = state.user?.role === 'admin';
-  const columns = ['Usuario', 'Campeón', 'Subcampeón', 'Goleador'];
-  if (isAdmin) columns.push('Actualizado por');
-  elements.picksPopupHead.innerHTML = columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('');
-  elements.picksPopupBody.innerHTML = (state.picks.picks || []).map((pick) => `
+function picksTeams() {
+  const teams = Array.isArray(state.picks.teams) ? state.picks.teams : [];
+  return [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+}
+
+function buildPicksOptions({ allowed, current, exclude }) {
+  const allowedList = Array.isArray(allowed) ? allowed : [];
+  const currentValue = String(current || '').trim();
+  const excludeValue = String(exclude || '').trim();
+  const seen = new Set();
+  const values = [];
+
+  for (const value of allowedList) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed || trimmed === excludeValue || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    values.push(trimmed);
+  }
+
+  if (currentValue && !seen.has(currentValue) && currentValue !== excludeValue) {
+    values.push(currentValue);
+  }
+
+  return values;
+}
+
+function renderPicksSelect({ name, placeholder, allowed, current, exclude = '', required = true }) {
+  const values = buildPicksOptions({ allowed, current, exclude });
+  const currentValue = String(current || '').trim();
+  const isValid = values.includes(currentValue);
+  const options = [`<option value="" disabled ${required && !isValid ? 'selected' : ''}>${escapeHtml(placeholder)}</option>`];
+  for (const value of values) {
+    const selected = value === currentValue ? 'selected' : '';
+    options.push(`<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(value)}</option>`);
+  }
+  return `<select name="${escapeHtml(name)}" ${required ? 'required' : ''}>${options.join('')}</select>`;
+}
+
+function refreshRunnerUpOptions() {
+  const form = elements.picksFormContainer.querySelector('#picksForm');
+  if (!form) return;
+  const championSelect = form.querySelector('select[name="champion"]');
+  const runnerUpSelect = form.querySelector('select[name="runnerUp"]');
+  if (!championSelect || !runnerUpSelect) return;
+  const currentRunnerUp = runnerUpSelect.value;
+  const championValue = championSelect.value;
+  runnerUpSelect.innerHTML = renderPicksSelect({
+    name: 'runnerUp',
+    placeholder: 'Seleccioná…',
+    allowed: picksTeams(),
+    current: currentRunnerUp,
+    exclude: championValue
+  });
+}
+
+function renderPicksCommunityTable() {
+  const rows = state.picks.picks || [];
+  if (!elements.picksCommunityTableBody) return;
+  elements.picksCommunityTableBody.innerHTML = rows.map((pick) => `
     <tr>
       <td>${escapeHtml(pick.user)}</td>
-      <td>${escapeHtml(pick.champion)}</td>
-      <td>${escapeHtml(pick.runnerUp)}</td>
-      <td>${escapeHtml(pick.topScorer)}</td>
-      ${isAdmin ? `<td>${escapeHtml(pick.updatedBy || '—')}</td>` : ''}
+      <td>${escapeHtml(pick.champion || '—')}</td>
+      <td>${escapeHtml(pick.runnerUp || '—')}</td>
+      <td>${escapeHtml(pick.topScorer || '—')}</td>
     </tr>
-  `).join('') || `<tr><td colspan="${columns.length}" class="muted-text">Todavía no hay picks guardados.</td></tr>`;
+  `).join('') || '<tr><td colspan="4" class="muted-text">Todavía no hay picks guardados.</td></tr>';
 }
 
 function renderPicksView() {
   const pick = state.picks.pick || {};
   const isAdmin = state.user?.role === 'admin';
   const saveDisabled = state.picks.locked && !isAdmin;
+  const teams = picksTeams();
+  const scorers = uniqueScorerNames();
+  const championValue = String(pick.champion || '').trim();
   elements.picksLockBanner.innerHTML = formatLockBanner(state.picks, isAdmin);
   elements.picksFormContainer.innerHTML = `
     <form id="picksForm" class="picks-form-grid">
       <article class="picks-card">
         <span class="picks-card-kicker">+10 puntos</span>
         <h3>Campeón</h3>
-        <input name="champion" maxlength="80" required value="${escapeHtml(pick.champion || '')}" placeholder="Ej. Argentina">
+        ${renderPicksSelect({ name: 'champion', placeholder: 'Seleccioná…', allowed: teams, current: pick.champion })}
       </article>
       <article class="picks-card">
         <span class="picks-card-kicker">+6 puntos</span>
         <h3>Subcampeón</h3>
-        <input name="runnerUp" maxlength="80" required value="${escapeHtml(pick.runnerUp || '')}" placeholder="Ej. Francia">
+        ${renderPicksSelect({ name: 'runnerUp', placeholder: 'Seleccioná…', allowed: teams, current: pick.runnerUp, exclude: championValue })}
       </article>
       <article class="picks-card">
         <span class="picks-card-kicker">+4 puntos</span>
         <h3>Goleador</h3>
-        <input name="topScorer" list="topScorerSuggestions" maxlength="80" required value="${escapeHtml(pick.topScorer || '')}" placeholder="Ej. Mbappé">
-        <datalist id="topScorerSuggestions">${scorerNameOptions()}</datalist>
+        ${renderPicksSelect({ name: 'topScorer', placeholder: 'Seleccioná…', allowed: scorers, current: pick.topScorer })}
       </article>
       <div class="picks-actions-row">
         <button type="submit" class="prediction-modal-submit" ${saveDisabled ? 'disabled' : ''}>
@@ -819,7 +863,7 @@ function renderPicksView() {
       </div>
     </form>
   `;
-  renderPicksPopup();
+  renderPicksCommunityTable();
 }
 
 async function loadPicks() {
@@ -827,42 +871,6 @@ async function loadPicks() {
   state.picks = picksData;
   state.scorers = scorersData;
   renderPicksView();
-}
-
-function renderAdminPicksView() {
-  const rows = state.adminPicks.picks || [];
-  elements.adminPicksLockBanner.innerHTML = formatLockBanner(state.adminPicks, true);
-  elements.adminPicksTableBody.innerHTML = rows.map((pick) => `
-    <tr>
-      <td>${escapeHtml(pick.user)}</td>
-      <td>${escapeHtml(pick.champion || '—')}</td>
-      <td>${escapeHtml(pick.runnerUp || '—')}</td>
-      <td>${escapeHtml(pick.topScorer || '—')}</td>
-      <td>${escapeHtml(pick.updatedBy || '—')}</td>
-      <td><button type="button" class="secondary-button" data-action="edit-admin-pick" data-user-id="${escapeHtml(pick.userId)}">Editar</button></td>
-    </tr>
-  `).join('') || '<tr><td colspan="6" class="muted-text">No hay picks cargados todavía.</td></tr>';
-}
-
-async function loadAdminPicks() {
-  state.adminPicks = await api('/api/admin/picks');
-  renderAdminPicksView();
-}
-
-function openAdminPicksModal(userId) {
-  const pick = (state.adminPicks.picks || []).find((candidate) => candidate.userId === userId);
-  elements.adminPicksForm.elements.userId.value = userId;
-  elements.adminPicksForm.elements.champion.value = pick?.champion || '';
-  elements.adminPicksForm.elements.runnerUp.value = pick?.runnerUp || '';
-  elements.adminPicksForm.elements.topScorer.value = pick?.topScorer || '';
-  elements.adminPicksModalSubtitle.textContent = pick ? `Usuario: ${pick.user}` : 'Completá los picks del usuario.';
-  setMessage(elements.adminPicksModalMessage, '');
-  elements.adminPicksModal.classList.remove('hidden');
-}
-
-function closeAdminPicksModal() {
-  elements.adminPicksModal.classList.add('hidden');
-  elements.adminPicksForm.reset();
 }
 
 function renderScorersView() {
@@ -1335,13 +1343,9 @@ elements.usersTableBody.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
-elements.openPicksPopupButton.addEventListener('click', () => {
-  renderPicksPopup();
-  elements.picksPopupModal.classList.remove('hidden');
-});
-elements.picksPopupClose.addEventListener('click', () => elements.picksPopupModal.classList.add('hidden'));
-elements.picksPopupModal.addEventListener('click', (event) => {
-  if (event.target === elements.picksPopupModal) elements.picksPopupModal.classList.add('hidden');
+elements.picksFormContainer.addEventListener('change', (event) => {
+  if (!event.target.matches('select[name="champion"]')) return;
+  refreshRunnerUpOptions();
 });
 elements.picksFormContainer.addEventListener('submit', async (event) => {
   const form = event.target.closest('#picksForm');
@@ -1372,40 +1376,6 @@ elements.standingsBody.addEventListener('click', async (event) => {
     await loadStandingDetail(button.dataset.userId);
   } catch (error) {
     setMessage(elements.standingsMessage, error.message);
-  }
-});
-elements.adminPicksTableBody.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-action="edit-admin-pick"]');
-  if (!button) return;
-  openAdminPicksModal(button.dataset.userId);
-});
-elements.adminPicksModalClose.addEventListener('click', closeAdminPicksModal);
-elements.adminPicksModal.addEventListener('click', (event) => {
-  if (event.target === elements.adminPicksModal) closeAdminPicksModal();
-});
-elements.adminPicksForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = event.target;
-  const userId = form.elements.userId.value;
-  const button = form.querySelector('button[type="submit"]');
-  button.disabled = true;
-  try {
-    await api(`/api/admin/picks/${encodeURIComponent(userId)}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        champion: form.elements.champion.value.trim(),
-        runnerUp: form.elements.runnerUp.value.trim(),
-        topScorer: form.elements.topScorer.value.trim()
-      })
-    });
-    await loadAdminPicks();
-    if (state.currentView === 'picksView') await loadPicks();
-    setMessage(elements.adminPicksMessage, 'Override guardado correctamente.', true);
-    closeAdminPicksModal();
-  } catch (error) {
-    setMessage(elements.adminPicksModalMessage, presentError(error));
-  } finally {
-    button.disabled = false;
   }
 });
 elements.scorersAdminForm.addEventListener('submit', async (event) => {

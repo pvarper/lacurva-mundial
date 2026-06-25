@@ -297,9 +297,31 @@ function getPicksLockState(fixtures) {
   };
 }
 
-function validatePicksBody(body = {}) {
+function getPicksOptions(fixtures, scorers) {
+  const teams = new Set();
+  const r16 = (fixtures || []).filter((fixture) => fixture.phase === '16vos');
+  for (const fixture of r16) {
+    for (const key of ['homeTeam', 'awayTeam']) {
+      const value = String(fixture[key] || '').trim();
+      if (value) teams.add(value);
+    }
+  }
+  const scorerNames = new Set();
+  for (const scorer of scorers || []) {
+    const name = String(scorer && scorer.playerName || '').trim();
+    if (name) scorerNames.add(name);
+  }
+  return {
+    teams: [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
+    scorerNames: [...scorerNames].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  };
+}
+
+function validatePicksBody(body = {}, { teams = [], scorerNames = [] } = {}) {
   const fields = ['champion', 'runnerUp', 'topScorer'];
   const normalized = {};
+  const teamSet = new Set(teams);
+  const scorerSet = new Set(scorerNames);
 
   for (const field of fields) {
     const value = String(body[field] || '').trim();
@@ -310,6 +332,34 @@ function validatePicksBody(body = {}) {
       };
     }
     normalized[field] = value;
+  }
+
+  if (!teamSet.has(normalized.champion)) {
+    return {
+      ok: false,
+      error: 'El campeón debe ser uno de los equipos disponibles.'
+    };
+  }
+
+  if (!teamSet.has(normalized.runnerUp)) {
+    return {
+      ok: false,
+      error: 'El subcampeón debe ser uno de los equipos disponibles.'
+    };
+  }
+
+  if (!scorerSet.has(normalized.topScorer)) {
+    return {
+      ok: false,
+      error: 'El goleador debe ser uno de los goleadores disponibles.'
+    };
+  }
+
+  if (normalized.champion === normalized.runnerUp) {
+    return {
+      ok: false,
+      error: 'El campeón y el subcampeón no pueden ser el mismo equipo.'
+    };
   }
 
   return { ok: true, value: normalized };
@@ -604,7 +654,7 @@ app.post('/api/logout', requireAuth, (req, res) => {
 app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
   const publicViews = ['fixturesView', 'predictionsView', 'picksView', 'standingsView', 'standingsDetailView', 'rulesView', 'activityView', 'scorersView'];
-  const adminViews = ['usersView', 'auditView', 'settingsView', 'adminPicksView'];
+  const adminViews = ['usersView', 'auditView', 'settingsView'];
   if (!publicViews.includes(view) && !adminViews.includes(view)) {
     return res.status(400).json({ error: 'Invalid view.' });
   }
@@ -839,35 +889,56 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/picks', requireAuth, asyncHandler(async (req, res) => {
-  const [fixtures, picks] = await Promise.all([
+  const [users, fixtures, picks, scorers] = await Promise.all([
+    readJson('users.json'),
     readJson('fixtures.json'),
-    readJson('picks.json')
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
   const lockState = getPicksLockState(fixtures);
   const currentPick = picks.find((pick) => pick.userId === req.session.user.id) || null;
+  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
+  const rows = users
+    .filter((user) => user.active !== false)
+    .map((user) => {
+      const pick = picksByUserId.get(user.id);
+      return formatPopupPickRow({
+        userId: user.id,
+        username: user.username,
+        champion: pick?.champion || '',
+        runnerUp: pick?.runnerUp || '',
+        topScorer: pick?.topScorer || '',
+        updatedBy: pick?.updatedBy || null,
+        updatedAt: pick?.updatedAt || null
+      });
+    });
+  const { teams } = getPicksOptions(fixtures, scorers);
 
   res.json({
     pick: currentPick,
-    picks: picks.map(formatPopupPickRow),
+    picks: rows,
+    teams,
     ...lockState
   });
 }));
 
 app.post('/api/picks', requireAuth, asyncHandler(async (req, res) => {
-  const validation = validatePicksBody(req.body);
-  if (!validation.ok) {
-    return res.status(400).json({ error: validation.error });
-  }
-
-  const [fixtures, picks] = await Promise.all([
+  const [fixtures, picks, scorers] = await Promise.all([
     readJson('fixtures.json'),
-    readJson('picks.json')
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
   const lockState = getPicksLockState(fixtures);
   const isAdmin = req.session.user.role === 'admin';
 
   if (lockState.locked && !isAdmin) {
     return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const options = getPicksOptions(fixtures, scorers);
+  const validation = validatePicksBody(req.body, options);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
   }
 
   const existing = picks.find((pick) => pick.userId === req.session.user.id);
@@ -898,25 +969,28 @@ app.post('/api/picks', requireAuth, asyncHandler(async (req, res) => {
   res.status(201).json({
     pick,
     picks: picks.map(formatPopupPickRow),
+    teams: options.teams,
     ...lockState
   });
 }));
 
 app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
-  const validation = validatePicksBody(req.body);
-  if (!validation.ok) {
-    return res.status(400).json({ error: validation.error });
-  }
-
-  const [fixtures, picks] = await Promise.all([
+  const [fixtures, picks, scorers] = await Promise.all([
     readJson('fixtures.json'),
-    readJson('picks.json')
+    readJson('picks.json'),
+    readJson('scorers.json')
   ]);
   const lockState = getPicksLockState(fixtures);
   const isAdmin = req.session.user.role === 'admin';
 
   if (lockState.locked && !isAdmin) {
     return res.status(423).json({ error: 'picks_locked' });
+  }
+
+  const options = getPicksOptions(fixtures, scorers);
+  const validation = validatePicksBody(req.body, options);
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
   }
 
   const pick = picks.find((candidate) => candidate.userId === req.session.user.id);
@@ -941,110 +1015,8 @@ app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
   res.json({
     pick,
     picks: picks.map(formatPopupPickRow),
+    teams: options.teams,
     ...lockState
-  });
-}));
-
-app.get('/api/admin/picks', requireAdmin, asyncHandler(async (req, res) => {
-  const [users, fixtures, picks] = await Promise.all([
-    readJson('users.json'),
-    readJson('fixtures.json'),
-    readJson('picks.json')
-  ]);
-  const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
-  const rows = users
-    .filter((user) => user.active !== false)
-    .map((user) => {
-      const pick = picksByUserId.get(user.id);
-      return formatPopupPickRow({
-        userId: user.id,
-        username: user.username,
-        champion: pick?.champion || '',
-        runnerUp: pick?.runnerUp || '',
-        topScorer: pick?.topScorer || '',
-        updatedBy: pick?.updatedBy || null,
-        updatedAt: pick?.updatedAt || null
-      });
-    });
-
-  res.json({
-    picks: rows,
-    ...getPicksLockState(fixtures)
-  });
-}));
-
-app.put('/api/admin/picks/:userId', requireAdmin, asyncHandler(async (req, res) => {
-  const validation = validatePicksBody(req.body);
-  if (!validation.ok) {
-    return res.status(400).json({ error: validation.error });
-  }
-
-  const userId = String(req.params.userId || '');
-  const [users, fixtures, picks] = await Promise.all([
-    readJson('users.json'),
-    readJson('fixtures.json'),
-    readJson('picks.json')
-  ]);
-
-  const targetUser = users.find((candidate) => candidate.id === userId);
-  if (!targetUser) {
-    return res.status(404).json({ error: 'User not found.' });
-  }
-
-  const timestamp = new Date().toISOString();
-  const updatedBy = `admin:${req.session.user.id}`;
-  const existing = picks.find((candidate) => candidate.userId === userId);
-  const previousValue = existing
-    ? {
-      champion: existing.champion,
-      runnerUp: existing.runnerUp,
-      topScorer: existing.topScorer,
-      updatedBy: existing.updatedBy || null,
-      updatedAt: existing.updatedAt || null
-    }
-    : null;
-
-  if (existing) {
-    Object.assign(existing, validation.value, {
-      username: targetUser.username,
-      updatedAt: timestamp,
-      updatedBy
-    });
-  } else {
-    picks.push({
-      id: crypto.randomUUID(),
-      userId,
-      username: targetUser.username,
-      ...validation.value,
-      submittedAt: timestamp,
-      updatedAt: timestamp,
-      updatedBy
-    });
-  }
-
-  await writeJson('picks.json', picks);
-
-  const current = picks.find((candidate) => candidate.userId === userId);
-  const newValue = {
-    champion: current.champion,
-    runnerUp: current.runnerUp,
-    topScorer: current.topScorer,
-    updatedBy: current.updatedBy,
-    updatedAt: current.updatedAt
-  };
-
-  await recordAuditLog(req, 'pick_override', {
-    targetUserId: targetUser.id,
-    targetUsername: targetUser.username,
-    previousValue,
-    newValue,
-    updatedBy
-  });
-
-  res.json({
-    pick: current,
-    picks: picks.map(formatPopupPickRow),
-    ...getPicksLockState(fixtures)
   });
 }));
 
