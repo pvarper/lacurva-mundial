@@ -254,7 +254,7 @@ html, body { background-color: #1a2d45; }
   font-size: 0.7rem;
   font-weight: 800;
 }
-.gs-team { text-align: left !important; color: #cbd5e1; font-weight: 600; }
+.gs-team { text-align: left !important; color: #cbd5e1; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; }
 .gs-pos { color: #22c55e; font-weight: 700; }
 .gs-neg { color: #f87171; font-weight: 700; }
 .group-standings-table td strong { color: #e2e8f0; font-weight: 800; }
@@ -375,9 +375,27 @@ html, body { background-color: #1a2d45; }
   font-weight: 800;
   color: #ffffff;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
-.team-name.home { text-align: right; }
-.team-name.away { text-align: left; }
+.team-name.home {
+  text-align: right;
+  justify-content: flex-end;
+}
+.team-name.away {
+  text-align: left;
+  justify-content: flex-start;
+}
+.team-flag {
+  width: 1.4em;
+  height: 1em;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  overflow: hidden;
+}
 .score-display {
   flex-shrink: 0;
   min-width: 4.5rem;
