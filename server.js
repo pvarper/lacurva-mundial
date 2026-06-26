@@ -83,6 +83,7 @@ app.use(session({
   }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor/flag-icons', express.static(path.join(__dirname, 'node_modules/flag-icons')));
 
 async function readJson(fileName) {
   const filePath = path.join(DATA_DIR, fileName);

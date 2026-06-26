@@ -22,6 +22,63 @@ const fixtureStatusLabels = {
 
 const KNOCKOUT_PHASES = new Set(['16vos', '8vos', '4vos', 'Semifinal', 'Final']);
 
+const TEAM_FLAGS = {
+  'Alemania': 'de',
+  'Arabia Saudita': 'sa',
+  'Argelia': 'dz',
+  'Argentina': 'ar',
+  'Australia': 'au',
+  'Austria': 'at',
+  'Bosnia y Herzegovina': 'ba',
+  'Brasil': 'br',
+  'Bélgica': 'be',
+  'Cabo Verde': 'cv',
+  'Canadá': 'ca',
+  'Catar': 'qa',
+  'Chequia': 'cz',
+  'Colombia': 'co',
+  'Corea del Sur': 'kr',
+  'Costa de Marfil': 'ci',
+  'Croacia': 'hr',
+  'Curazao': 'cw',
+  'Ecuador': 'ec',
+  'Egipto': 'eg',
+  'Escocia': 'gb-sct',
+  'España': 'es',
+  'Estados Unidos': 'us',
+  'Francia': 'fr',
+  'Ghana': 'gh',
+  'Haití': 'ht',
+  'Inglaterra': 'gb-eng',
+  'Irak': 'iq',
+  'Irán': 'ir',
+  'Japón': 'jp',
+  'Jordania': 'jo',
+  'Marruecos': 'ma',
+  'México': 'mx',
+  'Noruega': 'no',
+  'Nueva Zelanda': 'nz',
+  'Panamá': 'pa',
+  'Paraguay': 'py',
+  'Países Bajos': 'nl',
+  'Portugal': 'pt',
+  'República Democrática del Congo': 'cd',
+  'Senegal': 'sn',
+  'Sudáfrica': 'za',
+  'Suecia': 'se',
+  'Suiza': 'ch',
+  'Turquía': 'tr',
+  'Túnez': 'tn',
+  'Uruguay': 'uy',
+  'Uzbekistán': 'uz',
+};
+
+function teamFlag(name) {
+  const code = TEAM_FLAGS[name];
+  if (!code) return '';
+  return `<span class="fi fi-${code} team-flag" aria-hidden="true"></span>`;
+}
+
 const elements = {
   loginView: document.querySelector('#loginView'),
   appView: document.querySelector('#appView'),
@@ -328,9 +385,9 @@ function renderFixtureCard(match, opts = {}) {
     <article class="match-card${isLive ? ' live-card' : ''}">
       ${header}
       <div class="match-teams">
-        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        <span class="team-name home">${escapeHtml(match.homeTeam)}${teamFlag(match.homeTeam)}</span>
         ${scoreHtml}
-        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
+        <span class="team-name away">${teamFlag(match.awayTeam)}${escapeHtml(match.awayTeam)}</span>
       </div>
       ${knockoutInfoHtml}
       <div class="match-meta-row">
@@ -380,7 +437,7 @@ function renderGroupStandingsTable(teams) {
     const dgClass = dg > 0 ? 'gs-pos' : dg < 0 ? 'gs-neg' : '';
     return `<tr>
       <td><span class="gs-rank" style="background:${color}22;color:${color};border:1px solid ${color}44">${i + 1}</span></td>
-      <td class="gs-team">${escapeHtml(t.team)}</td>
+      <td class="gs-team">${teamFlag(t.team)}${escapeHtml(t.team)}</td>
       <td>${t.pj}</td>
       <td class="${dgClass}">${dgStr}</td>
       <td><strong>${pts}</strong></td>
@@ -608,9 +665,9 @@ function renderPredictionCard(match) {
         ${fixtureStatusBadge(match)}
       </div>
       <div class="match-teams">
-        <span class="team-name home">${escapeHtml(match.homeTeam)}</span>
+        <span class="team-name home">${escapeHtml(match.homeTeam)}${teamFlag(match.homeTeam)}</span>
         ${scoreDisplay}
-        <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
+        <span class="team-name away">${teamFlag(match.awayTeam)}${escapeHtml(match.awayTeam)}</span>
       </div>
       ${knockoutInfo}
       <div class="match-meta-row">
@@ -783,7 +840,7 @@ function renderActivityFeed() {
             <span class="pred-feed-label">Resultado:</span> ${resultHtml}
             <span class="pred-feed-sep">·</span>
             <span class="pred-feed-label">Mi pred:</span>
-            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}</span>
+            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}${p.advancer ? ` · Clasif: ${escapeHtml(p.advancer)}` : ''}</span>
             ${ptsHtml}
           </div>
         </div>
@@ -1630,8 +1687,8 @@ const predModal = {
   open(match) {
     document.querySelector('#predictionModalPhase').textContent =
       `${match.phase} · #${match.matchNumber}`;
-    document.querySelector('#predictionModalHome').textContent = match.homeTeam;
-    document.querySelector('#predictionModalAway').textContent = match.awayTeam;
+    document.querySelector('#predictionModalHome').innerHTML = escapeHtml(match.homeTeam) + teamFlag(match.homeTeam);
+    document.querySelector('#predictionModalAway').innerHTML = teamFlag(match.awayTeam) + escapeHtml(match.awayTeam);
     document.querySelector('#predictionModalHomeLabel').textContent = match.homeTeam;
     document.querySelector('#predictionModalAwayLabel').textContent = match.awayTeam;
     const homeVal = match.homeScore !== '' && match.homeScore != null ? Number(match.homeScore) : 0;
