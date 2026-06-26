@@ -840,7 +840,7 @@ function renderActivityFeed() {
             <span class="pred-feed-label">Resultado:</span> ${resultHtml}
             <span class="pred-feed-sep">·</span>
             <span class="pred-feed-label">Mi pred:</span>
-            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}</span>
+            <span class="pred-feed-score">${p.homeScore} — ${p.awayScore}${p.advancer ? ` · Clasif: ${escapeHtml(p.advancer)}` : ''}</span>
             ${ptsHtml}
           </div>
         </div>
