@@ -590,14 +590,35 @@
             <div class="prediction-modal-inputs">
               <div class="prediction-modal-field">
                 <label id="predictionModalHomeLabel" class="prediction-modal-field-label"></label>
-                <input id="predictionModalHomeScore" name="homeScore" type="number" min="0" step="1" required
-                  class="prediction-modal-score-input" placeholder="0">
+                <div class="score-stepper">
+                  <button type="button" class="score-stepper-btn score-stepper-dec" data-target="home" data-delta="-1" aria-label="Restar">−</button>
+                  <span class="score-stepper-value" id="predictionModalHomeDisplay">0</span>
+                  <button type="button" class="score-stepper-btn score-stepper-inc" data-target="home" data-delta="1" aria-label="Sumar">+</button>
+                </div>
+                <input type="hidden" name="homeScore" id="predictionModalHomeScore" value="0">
               </div>
               <span class="prediction-modal-sep">—</span>
               <div class="prediction-modal-field">
                 <label id="predictionModalAwayLabel" class="prediction-modal-field-label"></label>
-                <input id="predictionModalAwayScore" name="awayScore" type="number" min="0" step="1" required
-                  class="prediction-modal-score-input" placeholder="0">
+                <div class="score-stepper">
+                  <button type="button" class="score-stepper-btn score-stepper-dec" data-target="away" data-delta="-1" aria-label="Restar">−</button>
+                  <span class="score-stepper-value" id="predictionModalAwayDisplay">0</span>
+                  <button type="button" class="score-stepper-btn score-stepper-inc" data-target="away" data-delta="1" aria-label="Sumar">+</button>
+                </div>
+                <input type="hidden" name="awayScore" id="predictionModalAwayScore" value="0">
+              </div>
+            </div>
+            <div id="predictionModalAdvancerRow" class="prediction-modal-advancer hidden">
+              <p class="prediction-modal-advancer-label">¿Quién clasifica?</p>
+              <div class="prediction-modal-advancer-options">
+                <label class="advancer-option">
+                  <input type="radio" name="advancer" id="predictionModalAdvancerHome" value="">
+                  <span class="advancer-option-name" id="predictionModalAdvancerHomeName"></span>
+                </label>
+                <label class="advancer-option">
+                  <input type="radio" name="advancer" id="predictionModalAdvancerAway" value="">
+                  <span class="advancer-option-name" id="predictionModalAdvancerAwayName"></span>
+                </label>
               </div>
             </div>
             <button type="submit" id="predictionModalSubmit" class="prediction-modal-submit">
