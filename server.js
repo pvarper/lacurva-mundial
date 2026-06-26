@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 3000;
 const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS) || 120 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, 'data');
 const FIXTURE_STATUSES = new Set(['scheduled', 'live', 'final']);
+const KNOCKOUT_PHASES = new Set(['16vos', '8vos', '4vos', 'Semifinal', 'Final']);
 
 const SETTINGS_DEFAULTS = {
   predictionLockMs: 1 * 60 * 1000,
@@ -41,6 +42,8 @@ let settingsCache = { ...SETTINGS_DEFAULTS };
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
+  { title: 'Bonus clasificado (desde 16vos)', description: 'A partir de 16vos de final, si pronosticás empate y acertás el equipo que clasifica, sumás 3 puntos adicionales. Este bonus aplica solo cuando el resultado final es empate (incluyendo tiempo suplementario).' },
+  { title: 'Tiempo válido para predicciones (desde 16vos)', description: 'A partir de 16vos de final, tu predicción cubre el resultado al final del tiempo reglamentario (90 min) más los dos tiempos suplementarios de 15 min cada uno, si los hubiera. No se considera el resultado de los penales.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
   { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 16vos.' },
@@ -498,7 +501,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
       if (!match) return;
       const predictionPoints = calculatePredictionPoints(prediction, match);
-      points += predictionPoints;
+      points += predictionPoints + calculateAdvancerBonus(prediction, match);
       if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
       if (predictionPoints === 5) {
         exactCount += 1;
@@ -567,6 +570,15 @@ function calculatePredictionPoints(prediction, match) {
   const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
   const actualOutcome = getOutcome(match.homeScore, match.awayScore);
   return predictedOutcome === actualOutcome ? 3 : 0;
+}
+
+function calculateAdvancerBonus(prediction, match) {
+  if (!KNOCKOUT_PHASES.has(match.phase)) return 0;
+  if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return 0;
+  if (getOutcome(prediction.homeScore, prediction.awayScore) !== 'draw') return 0;
+  if (getOutcome(match.homeScore, match.awayScore) !== 'draw') return 0;
+  if (!prediction.advancer || !match.advancer) return 0;
+  return prediction.advancer === match.advancer ? 3 : 0;
 }
 
 function predictionGoalDiff(prediction, match) {
@@ -820,10 +832,37 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
   const match = fixtures.find((candidate) => candidate.id === matchId);
   if (!match) return res.status(404).json({ error: 'Match not found.' });
 
-  const previousValue = { status: match.status, homeScore: match.homeScore, awayScore: match.awayScore };
+  const isKnockoutMatch = KNOCKOUT_PHASES.has(match.phase);
+  const isDrawResult = homeScore !== null && awayScore !== null && homeScore === awayScore && status === 'final';
+  let advancer = null;
+  let penaltyHomeScore = null;
+  let penaltyAwayScore = null;
+  if (isKnockoutMatch && isDrawResult) {
+    advancer = String(req.body.advancer || '').trim() || null;
+    if (advancer && advancer !== match.homeTeam && advancer !== match.awayTeam) {
+      return res.status(400).json({ error: 'advancer must be one of the match teams.' });
+    }
+    const rawPh = req.body.penaltyHomeScore;
+    const rawPa = req.body.penaltyAwayScore;
+    const ph = rawPh !== null && rawPh !== undefined && rawPh !== '' ? Number(rawPh) : null;
+    const pa = rawPa !== null && rawPa !== undefined && rawPa !== '' ? Number(rawPa) : null;
+    if ((ph !== null && (!Number.isInteger(ph) || ph < 0)) || (pa !== null && (!Number.isInteger(pa) || pa < 0))) {
+      return res.status(400).json({ error: 'Penalty scores must be non-negative integers.' });
+    }
+    if ((ph !== null) !== (pa !== null)) {
+      return res.status(400).json({ error: 'Both penalty scores must be provided together.' });
+    }
+    penaltyHomeScore = ph;
+    penaltyAwayScore = pa;
+  }
+
+  const previousValue = { status: match.status, homeScore: match.homeScore, awayScore: match.awayScore, advancer: match.advancer, penaltyHomeScore: match.penaltyHomeScore, penaltyAwayScore: match.penaltyAwayScore };
   match.status = status;
   match.homeScore = homeScore;
   match.awayScore = awayScore;
+  match.advancer = advancer;
+  match.penaltyHomeScore = penaltyHomeScore;
+  match.penaltyAwayScore = penaltyAwayScore;
   await writeJson('fixtures.json', fixtures);
   await recordAuditLog(req, 'fixture_updated', {
     matchId,
@@ -833,6 +872,9 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
     previousValue,
     homeScore,
     awayScore,
+    advancer,
+    penaltyHomeScore,
+    penaltyAwayScore,
     status
   });
   res.json({ match: { ...match, locked: isPredictionLocked(match) } });
@@ -863,6 +905,19 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   if (!match) return res.status(404).json({ error: 'Match not found.' });
   if (isPredictionLocked(match)) return res.status(423).json({ error: 'This match is locked for predictions.' });
 
+  const isKnockout = KNOCKOUT_PHASES.has(match.phase);
+  const isDraw = homeScore === awayScore;
+  let advancer = null;
+  if (isKnockout && isDraw) {
+    advancer = String(req.body.advancer || '').trim() || null;
+    if (!advancer) {
+      return res.status(400).json({ error: 'advancer is required for knockout draws.' });
+    }
+    if (advancer !== match.homeTeam && advancer !== match.awayTeam) {
+      return res.status(400).json({ error: 'advancer must be one of the match teams.' });
+    }
+  }
+
   const predictions = await readJson('predictions.json');
   const existing = predictions.find((prediction) => prediction.userId === req.session.user.id && prediction.matchId === matchId);
   const action = existing ? 'prediction_updated' : 'prediction_created';
@@ -870,6 +925,7 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   if (existing) {
     existing.homeScore = homeScore;
     existing.awayScore = awayScore;
+    existing.advancer = advancer;
     existing.updatedAt = new Date().toISOString();
   } else {
     predictions.push({
@@ -878,13 +934,14 @@ app.post('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
       matchId,
       homeScore,
       awayScore,
+      advancer,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
   }
 
   await writeJson('predictions.json', predictions);
-  await recordAuditLog(req, action, { matchId, matchNumber: match.matchNumber, homeTeam: match.homeTeam, awayTeam: match.awayTeam, homeScore, awayScore });
+  await recordAuditLog(req, action, { matchId, matchNumber: match.matchNumber, homeTeam: match.homeTeam, awayTeam: match.awayTeam, homeScore, awayScore, advancer });
   res.json({ ok: true });
 }));
 
@@ -899,7 +956,7 @@ app.get('/api/picks', requireAuth, asyncHandler(async (req, res) => {
   const currentPick = picks.find((pick) => pick.userId === req.session.user.id) || null;
   const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
   const rows = users
-    .filter((user) => user.active !== false)
+    .filter((user) => user.active !== false && user.role !== 'admin')
     .map((user) => {
       const pick = picksByUserId.get(user.id);
       return formatPopupPickRow({

@@ -20,6 +20,8 @@ const fixtureStatusLabels = {
   final: 'FINALIZADO'
 };
 
+const KNOCKOUT_PHASES = new Set(['16vos', '8vos', '4vos', 'Semifinal', 'Final']);
+
 const elements = {
   loginView: document.querySelector('#loginView'),
   appView: document.querySelector('#appView'),
@@ -247,11 +249,28 @@ function fixtureStatusBadge(match) {
 function renderFixtureAdminForm(match) {
   if (state.user?.role !== 'admin') return '';
   const status = match.status || 'scheduled';
+  const isKnockout = KNOCKOUT_PHASES.has(match.phase);
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const isDraw = hasScore && match.homeScore === match.awayScore;
+  const showKnockoutExtras = isKnockout && isDraw && status === 'final';
+  const hasPenalties = match.penaltyHomeScore !== null && match.penaltyHomeScore !== undefined;
+  const advancerHtml = isKnockout ? `
+    <select name="advancer" class="advancer-select${showKnockoutExtras ? '' : ' hidden'}">
+      <option value="">— Clasifica —</option>
+      <option value="${escapeHtml(match.homeTeam)}" ${match.advancer === match.homeTeam ? 'selected' : ''}>${escapeHtml(match.homeTeam)}</option>
+      <option value="${escapeHtml(match.awayTeam)}" ${match.advancer === match.awayTeam ? 'selected' : ''}>${escapeHtml(match.awayTeam)}</option>
+    </select>
+    <label class="penalty-checkbox-label${showKnockoutExtras ? '' : ' hidden'}">
+      Penales: <input type="checkbox" name="hasPenalties"${hasPenalties ? ' checked' : ''}>
+    </label>
+    <input name="penaltyHomeScore" type="number" min="0" step="1" value="${match.penaltyHomeScore ?? ''}" placeholder="Local" class="score-input penalty-input${showKnockoutExtras && hasPenalties ? '' : ' hidden'}">
+    <span class="score-sep penalty-sep${showKnockoutExtras && hasPenalties ? '' : ' hidden'}">-</span>
+    <input name="penaltyAwayScore" type="number" min="0" step="1" value="${match.penaltyAwayScore ?? ''}" placeholder="Visit." class="score-input penalty-input${showKnockoutExtras && hasPenalties ? '' : ' hidden'}">` : '';
   return `
     <button type="button" class="admin-toggle-btn" data-match-id="${escapeHtml(match.id)}">
       <i class="bi bi-pencil-square"></i> Editar resultado
     </button>
-    <form class="fixture-update-form hidden" data-match-id="${escapeHtml(match.id)}">
+    <form class="fixture-update-form hidden" data-match-id="${escapeHtml(match.id)}" data-home-team="${escapeHtml(match.homeTeam)}" data-away-team="${escapeHtml(match.awayTeam)}" data-is-knockout="${isKnockout}">
       <div class="admin-score-row">
         <input name="homeScore" type="number" min="0" step="1" value="${match.homeScore ?? ''}" placeholder="—" class="score-input">
         <span class="score-sep">—</span>
@@ -261,6 +280,7 @@ function renderFixtureAdminForm(match) {
           <option value="live" ${status === 'live' ? 'selected' : ''}>En vivo</option>
           <option value="final" ${status === 'final' ? 'selected' : ''}>Finalizado</option>
         </select>
+        ${advancerHtml}
         <button type="submit" class="save-btn"><i class="bi bi-check-lg"></i> Guardar</button>
       </div>
     </form>
@@ -284,7 +304,7 @@ function renderFixtureCard(match, opts = {}) {
   const pred = opts.prediction || null;
   const hasPred = pred && pred.homeScore !== null && pred.homeScore !== undefined;
   const predBadge = hasPred
-    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}</span>`
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}${pred.advancer ? ` · ${escapeHtml(pred.advancer)}` : ''}</span>`
     : '';
   const predAction = match.locked
     ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Predicciones cerradas</span>`
@@ -294,11 +314,15 @@ function renderFixtureCard(match, opts = {}) {
         data-away-team="${escapeHtml(match.awayTeam)}"
         data-home-score="${hasPred ? pred.homeScore : ''}"
         data-away-score="${hasPred ? pred.awayScore : ''}"
+        data-advancer="${hasPred && pred.advancer ? escapeHtml(pred.advancer) : ''}"
+        data-raw-phase="${escapeHtml(match.phase)}"
         data-phase="${escapeHtml(match.roundName || match.phase)}"
         data-match-number="${match.matchNumber}">
         <i aria-hidden="true" class="bi bi-pencil-square"></i>
         ${hasPred ? 'Editar predicción' : 'Ingresar predicción'}
       </button>`;
+
+  const knockoutInfoHtml = renderKnockoutResultInfo(match);
 
   return `
     <article class="match-card${isLive ? ' live-card' : ''}">
@@ -308,6 +332,7 @@ function renderFixtureCard(match, opts = {}) {
         ${scoreHtml}
         <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
       </div>
+      ${knockoutInfoHtml}
       <div class="match-meta-row">
         <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
         <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
@@ -440,9 +465,13 @@ async function updateFixtureResult(form) {
   const homeScore = form.elements.homeScore.value === '' ? null : Number(form.elements.homeScore.value);
   const awayScore = form.elements.awayScore.value === '' ? null : Number(form.elements.awayScore.value);
   const status = form.elements.status.value;
+  const advancer = form.elements.advancer?.value || null;
+  const hasPenalties = form.elements.hasPenalties?.checked || false;
+  const penaltyHomeScore = hasPenalties && form.elements.penaltyHomeScore?.value !== '' ? Number(form.elements.penaltyHomeScore.value) : null;
+  const penaltyAwayScore = hasPenalties && form.elements.penaltyAwayScore?.value !== '' ? Number(form.elements.penaltyAwayScore.value) : null;
   await api(`/api/fixtures/${encodeURIComponent(matchId)}`, {
     method: 'PUT',
-    body: JSON.stringify({ homeScore, awayScore, status })
+    body: JSON.stringify({ homeScore, awayScore, status, advancer, penaltyHomeScore, penaltyAwayScore })
   });
   await loadFixtures();
 }
@@ -546,7 +575,7 @@ function renderPredictionCard(match) {
   const prediction = match.prediction || {};
   const hasPrediction = prediction.homeScore !== undefined && prediction.homeScore !== null;
   const predBadge = hasPrediction
-    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${prediction.homeScore} — ${prediction.awayScore}</span>`
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${prediction.homeScore} — ${prediction.awayScore}${prediction.advancer ? ` · ${escapeHtml(prediction.advancer)}` : ''}</span>`
     : `<span class="status scheduled-status">Sin predicción</span>`;
 
   const actionArea = match.locked
@@ -557,6 +586,8 @@ function renderPredictionCard(match) {
         data-away-team="${escapeHtml(match.awayTeam)}"
         data-home-score="${prediction.homeScore ?? ''}"
         data-away-score="${prediction.awayScore ?? ''}"
+        data-advancer="${prediction.advancer ? escapeHtml(prediction.advancer) : ''}"
+        data-raw-phase="${escapeHtml(match.phase)}"
         data-phase="${escapeHtml(match.roundName || match.phase)}"
         data-match-number="${match.matchNumber}">
         <i aria-hidden="true" class="bi bi-pencil-square"></i>
@@ -568,6 +599,7 @@ function renderPredictionCard(match) {
   const scoreDisplay = hasScore
     ? `<div class="score-display${isLive ? ' live' : ''}">${match.homeScore} — ${match.awayScore}</div>`
     : `<div class="score-display vs">VS</div>`;
+  const knockoutInfo = renderKnockoutResultInfo(match);
 
   return `
     <article class="match-card${isLive ? ' live-card' : ''}">
@@ -580,6 +612,7 @@ function renderPredictionCard(match) {
         ${scoreDisplay}
         <span class="team-name away">${escapeHtml(match.awayTeam)}</span>
       </div>
+      ${knockoutInfo}
       <div class="match-meta-row">
         <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
         <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
@@ -668,9 +701,30 @@ async function loadPredictions() {
 function calcPredPoints(match) {
   if (!match.prediction || match.status !== 'final' || match.homeScore === null || match.awayScore === null) return null;
   const p = match.prediction;
-  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) return 5;
   const getOutcome = (h, a) => h > a ? 'home' : h < a ? 'away' : 'draw';
-  return getOutcome(p.homeScore, p.awayScore) === getOutcome(match.homeScore, match.awayScore) ? 3 : 0;
+  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) {
+    const base = 5;
+    const advancerBonus = KNOCKOUT_PHASES.has(match.phase) && getOutcome(match.homeScore, match.awayScore) === 'draw' && p.advancer && match.advancer && p.advancer === match.advancer ? 3 : 0;
+    return base + advancerBonus;
+  }
+  const predictedOutcome = getOutcome(p.homeScore, p.awayScore);
+  const actualOutcome = getOutcome(match.homeScore, match.awayScore);
+  if (predictedOutcome !== actualOutcome) return 0;
+  const advancerBonus = KNOCKOUT_PHASES.has(match.phase) && predictedOutcome === 'draw' && p.advancer && match.advancer && p.advancer === match.advancer ? 3 : 0;
+  return 3 + advancerBonus;
+}
+
+function renderKnockoutResultInfo(match) {
+  if (!KNOCKOUT_PHASES.has(match.phase)) return '';
+  if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return '';
+  const parts = [];
+  if (match.penaltyHomeScore !== null && match.penaltyHomeScore !== undefined &&
+      match.penaltyAwayScore !== null && match.penaltyAwayScore !== undefined) {
+    parts.push(`Penales: ${match.penaltyHomeScore}-${match.penaltyAwayScore}`);
+  }
+  if (match.advancer) parts.push(`Clasifica: ${escapeHtml(match.advancer)}`);
+  if (!parts.length) return '';
+  return `<div class="knockout-result-info">${parts.join(' · ')}</div>`;
 }
 
 function renderUserPredFeed() {
@@ -705,8 +759,9 @@ function renderActivityFeed() {
     const p = m.prediction;
     const pts = calcPredPoints(m);
     const hasResult = m.status === 'final' && m.homeScore !== null;
+    const knockoutInfo = hasResult ? renderKnockoutResultInfo(m) : '';
     const resultHtml = hasResult
-      ? `<span class="pred-feed-result">${m.homeScore} — ${m.awayScore}</span>`
+      ? `<span class="pred-feed-result">${m.homeScore} — ${m.awayScore}</span>${knockoutInfo}`
       : `<span class="pred-feed-result pending">Sin resultado</span>`;
     const ptsHtml = pts !== null
       ? `<span class="pred-feed-pts pts-${pts}">${pts} pts</span>`
@@ -1515,6 +1570,44 @@ elements.fixturesList.addEventListener('click', (event) => {
     : '<i class="bi bi-x-lg"></i> Cerrar';
 });
 
+elements.fixturesList.addEventListener('input', (event) => {
+  const form = event.target.closest('.fixture-update-form');
+  if (!form || form.dataset.isKnockout !== 'true') return;
+  const homeScore = form.elements.homeScore.value;
+  const awayScore = form.elements.awayScore.value;
+  const status = form.elements.status.value;
+  const isDraw = homeScore !== '' && awayScore !== '' && Number(homeScore) === Number(awayScore);
+  const show = isDraw && status === 'final';
+  const advancerSelect = form.querySelector('.advancer-select');
+  if (advancerSelect) {
+    advancerSelect.classList.toggle('hidden', !show);
+    if (!show) advancerSelect.value = '';
+  }
+  const penaltyLabel = form.querySelector('.penalty-checkbox-label');
+  if (penaltyLabel) {
+    penaltyLabel.classList.toggle('hidden', !show);
+    if (!show) {
+      const cb = form.elements.hasPenalties;
+      if (cb) cb.checked = false;
+      form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
+        el.classList.add('hidden');
+        if (el.tagName === 'INPUT') el.value = '';
+      });
+    }
+  }
+});
+
+elements.fixturesList.addEventListener('change', (event) => {
+  const cb = event.target;
+  if (cb.name !== 'hasPenalties') return;
+  const form = cb.closest('.fixture-update-form');
+  if (!form) return;
+  form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
+    el.classList.toggle('hidden', !cb.checked);
+    if (!cb.checked && el.tagName === 'INPUT') el.value = '';
+  });
+});
+
 elements.fixturesList.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -1541,12 +1634,32 @@ const predModal = {
     document.querySelector('#predictionModalAway').textContent = match.awayTeam;
     document.querySelector('#predictionModalHomeLabel').textContent = match.homeTeam;
     document.querySelector('#predictionModalAwayLabel').textContent = match.awayTeam;
-    document.querySelector('#predictionModalHomeScore').value = match.homeScore;
-    document.querySelector('#predictionModalAwayScore').value = match.awayScore;
+    const homeVal = match.homeScore !== '' && match.homeScore != null ? Number(match.homeScore) : 0;
+    const awayVal = match.awayScore !== '' && match.awayScore != null ? Number(match.awayScore) : 0;
+    document.querySelector('#predictionModalHomeScore').value = homeVal;
+    document.querySelector('#predictionModalAwayScore').value = awayVal;
+    document.querySelector('#predictionModalHomeDisplay').textContent = homeVal;
+    document.querySelector('#predictionModalAwayDisplay').textContent = awayVal;
     document.querySelector('#predictionModalFeedback').classList.add('hidden');
     this.form.dataset.matchId = match.matchId;
+    this._isKnockout = KNOCKOUT_PHASES.has(match.rawPhase);
+    const advancerRow = document.querySelector('#predictionModalAdvancerRow');
+    const homeRadio = document.querySelector('#predictionModalAdvancerHome');
+    const awayRadio = document.querySelector('#predictionModalAdvancerAway');
+    homeRadio.value = match.homeTeam;
+    awayRadio.value = match.awayTeam;
+    document.querySelector('#predictionModalAdvancerHomeName').textContent = match.homeTeam;
+    document.querySelector('#predictionModalAdvancerAwayName').textContent = match.awayTeam;
+    homeRadio.checked = false;
+    awayRadio.checked = false;
+    if (this._isKnockout && homeVal === awayVal) {
+      advancerRow.classList.remove('hidden');
+      if (match.advancer === match.homeTeam) homeRadio.checked = true;
+      else if (match.advancer === match.awayTeam) awayRadio.checked = true;
+    } else {
+      advancerRow.classList.add('hidden');
+    }
     this.el.classList.remove('hidden');
-    document.querySelector('#predictionModalHomeScore').focus();
   },
   close() { this.el.classList.add('hidden'); }
 };
@@ -1558,6 +1671,8 @@ function openPredModalFromBtn(btn) {
     awayTeam: btn.dataset.awayTeam,
     homeScore: btn.dataset.homeScore,
     awayScore: btn.dataset.awayScore,
+    advancer: btn.dataset.advancer || null,
+    rawPhase: btn.dataset.rawPhase || '',
     phase: btn.dataset.phase,
     matchNumber: btn.dataset.matchNumber
   });
@@ -1574,6 +1689,32 @@ elements.fixturesList.addEventListener('click', (event) => {
 });
 
 document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());
+
+document.querySelector('#predictionModalForm').addEventListener('click', (e) => {
+  const btn = e.target.closest('.score-stepper-btn');
+  if (!btn) return;
+  const side = btn.dataset.target;
+  const delta = Number(btn.dataset.delta);
+  const displayId = side === 'home' ? '#predictionModalHomeDisplay' : '#predictionModalAwayDisplay';
+  const inputId = side === 'home' ? '#predictionModalHomeScore' : '#predictionModalAwayScore';
+  const hiddenInput = document.querySelector(inputId);
+  const display = document.querySelector(displayId);
+  const newVal = Math.max(0, Number(hiddenInput.value) + delta);
+  hiddenInput.value = newVal;
+  display.textContent = newVal;
+  if (predModal._isKnockout) {
+    const h = Number(document.querySelector('#predictionModalHomeScore').value);
+    const a = Number(document.querySelector('#predictionModalAwayScore').value);
+    const advancerRow = document.querySelector('#predictionModalAdvancerRow');
+    if (h === a) {
+      advancerRow.classList.remove('hidden');
+    } else {
+      advancerRow.classList.add('hidden');
+      document.querySelector('#predictionModalAdvancerHome').checked = false;
+      document.querySelector('#predictionModalAdvancerAway').checked = false;
+    }
+  }
+});
 document.querySelector('#predictionModal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) predModal.close();
 });
@@ -1584,10 +1725,11 @@ document.querySelector('#predictionModalForm').addEventListener('submit', async 
   const matchId = form.dataset.matchId;
   const homeScore = Number(form.elements.homeScore.value);
   const awayScore = Number(form.elements.awayScore.value);
+  const advancer = form.elements.advancer?.value || null;
   const submitBtn = document.querySelector('#predictionModalSubmit');
   submitBtn.disabled = true;
   try {
-    await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore }) });
+    await api('/api/predictions', { method: 'POST', body: JSON.stringify({ matchId, homeScore, awayScore, advancer }) });
     const feedback = document.querySelector('#predictionModalFeedback');
     feedback.textContent = 'Predicción guardada correctamente.';
     feedback.classList.remove('hidden');
