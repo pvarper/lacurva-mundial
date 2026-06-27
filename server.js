@@ -279,25 +279,25 @@ function isPredictionLocked(match) {
 }
 
 function getPicksLockState(fixtures) {
-  const roundOf16 = fixtures
-    .filter((fixture) => fixture.phase === '16vos')
+  const roundOf8 = fixtures
+    .filter((fixture) => fixture.phase === '8vos')
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!roundOf16.length) {
+  if (!roundOf8.length) {
     return {
       locked: false,
       lockAt: null,
-      firstR16Kickoff: null
+      firstR8Kickoff: null
     };
   }
 
-  const firstR16Kickoff = roundOf16[0].date;
-  const lockAtDate = new Date(new Date(firstR16Kickoff).getTime() - 60 * 1000);
+  const firstR8Kickoff = roundOf8[0].date;
+  const lockAtDate = new Date(new Date(firstR8Kickoff).getTime() - 60 * 1000);
 
   return {
     locked: Date.now() >= lockAtDate.getTime(),
     lockAt: lockAtDate.toISOString(),
-    firstR16Kickoff
+    firstR8Kickoff
   };
 }
 
