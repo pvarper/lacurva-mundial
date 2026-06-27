@@ -576,7 +576,11 @@ function calculatePredictionPoints(prediction, match) {
 function calculateAdvancerBonus(prediction, match) {
   if (!KNOCKOUT_PHASES.has(match.phase)) return 0;
   if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return 0;
-  if (!match.advancer) return 0;
+
+  const actualOutcome = getOutcome(match.homeScore, match.awayScore);
+  // Draw result requires explicit advancer (set by admin after penalties)
+  if (actualOutcome === 'draw' && !match.advancer) return 0;
+  const actualAdvancer = match.advancer || (actualOutcome === 'home' ? match.homeTeam : match.awayTeam);
 
   const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
   let predictedAdvancer;
@@ -588,7 +592,7 @@ function calculateAdvancerBonus(prediction, match) {
     predictedAdvancer = predictedOutcome === 'home' ? match.homeTeam : match.awayTeam;
   }
 
-  return predictedAdvancer === match.advancer ? 3 : 0;
+  return predictedAdvancer === actualAdvancer ? 3 : 0;
 }
 
 function predictionGoalDiff(prediction, match) {
