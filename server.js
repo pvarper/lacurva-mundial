@@ -576,10 +576,19 @@ function calculatePredictionPoints(prediction, match) {
 function calculateAdvancerBonus(prediction, match) {
   if (!KNOCKOUT_PHASES.has(match.phase)) return 0;
   if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return 0;
-  if (getOutcome(prediction.homeScore, prediction.awayScore) !== 'draw') return 0;
-  if (getOutcome(match.homeScore, match.awayScore) !== 'draw') return 0;
-  if (!prediction.advancer || !match.advancer) return 0;
-  return prediction.advancer === match.advancer ? 3 : 0;
+  if (!match.advancer) return 0;
+
+  const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
+  let predictedAdvancer;
+
+  if (predictedOutcome === 'draw') {
+    if (!prediction.advancer) return 0;
+    predictedAdvancer = prediction.advancer;
+  } else {
+    predictedAdvancer = predictedOutcome === 'home' ? match.homeTeam : match.awayTeam;
+  }
+
+  return predictedAdvancer === match.advancer ? 3 : 0;
 }
 
 function predictionGoalDiff(prediction, match) {
