@@ -62,7 +62,7 @@ const TEAM_FLAGS = {
   'Paraguay': 'py',
   'Países Bajos': 'nl',
   'Portugal': 'pt',
-  'República Democrática del Congo': 'cd',
+  'RD Congo': 'cd',
   'Senegal': 'sn',
   'Sudáfrica': 'za',
   'Suecia': 'se',
