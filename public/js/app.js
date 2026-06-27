@@ -6,7 +6,7 @@ const state = {
   fixtureRefreshTimer: null,
   currentView: null,
   predictions: [],
-  picks: { pick: null, picks: [], locked: false, lockAt: null, firstR16Kickoff: null },
+  picks: { pick: null, picks: [], locked: false, lockAt: null, firstR8Kickoff: null },
   scorers: { source: 'manual', scorers: [] },
   prizePool: null,
   auditLogs: [],
@@ -849,14 +849,14 @@ function renderActivityFeed() {
 }
 
 function formatLockBanner(lockState, adminBypass = false) {
-  if (!lockState?.firstR16Kickoff) {
-    return '<div class="picks-lock-banner muted">Aún no hay un partido de 16vos cargado para calcular el cierre.</div>';
+  if (!lockState?.firstR8Kickoff) {
+    return '<div class="picks-lock-banner muted">Aún no hay un partido de 8vos cargado para calcular el cierre.</div>';
   }
 
   if (lockState.locked) {
     return `<div class="picks-lock-banner ${adminBypass ? 'admin-open' : 'locked'}">
       <strong>${adminBypass ? 'Lock activo para usuarios' : 'Picks cerrados'}</strong>
-      <span>${adminBypass ? 'Como admin todavía podés editar.' : 'El cierre ocurrió 1 minuto antes del primer partido de 16vos.'}</span>
+      <span>${adminBypass ? 'Como admin todavía podés editar.' : 'El cierre ocurrió 1 minuto antes del primer partido de 8vos.'}</span>
     </div>`;
   }
 

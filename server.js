@@ -42,11 +42,11 @@ let settingsCache = { ...SETTINGS_DEFAULTS };
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
-  { title: 'Bonus clasificado (desde 16vos)', description: 'A partir de 16vos de final, si pronosticás empate y acertás el equipo que clasifica, sumás 3 puntos adicionales. Este bonus aplica solo cuando el resultado final es empate (incluyendo tiempo suplementario).' },
+  { title: 'Bonus clasificado (desde 16vos)', description: 'A partir de 16vos de final, sumás 3 puntos adicionales si acertás el equipo que clasifica. Si pronosticaste empate, debés elegir explícitamente quién clasifica. Si pronosticaste un ganador, ese equipo es tu clasificado implícito — no necesitás elegirlo por separado. El bonus se suma sobre los puntos base: resultado exacto + clasificador correcto = 8 puntos, ganador correcto (sin exacto) + clasificador correcto = 6 puntos, empate real + clasificador correcto (desde predicción no-empate) = 3 puntos.' },
   { title: 'Tiempo válido para predicciones (desde 16vos)', description: 'A partir de 16vos de final, tu predicción cubre el resultado al final del tiempo reglamentario (90 min) más los dos tiempos suplementarios de 15 min cada uno, si los hubiera. No se considera el resultado de los penales.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
-  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 16vos.' },
+  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 8vos.' },
   { title: 'Bonus final', description: 'Los bonus especiales recién se suman cuando la final figure como FINALIZADO. Si varios usuarios aciertan, todos reciben el puntaje completo.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
   { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
@@ -279,25 +279,25 @@ function isPredictionLocked(match) {
 }
 
 function getPicksLockState(fixtures) {
-  const roundOf16 = fixtures
-    .filter((fixture) => fixture.phase === '16vos')
+  const roundOf8 = fixtures
+    .filter((fixture) => fixture.phase === '8vos')
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!roundOf16.length) {
+  if (!roundOf8.length) {
     return {
       locked: false,
       lockAt: null,
-      firstR16Kickoff: null
+      firstR8Kickoff: null
     };
   }
 
-  const firstR16Kickoff = roundOf16[0].date;
-  const lockAtDate = new Date(new Date(firstR16Kickoff).getTime() - 60 * 1000);
+  const firstR8Kickoff = roundOf8[0].date;
+  const lockAtDate = new Date(new Date(firstR8Kickoff).getTime() - 60 * 1000);
 
   return {
     locked: Date.now() >= lockAtDate.getTime(),
     lockAt: lockAtDate.toISOString(),
-    firstR16Kickoff
+    firstR8Kickoff
   };
 }
 
@@ -576,10 +576,23 @@ function calculatePredictionPoints(prediction, match) {
 function calculateAdvancerBonus(prediction, match) {
   if (!KNOCKOUT_PHASES.has(match.phase)) return 0;
   if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return 0;
-  if (getOutcome(prediction.homeScore, prediction.awayScore) !== 'draw') return 0;
-  if (getOutcome(match.homeScore, match.awayScore) !== 'draw') return 0;
-  if (!prediction.advancer || !match.advancer) return 0;
-  return prediction.advancer === match.advancer ? 3 : 0;
+
+  const actualOutcome = getOutcome(match.homeScore, match.awayScore);
+  // Draw result requires explicit advancer (set by admin after penalties)
+  if (actualOutcome === 'draw' && !match.advancer) return 0;
+  const actualAdvancer = match.advancer || (actualOutcome === 'home' ? match.homeTeam : match.awayTeam);
+
+  const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
+  let predictedAdvancer;
+
+  if (predictedOutcome === 'draw') {
+    if (!prediction.advancer) return 0;
+    predictedAdvancer = prediction.advancer;
+  } else {
+    predictedAdvancer = predictedOutcome === 'home' ? match.homeTeam : match.awayTeam;
+  }
+
+  return predictedAdvancer === actualAdvancer ? 3 : 0;
 }
 
 function predictionGoalDiff(prediction, match) {
