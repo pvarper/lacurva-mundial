@@ -42,11 +42,11 @@ let settingsCache = { ...SETTINGS_DEFAULTS };
 const rules = [
   { title: 'Resultado exacto', description: 'Si acertás el marcador exacto del partido, sumás 5 puntos.' },
   { title: 'Ganador o empate', description: 'Si acertás el ganador o el empate, pero no el resultado exacto, sumás 3 puntos.' },
-  { title: 'Bonus clasificado (desde 16vos)', description: 'A partir de 16vos de final, si pronosticás empate y acertás el equipo que clasifica, sumás 3 puntos adicionales. Este bonus aplica solo cuando el resultado final es empate (incluyendo tiempo suplementario).' },
+  { title: 'Bonus clasificado (desde 16vos)', description: 'A partir de 16vos de final, sumás 3 puntos adicionales si acertás el equipo que clasifica. Si pronosticaste empate, debés elegir explícitamente quién clasifica. Si pronosticaste un ganador, ese equipo es tu clasificado implícito — no necesitás elegirlo por separado. El bonus se suma sobre los puntos base: resultado exacto + clasificador correcto = 8 puntos, ganador correcto (sin exacto) + clasificador correcto = 6 puntos, empate real + clasificador correcto (desde predicción no-empate) = 3 puntos.' },
   { title: 'Tiempo válido para predicciones (desde 16vos)', description: 'A partir de 16vos de final, tu predicción cubre el resultado al final del tiempo reglamentario (90 min) más los dos tiempos suplementarios de 15 min cada uno, si los hubiera. No se considera el resultado de los penales.' },
   { title: 'Sin acierto', description: 'Si no acertás resultado exacto, ganador ni empate, sumás 0 puntos.' },
   { title: 'Cierre de predicciones', description: 'Cada partido se bloquea 1 minuto antes del inicio.' },
-  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 16vos.' },
+  { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 8vos.' },
   { title: 'Bonus final', description: 'Los bonus especiales recién se suman cuando la final figure como FINALIZADO. Si varios usuarios aciertan, todos reciben el puntaje completo.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
   { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
