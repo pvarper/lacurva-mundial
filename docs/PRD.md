@@ -62,6 +62,7 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 - Admin users can edit username, role, and optionally password.
 - Admin users can deactivate users so they can no longer log in.
 - Admin users cannot deactivate their own active admin account.
+- The three standings views (`standingsView`, `standingsDetailView`, `standingsDetailKnockoutView`) MUST include deactivated users who have submitted at least one prediction, alongside active users. Deactivated users with zero predictions MUST NOT appear. The individual standing detail endpoint (`GET /api/standings/:userId`) MUST also be accessible for deactivated users with predictions, so the per-user modal can still render.
 
 ### Fixture
 
@@ -111,8 +112,57 @@ Do not use `npm install`, `npm run`, or npm-generated lockfiles. The expected pa
 - Correct winner or draw gives 3 points.
 - No match gives 0 points.
 - Matches without final scores do not contribute points.
+- From the round of 16 onward, an additional 3-point bonus is awarded for correctly picking the team that advances (8 pts exact + advancer, 6 pts winner + advancer).
 - Each row also shows `bonusPoints` and `totalPoints`, where `totalPoints = match points + bonus points`.
-- Ranking order stays based on match points and the existing tiebreakers, not on bonus points.
+- Ranking order stays based on match points and the phase-scoped tiebreakers, not on bonus points.
+
+#### Tiebreakers by phase
+
+Tiebreakers are split into two phase-scoped sets, and only the set matching the current tournament phase is applied — never all six at once. The active phase is derived from the fixtures: if any round-of-16 (or later) fixture is `final`, the knockout set is active; otherwise the group-stage set is active.
+
+**Group-stage set (active while the tournament is still in group play):**
+
+- Rule 1 — more exact-score hits (5 pts) across group-stage matches.
+- Rule 2 — lower accumulated goal difference on group-stage matches where the user got the winner/draw right but missed the exact score (3 pts).
+- Rule 3 — lower accumulated goal difference on group-stage matches where the user scored zero points.
+
+**Knockout set (active from the round of 16 onward, replacing the group-stage set):**
+
+- Rule 4 — more `exact + advancer` hits (8 pts: 5 base + 3 bonus) across knockout matches.
+- Rule 5 — lower accumulated goal difference on knockout matches where the user got the winner and the advancer right but missed the exact score (6 pts).
+
+Each rule is independently toggleable by the admin in `data/settings.json` under `standingsTiebreak`. The persisted keys are: `exactCountEnabled`, `goalDiffOnThreeEnabled`, `goalDiffOnZeroEnabled`, `exactPlusAdvancerCountEnabled`, `goalDiffOnSixEnabled`. If a tie persists after the active set is exhausted, the prize is split equally among the tied users.
+
+#### Phase-scoped standings detail views
+
+`GET /api/standings` and `GET /api/standings/:userId` accept an optional `?phase=` query parameter with values `groups` or `knockout` (default `all`, which preserves legacy behaviour).
+
+- `?phase=knockout` filters every `userPredictions` iteration, every `liveMatches` slice, and the `details` array to knockout-phase fixtures only (`16vos`, `8vos`, `4vos`, `Semifinal`, `Final`). The `matchPoints`, `points`, `bonusPoints`, and all four knockout counters (`exactPlusAdvancerCount`, `sixCount`, `goalDiffOnSix`) are computed on that filtered set.
+- `?phase=groups` mirrors the same filter for the group-stage set, exposing `exactCount`, `threeCount`, `zeroCount`, `goalDiffOnThree`, and `goalDiffOnZero` (recomputed over group fixtures only).
+- The active scope is echoed back as `phaseScope` in the response so the client can confirm what the server filtered on.
+
+The frontend ships two parallel detail views so users can audit each phase set in isolation:
+
+- **Tabla Acumulada Detalle** (`standingsDetailView`, the legacy view) — sums points from the group stage only and shows the R1/R2/R3 columns: exact hits (5 pts), winner/draw hits (3 pts), zero-point misses, and the two group-stage goal-difference columns.
+- **Tabla Acumulada Detalle — 16vos en adelante** (`standingsDetailKnockoutView`, new) — sums points from `16vos` onward and shows the R4/R5 columns: `exact + advancer` (8 pts) count, `winner + advancer` (6 pts) count, and the single `goal difference on +6 pts` column. The `dif. goles sin acierto` and `cantidad fallos` columns are intentionally absent because there is no equivalent zero-point tiebreaker in the knockout set.
+
+#### Admin phase-scope selector on the main standings view
+
+The main `standingsView` exposes a phase-scope selector to admin users only (rendered through the `admin-only hidden` class, toggled by the existing `state.user.role === 'admin'` guard at app boot). Non-admin users see the same table but never see the selector and the value is always treated as `all`.
+
+The selector is placed **below the prize pool panel** (not at the top of the view) and consists of a `<select id="standingsPhaseScope">` plus a `Guardar` button (`#standingsPhaseScopeSave`). The selector's `change` event does NOT auto-reload the table — the admin must click `Guardar` to commit the choice, which:
+
+1. Persists the choice in `localStorage` under the key `standings.phaseScope` (one of `all`, `groups`, `knockout`).
+2. Updates a small `Mostrando: <label>` indicator next to the button so the admin sees the active scope at a glance.
+3. Re-fetches `GET /api/standings?phase=...` and re-renders the table.
+
+The three options and their effect on the table:
+
+- **Todo el mundial** (`value="all"`) — sums every fixture in `data/fixtures.json`. Default. Equivalent to the legacy behaviour before the phase scope existed.
+- **Fase de Grupos** (`value="groups"`) — sums only `Fase de Grupos` fixtures, ignoring any 16vos/8vos/4tos/semifinal/final match. Renders the table with only the group-stage columns active.
+- **16avos en adelante** (`value="knockout"`) — sums only `16vos`/`8vos`/`4tos`/`Semifinal`/`Final` fixtures, ignoring any group match. Renders the table with only the knockout columns active.
+
+The persistence is **server-side** in `data/settings.json` under the `standingsPhaseScope` key. The choice is set by the admin via `PUT /api/admin/settings` (body `{ standingsPhaseScope: "all" | "groups" | "knockout" }`), validated and persisted like every other admin runtime setting. The change applies to **every authenticated user** on the next standings fetch — non-admin users do not see the selector but their `GET /api/standings` response is automatically filtered by the admin's choice. An optional `?phase=` query parameter on the endpoint still works as a per-request override for testing.
 
 ### Rules
 

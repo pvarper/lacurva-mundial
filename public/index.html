@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>La Curva Mundial</title>
     <meta name="description" content="Pronósticos del Mundial de Fútbol 2026. Predecí resultados, seguí la tabla acumulada y competí con tus amigos.">
     <link rel="canonical" href="https://lacurvamundial.com/">
@@ -93,8 +96,11 @@
             <button data-view="scorersView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-person-badge w-4"></i> Goleadores
             </button>
-            <button data-view="standingsDetailView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+            <button data-view="standingsDetailView" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-table w-4"></i> Tabla Acumulada Detalle
+            </button>
+            <button data-view="standingsDetailKnockoutView" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+              <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Detalle 16vos+
             </button>
             <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1">Info</p>
             <button data-view="rulesView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
@@ -332,6 +338,18 @@
             </div>
             <p id="standingsMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
             <div id="prizePoolPanel" class="prize-panel mb-5"></div>
+            <div class="admin-only hidden mb-4 flex flex-wrap items-center gap-3 bg-pitch-800 border border-white/10 rounded-xl p-3">
+              <label for="standingsPhaseScope" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Fase a mostrar</label>
+              <select id="standingsPhaseScope" name="standingsPhaseScope"
+                class="bg-pitch-700 border border-white/12 rounded-lg text-sm text-white px-3 py-1.5 focus:outline-none focus:border-gold">
+                <option value="all">Todo el mundial</option>
+                <option value="groups">Fase de Grupos</option>
+                <option value="knockout">16avos en adelante</option>
+              </select>
+              <button type="button" id="standingsPhaseScopeSave"
+                class="bg-gold hover:bg-gold-light text-pitch-950 font-bold text-xs px-3 py-1.5 rounded-lg transition">Guardar</button>
+              <span id="standingsPhaseScopeActive" class="text-[11px] text-slate-500 ml-auto"></span>
+            </div>
             <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
               <table class="standings-table">
                 <colgroup id="standingsColgroup"></colgroup>
@@ -390,10 +408,10 @@
           </section>
 
           <!-- TABLA ACUMULADA DETALLE -->
-          <section id="standingsDetailView" class="view hidden p-4 md:p-6">
+          <section id="standingsDetailView" class="view admin-only hidden p-4 md:p-6">
             <div class="mb-5">
               <h2 class="text-xl font-black text-white mb-1">Tabla Acumulada Detalle</h2>
-              <p class="text-slate-500 text-sm">Desglose de los criterios de desempate por usuario.</p>
+              <p class="text-slate-500 text-sm">Desglose de los criterios de desempate por usuario (suma puntos de la fase de grupos).</p>
             </div>
             <p id="standingsDetailMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
             <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
@@ -413,6 +431,32 @@
                   </tr>
                 </thead>
                 <tbody id="standingsDetailBody" aria-live="polite" aria-atomic="false"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- TABLA ACUMULADA DETALLE 16VOS+ -->
+          <section id="standingsDetailKnockoutView" class="view admin-only hidden p-4 md:p-6">
+            <div class="mb-5">
+              <h2 class="text-xl font-black text-white mb-1">Tabla Acumulada Detalle — 16vos en adelante</h2>
+              <p class="text-slate-500 text-sm">Suma solo puntos de 16vos, 8vos, 4tos, semifinal y final. Criterios de desempate ajustados al bonus de clasificador.</p>
+            </div>
+            <p id="standingsDetailKnockoutMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div class="bg-pitch-800 border border-white/10 rounded-xl overflow-hidden panel table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Posición</th>
+                    <th>Usuario</th>
+                    <th>Puntos partido</th>
+                    <th>Bonus</th>
+                    <th>Total</th>
+                    <th>Aciertos exacto + clasificado (8pts)</th>
+                    <th>Cantidad ganador + clasificado (6pts)</th>
+                    <th>Dif. goles acierto +6pts</th>
+                  </tr>
+                </thead>
+                <tbody id="standingsDetailKnockoutBody" aria-live="polite" aria-atomic="false"></tbody>
               </table>
             </div>
           </section>
@@ -541,7 +585,8 @@
               </div>
 
               <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
-                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Reglas de Desempate — Tabla Acumulada</h3>
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Reglas de Desempate — Fase de Grupos</h3>
+                <p class="text-[11px] text-slate-500 mb-4">Activas mientras ningún partido de 16vos/8vos/4tos/semifinal/final esté finalizado.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <label class="flex items-center gap-2">
                     <input name="tiebreakExactCountEnabled" type="checkbox"
@@ -557,6 +602,23 @@
                     <input name="tiebreakGoalDiffOnZeroEnabled" type="checkbox"
                       class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 3: dif. goles sin acierto (0pts)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Reglas de Desempate — 16vos en adelante</h3>
+                <p class="text-[11px] text-slate-500 mb-4">Reemplazan a las reglas de Fase de Grupos cuando al menos un partido eliminatorio figure como finalizado. Solo se aplica este set (nunca los dos juntos).</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="flex items-center gap-2">
+                    <input name="tiebreakExactPlusAdvancerCountEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 4: exacto + clasificado (8pts)</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input name="tiebreakGoalDiffOnSixEnabled" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Regla 5: dif. goles ganador+clasif. (6pts)</span>
                   </label>
                 </div>
               </div>
@@ -657,9 +719,13 @@
             <i aria-hidden="true" class="bi bi-person-badge text-lg"></i>
             <span class="text-[10px] font-bold">Goleadores</span>
           </button>
-          <button data-view="standingsDetailView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+          <button data-view="standingsDetailView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-table text-lg"></i>
             <span class="text-[10px] font-bold">Detalle</span>
+          </button>
+          <button data-view="standingsDetailKnockoutView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+            <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
+            <span class="text-[10px] font-bold">16vos+</span>
           </button>
           <button data-view="rulesView" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-info-circle text-lg"></i>
@@ -701,6 +767,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=20260628-knockout"></script>
   </body>
 </html>
