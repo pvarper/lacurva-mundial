@@ -60,11 +60,11 @@ The frontend MUST render two distinct detail tables, each aligned to one phase's
 - WHEN the table renders
 - THEN it MUST show, per row: position, username, match points, bonus, total, exact hits (5 pts), winner/draw hits (3 pts), zero-point misses, goal diff on 3-pt hits, goal diff on 0-pt misses. It MUST NOT show the `+6 pts` or `+8 pts` columns
 
-#### Scenario: knockout view shows R4/R5 columns only
+#### Scenario: knockout view shows all knockout score buckets
 
 - GIVEN the user navigates to `standingsDetailKnockoutView`
 - WHEN the table renders
-- THEN it MUST show, per row: position, username, match points, bonus, total, exact + advancer hits (8 pts), winner + advancer hits (6 pts), goal diff on 6-pt hits. It MUST NOT show the `5 pts`, `3 pts`, `0 pts`, or `0-pt goal diff` columns because those buckets do not exist in the knockout set
+- THEN it MUST show, per row: position, username, match points, bonus, total, exact + advancer hits (8 pts), winner + advancer hits (6 pts), exact hits worth 5 pts, non-exact hits worth 3 pts, zero-point misses, and goal diff on 6-pt hits. It MUST NOT show the `0-pt goal diff` column because knockout ranking does not use a zero-point goal-difference tiebreaker
 
 #### Scenario: bonus column is identical across views
 
@@ -157,3 +157,55 @@ The three standings endpoints (`GET /api/standings`, `GET /api/standings/:userId
 - GIVEN `users.json` contains a user with `role: 'admin'` regardless of `active` or predictions
 - WHEN `GET /api/standings` or `GET /api/standings/:userId` is called
 - THEN the response MUST NOT contain a row for the admin user
+
+### Requirement: Server-side enforcement of the detail-table visibility settings
+
+The `visibilityGroupDetail` and `visibilityKnockoutDetail` settings MUST be enforced on the server, not only in the frontend. The bulk standings endpoint and the navigation audit endpoint MUST refuse detail-table requests from non-admin users when the corresponding setting is `false`. Admins MUST always be allowed. The main standings view and the per-user drill-down modal MUST remain available to every authenticated user, regardless of the visibility settings.
+
+#### Scenario: non-admin blocked from the group detail data when visibility is off
+
+- GIVEN `settings.json` has `visibilityGroupDetail: false`
+- WHEN a non-admin user calls `GET /api/standings?phase=groups`
+- THEN the response MUST be `403` with `{ error: "This standings table is not available for your account." }` and no standings rows MUST be returned
+
+#### Scenario: non-admin blocked from the knockout detail data when visibility is off
+
+- GIVEN `settings.json` has `visibilityKnockoutDetail: false`
+- WHEN a non-admin user calls `GET /api/standings?phase=knockout`
+- THEN the response MUST be `403` with `{ error: "This standings table is not available for your account." }` and no standings rows MUST be returned
+
+#### Scenario: non-admin can still load the group detail data when visibility is on
+
+- GIVEN `settings.json` has `visibilityGroupDetail: true`
+- WHEN a non-admin user calls `GET /api/standings?phase=groups`
+- THEN the response MUST be `200` with `standings[]` containing the per-user counters and `phaseScope: "groups"`
+
+#### Scenario: admin always sees both detail tables
+
+- GIVEN `settings.json` has either visibility setting as `false`
+- WHEN an admin user calls `GET /api/standings?phase=groups` and `GET /api/standings?phase=knockout`
+- THEN BOTH responses MUST be `200` with `standings[]` populated and the corresponding `phaseScope`, regardless of the persisted visibility values
+
+#### Scenario: main standings view is never blocked by the visibility settings
+
+- GIVEN `settings.json` has `visibilityGroupDetail: false` and `visibilityKnockoutDetail: false`
+- WHEN any authenticated user calls `GET /api/standings` with no `?phase=` parameter (or with `?phase=all`)
+- THEN the response MUST be `200` and the main standings table MUST continue to render; the visibility settings MUST NOT affect the main view
+
+#### Scenario: per-user drill-down modal is never blocked by the visibility settings
+
+- GIVEN `settings.json` has `visibilityGroupDetail: false` and `visibilityKnockoutDetail: false`
+- WHEN any authenticated user calls `GET /api/standings/:userId?phase=groups` (or `?phase=knockout`) from the per-user modal on the main standings view
+- THEN the response MUST be `200` with the per-user `details[]`; the per-user modal is part of the main standings view and MUST remain reachable for every authenticated user
+
+#### Scenario: navigation audit is rejected for a hidden detail view
+
+- GIVEN `settings.json` has `visibilityGroupDetail: false`
+- WHEN a non-admin user posts `{ view: "standingsDetailView" }` to `POST /api/audit/navigation`
+- THEN the response MUST be `403` with `{ error: "This standings table is not available for your account." }` and no `menu_viewed` audit entry MUST be recorded for that view
+
+#### Scenario: navigation audit is accepted for a visible detail view
+
+- GIVEN `settings.json` has `visibilityGroupDetail: true`
+- WHEN a non-admin user posts `{ view: "standingsDetailView" }` to `POST /api/audit/navigation`
+- THEN the response MUST be `200` and a `menu_viewed` audit entry with `view: "standingsDetailView"` MUST be recorded for that user

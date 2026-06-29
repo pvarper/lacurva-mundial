@@ -12,6 +12,10 @@ const state = {
   auditLogs: [],
   dateCarouselIndex: 0,
   selectedPredDate: null,
+  // Visibility flags for the two standings-detail views. Admins always see
+  // both; non-admins fetch this from /api/visibility at login. Defaults match
+  // the server-side SETTINGS_DEFAULTS (both true).
+  tableVisibility: { groupDetail: true, knockoutDetail: true }
 };
 
 const fixtureStatusLabels = {
@@ -198,6 +202,52 @@ function setMessage(element, message, success = false) {
   element.classList.toggle('success', success);
 }
 
+// Toggle every element carrying `data-table-visibility="<key>"` based on the
+// current `state.tableVisibility[key]`. Admins always see both tables; the
+// global `.admin-only` toggle has already removed/added `hidden` on these
+// elements before this runs, so for non-admins we only need to re-apply
+// `hidden` if visibility is false. Defaults to "visible" on any failure path
+// (matches the server-side SETTINGS_DEFAULTS).
+function applyTableVisibility() {
+  const isAdmin = state.user?.role === 'admin';
+  document.querySelectorAll('[data-table-visibility]').forEach((el) => {
+    const key = el.getAttribute('data-table-visibility');
+    const visible = isAdmin || state.tableVisibility[key] !== false;
+    if (!visible) {
+      el.classList.add('hidden');
+      return;
+    }
+
+    if (el.classList.contains('view')) {
+      el.classList.toggle('hidden', el.id !== state.currentView);
+      return;
+    }
+
+    el.classList.remove('hidden');
+  });
+}
+
+async function fetchAndApplyTableVisibility() {
+  if (state.user?.role === 'admin') {
+    // Admins always see both detail tables regardless of persisted settings.
+    state.tableVisibility = { groupDetail: true, knockoutDetail: true };
+    applyTableVisibility();
+    return;
+  }
+  try {
+    const visibility = await api('/api/visibility');
+    state.tableVisibility = {
+      groupDetail: visibility.groupDetail !== false,
+      knockoutDetail: visibility.knockoutDetail !== false
+    };
+  } catch (_) {
+    // Fail open: default to "show both" if the visibility endpoint is
+    // unreachable, matching the server-side defaults.
+    state.tableVisibility = { groupDetail: true, knockoutDetail: true };
+  }
+  applyTableVisibility();
+}
+
 function presentError(error) {
   if (error.message === 'picks_locked') {
     return 'Los picks especiales ya están cerrados para usuarios normales.';
@@ -238,8 +288,8 @@ function showView(viewId) {
   }
   if (viewId === 'standingsView') loadStandings();
   if (viewId === 'scorersView') loadScorers();
-  if (viewId === 'standingsDetailView' && state.user?.role === 'admin') loadStandingsDetail();
-  if (viewId === 'standingsDetailKnockoutView' && state.user?.role === 'admin') loadStandingsDetailKnockout();
+  if (viewId === 'standingsDetailView') loadStandingsDetail().catch(() => {});
+  if (viewId === 'standingsDetailKnockoutView') loadStandingsDetailKnockout().catch(() => {});
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
@@ -262,6 +312,10 @@ function showAuthenticatedApp(user) {
   if (adminLabel) adminLabel.classList.toggle('hidden', !isAdmin);
   const bottomNav = document.querySelector('#bottomNav');
   if (bottomNav) bottomNav.classList.remove('hidden');
+  // Apply admin-driven table visibility for regular users. Must run after the
+  // global `.admin-only` toggle and before the first showView() so the menu
+  // buttons and view sections reflect the persisted settings.
+  fetchAndApplyTableVisibility();
   showView('predictionsView');
   resetInactivityTimer();
 }
@@ -1238,6 +1292,8 @@ function renderSettingsForm(settings) {
   form.elements.tiebreakGoalDiffOnZeroEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnZeroEnabled);
   form.elements.tiebreakExactPlusAdvancerCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactPlusAdvancerCountEnabled);
   form.elements.tiebreakGoalDiffOnSixEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnSixEnabled);
+  form.elements.visibilityGroupDetail.checked = settings.visibilityGroupDetail !== false;
+  form.elements.visibilityKnockoutDetail.checked = settings.visibilityKnockoutDetail !== false;
 }
 
 async function loadSettings() {
@@ -1263,7 +1319,9 @@ async function saveSettings(form) {
       goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked,
       exactPlusAdvancerCountEnabled: form.elements.tiebreakExactPlusAdvancerCountEnabled.checked,
       goalDiffOnSixEnabled: form.elements.tiebreakGoalDiffOnSixEnabled.checked
-    }
+    },
+    visibilityGroupDetail: form.elements.visibilityGroupDetail.checked,
+    visibilityKnockoutDetail: form.elements.visibilityKnockoutDetail.checked
   };
   const updated = await api('/api/settings', {
     method: 'PUT',

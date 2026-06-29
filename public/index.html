@@ -96,10 +96,10 @@
             <button data-view="scorersView" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-person-badge w-4"></i> Goleadores
             </button>
-            <button data-view="standingsDetailView" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+            <button data-view="standingsDetailView" data-table-visibility="groupDetail" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-table w-4"></i> Table Detalle Fase de Grupos
             </button>
-            <button data-view="standingsDetailKnockoutView" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
+            <button data-view="standingsDetailKnockoutView" data-table-visibility="knockoutDetail" class="admin-only hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/8 transition text-sm text-left">
               <i aria-hidden="true" class="bi bi-trophy w-4"></i> Tabla Detalle 16vos+
             </button>
             <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3 pt-3 pb-1">Info</p>
@@ -408,7 +408,7 @@
           </section>
 
           <!-- TABLA ACUMULADA DETALLE -->
-          <section id="standingsDetailView" class="view admin-only hidden p-4 md:p-6">
+          <section id="standingsDetailView" data-table-visibility="groupDetail" class="view admin-only hidden p-4 md:p-6">
             <div class="mb-5">
               <h2 class="text-xl font-black text-white mb-1">Table Detalle Fase de Grupos</h2>
               <p class="text-slate-500 text-sm">Desglose de los criterios de desempate por usuario (suma puntos de la fase de grupos).</p>
@@ -436,7 +436,7 @@
           </section>
 
           <!-- TABLA ACUMULADA DETALLE 16VOS+ -->
-          <section id="standingsDetailKnockoutView" class="view admin-only hidden p-4 md:p-6">
+          <section id="standingsDetailKnockoutView" data-table-visibility="knockoutDetail" class="view admin-only hidden p-4 md:p-6">
             <div class="mb-5">
               <h2 class="text-xl font-black text-white mb-1">Tabla Acumulada Detalle — 16vos en adelante</h2>
               <p class="text-slate-500 text-sm">Suma solo puntos de 16vos, 8vos, 4tos, semifinal y final. Criterios de desempate ajustados al bonus de clasificador.</p>
@@ -626,6 +626,23 @@
                 </div>
               </div>
 
+              <div class="bg-pitch-800 border border-white/10 rounded-xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Visibilidad de tablas para el usuario</h3>
+                <p class="text-[11px] text-slate-500 mb-4">Define qué tablas ven los usuarios (no admins). Los admins siempre ven todas las tablas, independientemente de estos valores.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="flex items-center gap-2">
+                    <input name="visibilityGroupDetail" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tabla detalle fase de grupos</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input name="visibilityKnockoutDetail" type="checkbox"
+                      class="w-4 h-4 rounded border border-white/12 bg-pitch-700">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tabla detalle 16avos</span>
+                  </label>
+                </div>
+              </div>
+
               <button type="submit" class="flex items-center justify-center gap-2 bg-gold hover:bg-gold-light text-pitch-950 font-bold py-2 px-5 rounded-lg transition text-sm">
                 <i aria-hidden="true" class="bi bi-check2"></i> Guardar configuración
               </button>
@@ -722,11 +739,11 @@
             <i aria-hidden="true" class="bi bi-person-badge text-lg"></i>
             <span class="text-[10px] font-bold">Goleadores</span>
           </button>
-          <button data-view="standingsDetailView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+          <button data-view="standingsDetailView" data-table-visibility="groupDetail" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-table text-lg"></i>
             <span class="text-[10px] font-bold">Detalle</span>
           </button>
-          <button data-view="standingsDetailKnockoutView" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
+          <button data-view="standingsDetailKnockoutView" data-table-visibility="knockoutDetail" class="admin-only hidden bottom-nav-btn flex-1 flex flex-col items-center justify-center gap-1 py-3">
             <i aria-hidden="true" class="bi bi-trophy text-lg"></i>
             <span class="text-[10px] font-bold">16vos+</span>
           </button>
