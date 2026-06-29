@@ -35,7 +35,7 @@ const SETTINGS_DEFAULTS = {
     goalDiffOnThreeEnabled: true,
     goalDiffOnZeroEnabled: true,
     exactPlusAdvancerCountEnabled: true,
-    goalDiffOnSixEnabled: true
+    goalDiffOnKnockoutEnabled: true
   },
   standingsPhaseScope: 'all',
   visibilityGroupDetail: true,
@@ -58,7 +58,7 @@ const rules = [
   { title: 'Desempate 2 (fase de grupos): diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled', phaseScope: 'groups' },
   { title: 'Desempate 3 (fase de grupos): diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled', phaseScope: 'groups' },
   { title: 'Desempate 4 (16vos en adelante): aciertos exacto + clasificado (8 pts)', description: 'Una vez que empieza la fase eliminatoria, este set de reglas reemplaza a las 3 anteriores. Gana quien tenga más partidos de 16vos/8vos/4tos/semifinal/final donde acertó marcador exacto Y equipo clasificado (8 puntos: 5 base + 3 bonus).', settingsKey: 'exactPlusAdvancerCountEnabled', phaseScope: 'knockout' },
-  { title: 'Desempate 5 (16vos en adelante): diferencia de gol en aciertos de 6 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos eliminatorios donde acertó ganador y clasificado, pero no el resultado exacto (6 puntos: 3 base + 3 bonus).', settingsKey: 'goalDiffOnSixEnabled', phaseScope: 'knockout' },
+  { title: 'Desempate 5 (16vos en adelante): diferencia de gol acumulada', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos eliminatorios. Para cada partido de 16vos/8vos/4tos/semifinal/final se suma la diferencia absoluta entre su predicción y el resultado real; si el usuario NO presentó predicción para ese partido, se suma la cantidad total de goles reales del partido (suma del marcador final).', settingsKey: 'goalDiffOnKnockoutEnabled', phaseScope: 'knockout' },
   { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las reglas activas de la fase actual, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
@@ -509,6 +509,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     return userIdsWithPhasePredictions.has(user.id);
   }).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
+    const userPredictionByMatchId = new Map(userPredictions.map((prediction) => [prediction.matchId, prediction]));
     let points = 0;
     let exactCount = 0;
     let threeCount = 0;
@@ -517,7 +518,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     let goalDiffOnZero = 0;
     let exactPlusAdvancerCount = 0;
     let sixCount = 0;
-    let goalDiffOnSix = 0;
+    let goalDiffOnKnockout = 0;
     let fiveCount = 0;
 
     userPredictions.forEach((prediction) => {
@@ -545,7 +546,6 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
           exactPlusAdvancerCount += 1;
         } else if (totalMatchPoints === 6) {
           sixCount += 1;
-          goalDiffOnSix += predictionGoalDiff(prediction, match);
         } else if (totalMatchPoints === 5) {
           fiveCount += 1;
         } else if (totalMatchPoints === 3) {
@@ -553,6 +553,23 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
         } else {
           zeroCount += 1;
         }
+      }
+    });
+
+    // R5 (16vos en adelante): lower accumulated goal difference across ALL
+    // knockout matches in scope. For each final knockout match the user
+    // predicted, add the absolute difference between prediction and actual
+    // result on each side. For each final knockout match the user did NOT
+    // predict, add the total real goals scored (home + away) in that match.
+    fixtures.forEach((match) => {
+      if (!includePhase(match)) return;
+      if (!KNOCKOUT_PHASES.has(match.phase)) return;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      const prediction = userPredictionByMatchId.get(match.id);
+      if (prediction) {
+        goalDiffOnKnockout += predictionGoalDiff(prediction, match);
+      } else {
+        goalDiffOnKnockout += match.homeScore + match.awayScore;
       }
     });
 
@@ -576,7 +593,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
       goalDiffOnZero,
       exactPlusAdvancerCount,
       sixCount,
-      goalDiffOnSix,
+      goalDiffOnKnockout,
       fiveCount,
       livePredictions,
       pick
@@ -593,7 +610,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     if (currentPhase === 'knockout') {
       return (
         (tiebreak.exactPlusAdvancerCountEnabled ? b.exactPlusAdvancerCount - a.exactPlusAdvancerCount : 0) ||
-        (tiebreak.goalDiffOnSixEnabled ? a.goalDiffOnSix - b.goalDiffOnSix : 0)
+        (tiebreak.goalDiffOnKnockoutEnabled ? a.goalDiffOnKnockout - b.goalDiffOnKnockout : 0)
       );
     }
     return (
@@ -1439,7 +1456,7 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
       'goalDiffOnThreeEnabled',
       'goalDiffOnZeroEnabled',
       'exactPlusAdvancerCountEnabled',
-      'goalDiffOnSixEnabled'
+      'goalDiffOnKnockoutEnabled'
     ]) {
       if (body.standingsTiebreak[key] !== undefined) {
         if (typeof body.standingsTiebreak[key] !== 'boolean') {

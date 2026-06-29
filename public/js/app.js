@@ -1219,7 +1219,7 @@ async function loadStandingsDetailKnockout() {
         <td>${row.fiveCount}</td>
         <td>${row.threeCount}</td>
         <td>${row.zeroCount}</td>
-        <td>${row.goalDiffOnSix}</td>
+        <td>${row.goalDiffOnKnockout}</td>
       </tr>
     `;
   }).join('');
@@ -1291,7 +1291,7 @@ function renderSettingsForm(settings) {
   form.elements.tiebreakGoalDiffOnThreeEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnThreeEnabled);
   form.elements.tiebreakGoalDiffOnZeroEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnZeroEnabled);
   form.elements.tiebreakExactPlusAdvancerCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactPlusAdvancerCountEnabled);
-  form.elements.tiebreakGoalDiffOnSixEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnSixEnabled);
+  form.elements.tiebreakGoalDiffOnKnockoutEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnKnockoutEnabled);
   form.elements.visibilityGroupDetail.checked = settings.visibilityGroupDetail !== false;
   form.elements.visibilityKnockoutDetail.checked = settings.visibilityKnockoutDetail !== false;
 }
@@ -1318,7 +1318,7 @@ async function saveSettings(form) {
       goalDiffOnThreeEnabled: form.elements.tiebreakGoalDiffOnThreeEnabled.checked,
       goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked,
       exactPlusAdvancerCountEnabled: form.elements.tiebreakExactPlusAdvancerCountEnabled.checked,
-      goalDiffOnSixEnabled: form.elements.tiebreakGoalDiffOnSixEnabled.checked
+      goalDiffOnKnockoutEnabled: form.elements.tiebreakGoalDiffOnKnockoutEnabled.checked
     },
     visibilityGroupDetail: form.elements.visibilityGroupDetail.checked,
     visibilityKnockoutDetail: form.elements.visibilityKnockoutDetail.checked

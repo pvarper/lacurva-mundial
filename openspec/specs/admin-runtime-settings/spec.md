@@ -92,7 +92,7 @@ Each of the 8 in-scope settings MUST be validated as a positive integer within a
 | `standingsTiebreak.goalDiffOnThreeEnabled` | boolean | Group-stage tiebreaker #2: lower goal diff on 3-pt hits |
 | `standingsTiebreak.goalDiffOnZeroEnabled` | boolean | Group-stage tiebreaker #3: lower goal diff on 0-pt misses |
 | `standingsTiebreak.exactPlusAdvancerCountEnabled` | boolean | Knockout tiebreaker #4: more `exact + advancer` hits (8 pts) |
-| `standingsTiebreak.goalDiffOnSixEnabled` | boolean | Knockout tiebreaker #5: lower goal diff on 6-pt `winner + advancer` hits |
+| `standingsTiebreak.goalDiffOnKnockoutEnabled` | boolean | Knockout tiebreaker #5: lower accumulated goal difference across ALL knockout matches. For each final knockout match the user predicted, the rule adds the absolute per-side difference between prediction and actual result; for each final knockout match the user did NOT predict, the rule adds the total real goals scored in that match (home + away). Replaces the prior `goalDiffOnSixEnabled` toggle, which only counted 6-pt `winner + advancer` hits. |
 | `standingsPhaseScope` | enum `"all"`/`"groups"`/`"knockout"` | Default phase filter for `GET /api/standings` and `GET /api/standings/:userId`; admin-controlled, applies to every authenticated user |
 
 #### Scenario: pollIntervalMs below the floor is rejected

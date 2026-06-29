@@ -14,7 +14,7 @@ The standings endpoints MUST support filtering by tournament phase (`groups` or 
 
 - GIVEN a request `GET /api/standings?phase=knockout`
 - WHEN an authenticated user calls the endpoint
-- THEN the response `standings[]` MUST contain, for every user, points and counters computed only over fixtures whose `phase` is in `KNOCKOUT_PHASES` (`16vos`, `8vos`, `4vos`, `Semifinal`, `Final`); group-stage fixtures MUST be ignored for `points`, `bonusPoints`, `totalPoints`, `exactPlusAdvancerCount`, `sixCount`, and `goalDiffOnSix`; the response MUST include `phaseScope: "knockout"`
+- THEN the response `standings[]` MUST contain, for every user, points and counters computed only over fixtures whose `phase` is in `KNOCKOUT_PHASES` (`16vos`, `8vos`, `4vos`, `Semifinal`, `Final`); group-stage fixtures MUST be ignored for `points`, `bonusPoints`, `totalPoints`, `exactPlusAdvancerCount`, `sixCount`, and `goalDiffOnKnockout`; the response MUST include `phaseScope: "knockout"`. `goalDiffOnKnockout` is the new R5 accumulator: lower is better, it iterates over final knockout fixtures (NOT over `userPredictions`) so unpredicted matches still contribute the total real goals scored.
 
 #### Scenario: phase=groups filters fixtures and counters
 
@@ -64,7 +64,7 @@ The frontend MUST render two distinct detail tables, each aligned to one phase's
 
 - GIVEN the user navigates to `standingsDetailKnockoutView`
 - WHEN the table renders
-- THEN it MUST show, per row: position, username, match points, bonus, total, exact + advancer hits (8 pts), winner + advancer hits (6 pts), exact hits worth 5 pts, non-exact hits worth 3 pts, zero-point misses, and goal diff on 6-pt hits. It MUST NOT show the `0-pt goal diff` column because knockout ranking does not use a zero-point goal-difference tiebreaker
+- THEN it MUST show, per row: position, username, match points, bonus, total, exact + advancer hits (8 pts), winner + advancer hits (6 pts), exact hits worth 5 pts, non-exact hits worth 3 pts, zero-point misses, and the accumulated goal-difference column (lower wins) for knockout matches. The accumulated goal-diff label MUST be the new R5 wording ("Dif. goles acumulada (16vos+)" or equivalent). It MUST NOT show the `0-pt goal diff` column because knockout ranking does not use a zero-point goal-difference tiebreaker
 
 #### Scenario: bonus column is identical across views
 
