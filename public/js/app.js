@@ -1118,7 +1118,10 @@ async function loadStandings() {
 }
 
 async function loadStandingsDetail() {
-  const { standings } = await api('/api/standings');
+  // This view ("Tabla Acumulada Detalle") always renders group-stage data,
+  // independent of the admin's "Fase a mostrar" selection. Hardcode the
+  // phase query so the server does not fall back to settingsCache.standingsPhaseScope.
+  const { standings } = await api('/api/standings?phase=groups');
   const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
   elements.standingsDetailBody.innerHTML = standings.map((row) => {
     const rank = row.rank;
