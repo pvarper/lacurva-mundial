@@ -1275,8 +1275,10 @@ function formatScore(homeScore, awayScore) {
   return homeScore === null || awayScore === null ? 'Pendiente' : `${homeScore} - ${awayScore}`;
 }
 
-function formatPrediction(prediction) {
-  return prediction ? `${prediction.homeScore} - ${prediction.awayScore}` : 'Sin predicción';
+function formatPrediction(prediction, predictedAdvancerShort) {
+  if (!prediction) return 'Sin predicción';
+  const score = `${prediction.homeScore} - ${prediction.awayScore}`;
+  return predictedAdvancerShort ? `${score} · ${predictedAdvancerShort}` : score;
 }
 
 function closeStandingDetailModal() {
@@ -1285,11 +1287,14 @@ function closeStandingDetailModal() {
 }
 
 async function loadStandingDetail(userId) {
-  const data = await api(`/api/standings/${encodeURIComponent(userId)}`);
+  const phaseScope = normalizePhaseScope(activeStandingsPhaseScope);
+  const query = phaseScope === 'all' ? '' : `?phase=${encodeURIComponent(phaseScope)}`;
+  const data = await api(`/api/standings/${encodeURIComponent(userId)}${query}`);
+  const phaseLabel = formatPhaseLabel(data.phaseScope || phaseScope);
   elements.standingDetailModalTitle.innerHTML =
     `<i class="bi bi-person-circle" aria-hidden="true" style="color:#f2b705;margin-right:0.4rem"></i>${escapeHtml(data.user.username)}`;
   elements.standingDetailModalPts.innerHTML =
-    `Total: <strong style="color:#f2b705">${data.totalPoints}</strong> pts · Partido: <strong style="color:#38bdf8">${data.matchPoints}</strong> · Bonus: <strong style="color:#22c55e">${data.bonusPoints}</strong>`;
+    `Fase: <strong>${escapeHtml(phaseLabel)}</strong> · Total: <strong style="color:#f2b705">${data.totalPoints}</strong> pts · Partido: <strong style="color:#38bdf8">${data.matchPoints}</strong> · Bonus: <strong style="color:#22c55e">${data.bonusPoints}</strong>`;
   elements.standingDetailModalContent.innerHTML = `
     <table>
       <thead>
@@ -1298,14 +1303,20 @@ async function loadStandingDetail(userId) {
       <tbody>
         ${data.details.map((detail) => {
           const pts = detail.points;
-          const ptsColor = pts === 5 ? '#22c55e' : pts === 3 ? '#f2b705' : '#475569';
+          const ptsColor = pts === 8
+            ? '#22c55e'
+            : pts === 6 || pts === 5
+              ? '#f2b705'
+              : pts === 3
+                ? '#f97316'
+                : '#475569';
           return `
             <tr>
               <td>${detail.matchNumber}</td>
               <td>${escapeHtml(detail.boliviaDate)}</td>
               <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
               <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
-              <td>${escapeHtml(formatPrediction(detail.prediction))}</td>
+              <td>${escapeHtml(formatPrediction(detail.prediction, detail.predictedAdvancerShort))}</td>
               <td><strong style="color:${ptsColor}">${pts}</strong></td>
             </tr>
           `;
@@ -1314,6 +1325,11 @@ async function loadStandingDetail(userId) {
     </table>
   `;
   elements.standingDetailModal.classList.remove('hidden');
+}
+
+function normalizePhaseScope(scope) {
+  if (scope === 'groups' || scope === 'knockout') return scope;
+  return 'all';
 }
 
 async function loadRules() {

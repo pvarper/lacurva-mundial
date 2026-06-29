@@ -1457,7 +1457,17 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
   });
   const details = scopedFixtures.map((match) => {
     const prediction = userPredictions.find((candidate) => candidate.matchId === match.id) || null;
-    const points = prediction ? calculatePredictionPoints(prediction, match) : 0;
+    const predictionPoints = prediction ? calculatePredictionPoints(prediction, match) : 0;
+    const advancerBonus = prediction ? calculateAdvancerBonus(prediction, match) : 0;
+    const points = predictionPoints + advancerBonus;
+    const predictedOutcome = prediction ? getOutcome(prediction.homeScore, prediction.awayScore) : null;
+    const predictedAdvancer = !prediction || !KNOCKOUT_PHASES.has(match.phase)
+      ? null
+      : predictedOutcome === 'draw'
+        ? prediction.advancer
+        : predictedOutcome === 'home'
+          ? match.homeTeam
+          : match.awayTeam;
     return {
       matchId: match.id,
       matchNumber: match.matchNumber,
@@ -1466,10 +1476,16 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       phase: match.phase,
       homeTeam: match.homeTeam,
       awayTeam: match.awayTeam,
+      homeTeamShort: abbreviateTeamName(match.homeTeam),
+      awayTeamShort: abbreviateTeamName(match.awayTeam),
       homeScore: match.homeScore,
       awayScore: match.awayScore,
       status: match.status,
       prediction,
+      predictedAdvancer,
+      predictedAdvancerShort: predictedAdvancer ? abbreviateTeamName(predictedAdvancer) : null,
+      predictionPoints,
+      advancerBonus,
       points
     };
   });
