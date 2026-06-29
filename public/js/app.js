@@ -1162,6 +1162,9 @@ async function loadStandingsDetailKnockout() {
         <td><strong style="color:#f2b705;font-size:1rem">${row.totalPoints}</strong></td>
         <td>${row.exactPlusAdvancerCount}</td>
         <td>${row.sixCount}</td>
+        <td>${row.fiveCount}</td>
+        <td>${row.threeCount}</td>
+        <td>${row.zeroCount}</td>
         <td>${row.goalDiffOnSix}</td>
       </tr>
     `;

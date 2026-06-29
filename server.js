@@ -516,6 +516,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     let exactPlusAdvancerCount = 0;
     let sixCount = 0;
     let goalDiffOnSix = 0;
+    let fiveCount = 0;
 
     userPredictions.forEach((prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
@@ -542,6 +543,12 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
         } else if (predictionPoints === 3 && advancerBonus === 3) {
           sixCount += 1;
           goalDiffOnSix += predictionGoalDiff(prediction, match);
+        } else if (predictionPoints === 5) {
+          fiveCount += 1;
+        } else if (predictionPoints === 3) {
+          threeCount += 1;
+        } else {
+          zeroCount += 1;
         }
       }
     });
@@ -567,6 +574,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
       exactPlusAdvancerCount,
       sixCount,
       goalDiffOnSix,
+      fiveCount,
       livePredictions,
       pick
     };
