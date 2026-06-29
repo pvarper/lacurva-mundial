@@ -116,6 +116,9 @@ const elements = {
   activityTeamFilter: document.querySelector('#activityTeamFilter'),
   clearActivityFilters: document.querySelector('#clearActivityFilters'),
   standingsBody: document.querySelector('#standingsBody'),
+  standingsPhaseScope: document.querySelector('#standingsPhaseScope'),
+  standingsPhaseScopeSave: document.querySelector('#standingsPhaseScopeSave'),
+  standingsPhaseScopeActive: document.querySelector('#standingsPhaseScopeActive'),
   standingDetail: document.querySelector('#standingDetail'),
   standingDetailModal: document.querySelector('#standingDetailModal'),
   standingDetailModalTitle: document.querySelector('#standingDetailModalTitle'),
@@ -133,6 +136,8 @@ const elements = {
   scorersTableBody: document.querySelector('#scorersTableBody'),
   standingsDetailBody: document.querySelector('#standingsDetailBody'),
   standingsDetailMessage: document.querySelector('#standingsDetailMessage'),
+  standingsDetailKnockoutBody: document.querySelector('#standingsDetailKnockoutBody'),
+  standingsDetailKnockoutMessage: document.querySelector('#standingsDetailKnockoutMessage'),
   rulesList: document.querySelector('#rulesList'),
   auditLogBody: document.querySelector('#auditLogBody'),
   auditDateFilter: document.querySelector('#auditDateFilter'),
@@ -233,7 +238,8 @@ function showView(viewId) {
   }
   if (viewId === 'standingsView') loadStandings();
   if (viewId === 'scorersView') loadScorers();
-  if (viewId === 'standingsDetailView') loadStandingsDetail();
+  if (viewId === 'standingsDetailView' && state.user?.role === 'admin') loadStandingsDetail();
+  if (viewId === 'standingsDetailKnockoutView' && state.user?.role === 'admin') loadStandingsDetailKnockout();
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
@@ -1027,8 +1033,30 @@ function resetScorerForm() {
   elements.cancelScorerEditButton.classList.add('hidden');
 }
 
+let activeStandingsPhaseScope = 'all';
+
+function formatPhaseLabel(scope) {
+  if (scope === 'groups') return 'Fase de Grupos';
+  if (scope === 'knockout') return '16avos en adelante';
+  return 'Todo el mundial';
+}
+
+function syncStandingsPhaseScopeUI(scope) {
+  if (elements.standingsPhaseScope) {
+    elements.standingsPhaseScope.value = scope;
+  }
+  if (elements.standingsPhaseScopeActive) {
+    elements.standingsPhaseScopeActive.textContent = `Mostrando: ${formatPhaseLabel(scope)}`;
+  }
+}
+
 async function loadStandings() {
-  const [{ standings, liveMatches }, prizePool] = await Promise.all([api('/api/standings'), api('/api/prize-pool')]);
+  const query = '';
+  console.log('[standings] loadStandings → GET /api/standings' + query);
+  const [{ standings, liveMatches, phaseScope: serverScope }, prizePool] = await Promise.all([api(`/api/standings${query}`), api('/api/prize-pool')]);
+  activeStandingsPhaseScope = serverScope || 'all';
+  console.log('[standings] response phaseScope=' + activeStandingsPhaseScope + ' rows=' + standings.length);
+  syncStandingsPhaseScopeUI(activeStandingsPhaseScope);
   state.prizePool = prizePool;
   renderPrizePool();
   closeStandingDetailModal();
@@ -1114,6 +1142,29 @@ async function loadStandingsDetail() {
   }).join('');
 }
 
+async function loadStandingsDetailKnockout() {
+  const { standings } = await api('/api/standings?phase=knockout');
+  const TROPHY_ICONS = ['', 'bi-trophy-fill text-yellow-400', 'bi-trophy-fill text-slate-400', 'bi-trophy-fill text-amber-700'];
+  elements.standingsDetailKnockoutBody.innerHTML = standings.map((row) => {
+    const rank = row.rank;
+    const trophy = rank <= 3
+      ? ` <i class="bi ${TROPHY_ICONS[rank]}" aria-hidden="true"></i>`
+      : '';
+    return `
+      <tr>
+        <td class="font-bold">${rank}${trophy}</td>
+        <td>${escapeHtml(row.username)}</td>
+        <td><strong style="color:#38bdf8;font-size:1rem">${row.points}</strong></td>
+        <td><strong style="color:#22c55e;font-size:1rem">${row.bonusPoints}</strong></td>
+        <td><strong style="color:#f2b705;font-size:1rem">${row.totalPoints}</strong></td>
+        <td>${row.exactPlusAdvancerCount}</td>
+        <td>${row.sixCount}</td>
+        <td>${row.goalDiffOnSix}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 function formatPrizeAmount(amount, currency = 'Bs') {
   return `${Number(amount).toLocaleString('es-BO', { maximumFractionDigits: 2 })} ${escapeHtml(currency)}`;
 }
@@ -1179,6 +1230,8 @@ function renderSettingsForm(settings) {
   form.elements.tiebreakExactCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactCountEnabled);
   form.elements.tiebreakGoalDiffOnThreeEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnThreeEnabled);
   form.elements.tiebreakGoalDiffOnZeroEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnZeroEnabled);
+  form.elements.tiebreakExactPlusAdvancerCountEnabled.checked = Boolean(settings.standingsTiebreak?.exactPlusAdvancerCountEnabled);
+  form.elements.tiebreakGoalDiffOnSixEnabled.checked = Boolean(settings.standingsTiebreak?.goalDiffOnSixEnabled);
 }
 
 async function loadSettings() {
@@ -1201,7 +1254,9 @@ async function saveSettings(form) {
     standingsTiebreak: {
       exactCountEnabled: form.elements.tiebreakExactCountEnabled.checked,
       goalDiffOnThreeEnabled: form.elements.tiebreakGoalDiffOnThreeEnabled.checked,
-      goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked
+      goalDiffOnZeroEnabled: form.elements.tiebreakGoalDiffOnZeroEnabled.checked,
+      exactPlusAdvancerCountEnabled: form.elements.tiebreakExactPlusAdvancerCountEnabled.checked,
+      goalDiffOnSixEnabled: form.elements.tiebreakGoalDiffOnSixEnabled.checked
     }
   };
   const updated = await api('/api/settings', {
@@ -1569,6 +1624,31 @@ elements.standingDetailModal.addEventListener('click', (event) => {
 });
 elements.fixturePhaseFilter.addEventListener('change', loadFixtures);
 if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.addEventListener('change', loadFixtures);
+if (elements.standingsPhaseScopeSave) {
+  elements.standingsPhaseScopeSave.addEventListener('click', async () => {
+    const selected = String(elements.standingsPhaseScope?.value || 'all');
+    const normalized = (selected === 'groups' || selected === 'knockout' || selected === 'all') ? selected : 'all';
+    console.log('[standings] guardando phaseScope=' + normalized);
+    try {
+      const updated = await api('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ standingsPhaseScope: normalized })
+      });
+      activeStandingsPhaseScope = updated.standingsPhaseScope || normalized;
+      console.log('[standings] persistido phaseScope=' + activeStandingsPhaseScope);
+      syncStandingsPhaseScopeUI(activeStandingsPhaseScope);
+      await loadStandings();
+    } catch (err) {
+      console.error('[standings] error al guardar:', err);
+      if (typeof setMessage === 'function' && elements.standingsMessage) {
+        setMessage(elements.standingsMessage, 'Error al guardar: ' + (err.message || err));
+      }
+    }
+  });
+} else {
+  console.warn('[standings] botón #standingsPhaseScopeSave no encontrado en el DOM');
+}
+syncStandingsPhaseScopeUI();
 elements.clearFixtureFilters.addEventListener('click', clearFixtureFilters);
 elements.predictionPhaseFilter.addEventListener('change', renderPredictions);
 elements.clearPredictionFilters.addEventListener('click', clearPredictionFilters);

@@ -76,7 +76,7 @@ The system MUST expose `PUT /api/settings`, gated by `requireAdmin`, validating 
 
 ### Requirement: Field Validation Bounds
 
-Each of the 8 in-scope settings MUST be validated as a positive integer within a defined bound before being persisted.
+Each of the 8 in-scope settings MUST be validated as a positive integer within a defined bound before being persisted. The `standingsTiebreak` sub-object extends the in-scope set with 6 boolean flags; they are validated as booleans, not integers, and the admin can submit any subset of them in a single `PUT` (the others retain their previous values).
 
 | Field | Bound | Basis |
 |---|---|---|
@@ -88,6 +88,12 @@ Each of the 8 in-scope settings MUST be validated as a positive integer within a
 | `worldcupSync.enabled` | boolean | N/A |
 | `worldcupSync.pollIntervalMs` | integer, `>= 5000` (5s floor) | RESOLVED by design phase: 5000ms floor, implemented in `server.js` and matched by the client form's `min="5000"`. Supersedes the original 10000ms ASSUMPTION. |
 | `fixtureRefreshMs` | integer, `>= 5000` (5s floor) | Implemented as designed; prevents excessive client polling |
+| `standingsTiebreak.exactCountEnabled` | boolean | Group-stage tiebreaker #1: more exact-score hits (5 pts) |
+| `standingsTiebreak.goalDiffOnThreeEnabled` | boolean | Group-stage tiebreaker #2: lower goal diff on 3-pt hits |
+| `standingsTiebreak.goalDiffOnZeroEnabled` | boolean | Group-stage tiebreaker #3: lower goal diff on 0-pt misses |
+| `standingsTiebreak.exactPlusAdvancerCountEnabled` | boolean | Knockout tiebreaker #4: more `exact + advancer` hits (8 pts) |
+| `standingsTiebreak.goalDiffOnSixEnabled` | boolean | Knockout tiebreaker #5: lower goal diff on 6-pt `winner + advancer` hits |
+| `standingsPhaseScope` | enum `"all"`/`"groups"`/`"knockout"` | Default phase filter for `GET /api/standings` and `GET /api/standings/:userId`; admin-controlled, applies to every authenticated user |
 
 #### Scenario: pollIntervalMs below the floor is rejected
 

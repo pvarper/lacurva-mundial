@@ -33,8 +33,11 @@ const SETTINGS_DEFAULTS = {
   standingsTiebreak: {
     exactCountEnabled: true,
     goalDiffOnThreeEnabled: true,
-    goalDiffOnZeroEnabled: true
-  }
+    goalDiffOnZeroEnabled: true,
+    exactPlusAdvancerCountEnabled: true,
+    goalDiffOnSixEnabled: true
+  },
+  standingsPhaseScope: 'all'
 };
 
 let settingsCache = { ...SETTINGS_DEFAULTS };
@@ -49,10 +52,12 @@ const rules = [
   { title: 'Picks especiales', description: 'Campeón (+10), subcampeón (+6) y goleador (+4) se pueden editar hasta 1 minuto antes del primer partido de 8vos.' },
   { title: 'Bonus final', description: 'Los bonus especiales recién se suman cuando la final figure como FINALIZADO. Si varios usuarios aciertan, todos reciben el puntaje completo.' },
   { title: 'Partidos sin resultado final', description: 'Los partidos sin marcador final todavía no suman puntos.' },
-  { title: 'Desempate 1: aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos).', settingsKey: 'exactCountEnabled' },
-  { title: 'Desempate 2: diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled' },
-  { title: 'Desempate 3: diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled' },
-  { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las 3 reglas anteriores, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
+  { title: 'Desempate 1 (fase de grupos): aciertos exactos', description: 'Si dos o más usuarios empatan en puntos, gana quien tenga más resultados exactos (5 puntos) en partidos de fase de grupos.', settingsKey: 'exactCountEnabled', phaseScope: 'groups' },
+  { title: 'Desempate 2 (fase de grupos): diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled', phaseScope: 'groups' },
+  { title: 'Desempate 3 (fase de grupos): diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled', phaseScope: 'groups' },
+  { title: 'Desempate 4 (16vos en adelante): aciertos exacto + clasificado (8 pts)', description: 'Una vez que empieza la fase eliminatoria, este set de reglas reemplaza a las 3 anteriores. Gana quien tenga más partidos de 16vos/8vos/4tos/semifinal/final donde acertó marcador exacto Y equipo clasificado (8 puntos: 5 base + 3 bonus).', settingsKey: 'exactPlusAdvancerCountEnabled', phaseScope: 'knockout' },
+  { title: 'Desempate 5 (16vos en adelante): diferencia de gol en aciertos de 6 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos eliminatorios donde acertó ganador y clasificado, pero no el resultado exacto (6 puntos: 3 base + 3 bonus).', settingsKey: 'goalDiffOnSixEnabled', phaseScope: 'knockout' },
+  { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las reglas activas de la fase actual, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
 app.use(helmet({
@@ -470,9 +475,16 @@ function calculatePickBonus(pick, outcome) {
   return bonusPoints;
 }
 
-function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
+function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope = 'all') {
+  const includePhase = (match) => {
+    const isKnockout = KNOCKOUT_PHASES.has(match.phase);
+    if (phaseScope === 'groups') return !isKnockout;
+    if (phaseScope === 'knockout') return isKnockout;
+    return true;
+  };
+  const userIdsWithPhasePredictions = computeUserIdsWithPhasePredictions(fixtures, predictions, phaseScope);
   const liveMatches = fixtures
-    .filter((match) => match.status === 'live')
+    .filter((match) => match.status === 'live' && includePhase(match))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 2)
     .map((match) => ({
@@ -489,7 +501,11 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
   const picksByUserId = new Map(picks.map((pick) => [pick.userId, pick]));
   const bonusOutcome = getFinalBonusOutcome(fixtures, scorers);
 
-  const standings = users.filter((user) => user.role !== 'admin' && user.active !== false).map((user) => {
+  const standings = users.filter((user) => {
+    if (user.role === 'admin') return false;
+    if (user.active !== false) return true;
+    return userIdsWithPhasePredictions.has(user.id);
+  }).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
     let points = 0;
     let exactCount = 0;
@@ -497,21 +513,36 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
     let zeroCount = 0;
     let goalDiffOnThree = 0;
     let goalDiffOnZero = 0;
+    let exactPlusAdvancerCount = 0;
+    let sixCount = 0;
+    let goalDiffOnSix = 0;
 
     userPredictions.forEach((prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
       if (!match) return;
+      if (!includePhase(match)) return;
       const predictionPoints = calculatePredictionPoints(prediction, match);
-      points += predictionPoints + calculateAdvancerBonus(prediction, match);
+      const advancerBonus = calculateAdvancerBonus(prediction, match);
+      points += predictionPoints + advancerBonus;
       if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
-      if (predictionPoints === 5) {
-        exactCount += 1;
-      } else if (predictionPoints === 3) {
-        threeCount += 1;
-        goalDiffOnThree += predictionGoalDiff(prediction, match);
+      const isKnockout = KNOCKOUT_PHASES.has(match.phase);
+      if (!isKnockout) {
+        if (predictionPoints === 5) {
+          exactCount += 1;
+        } else if (predictionPoints === 3) {
+          threeCount += 1;
+          goalDiffOnThree += predictionGoalDiff(prediction, match);
+        } else {
+          zeroCount += 1;
+          goalDiffOnZero += predictionGoalDiff(prediction, match);
+        }
       } else {
-        zeroCount += 1;
-        goalDiffOnZero += predictionGoalDiff(prediction, match);
+        if (predictionPoints === 5 && advancerBonus === 3) {
+          exactPlusAdvancerCount += 1;
+        } else if (predictionPoints === 3 && advancerBonus === 3) {
+          sixCount += 1;
+          goalDiffOnSix += predictionGoalDiff(prediction, match);
+        }
       }
     });
 
@@ -533,15 +564,28 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers) {
       zeroCount,
       goalDiffOnThree,
       goalDiffOnZero,
+      exactPlusAdvancerCount,
+      sixCount,
+      goalDiffOnSix,
       livePredictions,
       pick
     };
   });
 
   const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
+  const currentPhase = fixtures.some((m) => KNOCKOUT_PHASES.has(m.phase) && m.status === 'final')
+    ? 'knockout'
+    : 'groups';
   function compareRank(a, b) {
+    const pointsDiff = b.points - a.points;
+    if (pointsDiff !== 0) return pointsDiff;
+    if (currentPhase === 'knockout') {
+      return (
+        (tiebreak.exactPlusAdvancerCountEnabled ? b.exactPlusAdvancerCount - a.exactPlusAdvancerCount : 0) ||
+        (tiebreak.goalDiffOnSixEnabled ? a.goalDiffOnSix - b.goalDiffOnSix : 0)
+      );
+    }
     return (
-      b.points - a.points ||
       (tiebreak.exactCountEnabled ? b.exactCount - a.exactCount : 0) ||
       (tiebreak.goalDiffOnThreeEnabled ? a.goalDiffOnThree - b.goalDiffOnThree : 0) ||
       (tiebreak.goalDiffOnZeroEnabled ? a.goalDiffOnZero - b.goalDiffOnZero : 0)
@@ -562,6 +606,21 @@ function getOutcome(homeScore, awayScore) {
   if (homeScore > awayScore) return 'home';
   if (homeScore < awayScore) return 'away';
   return 'draw';
+}
+
+function computeUserIdsWithPhasePredictions(fixtures, predictions, phaseScope) {
+  const userHasGroups = new Set();
+  const userHasKnockout = new Set();
+  const phaseByFixtureId = new Map(fixtures.map((f) => [f.id, f.phase]));
+  for (const prediction of predictions) {
+    const phase = phaseByFixtureId.get(prediction.matchId);
+    if (!phase) continue;
+    if (KNOCKOUT_PHASES.has(phase)) userHasKnockout.add(prediction.userId);
+    else if (phase === 'Fase de Grupos') userHasGroups.add(prediction.userId);
+  }
+  if (phaseScope === 'groups') return userHasGroups;
+  if (phaseScope === 'knockout') return userHasKnockout;
+  return new Set([...userHasGroups, ...userHasKnockout]);
 }
 
 function calculatePredictionPoints(prediction, match) {
@@ -1214,6 +1273,9 @@ app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) =>
 }));
 
 app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
+  const phaseScope = req.query.phase !== undefined
+    ? normalizeStandingsPhaseScope(req.query.phase)
+    : (settingsCache.standingsPhaseScope || SETTINGS_DEFAULTS.standingsPhaseScope);
   const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
@@ -1221,8 +1283,8 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     readJson('picks.json'),
     readJson('scorers.json')
   ]);
-  const { standings, liveMatches } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
-  res.json({ standings, liveMatches });
+  const { standings, liveMatches } = buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope);
+  res.json({ standings, liveMatches, phaseScope });
 }));
 
 app.get('/api/prize-pool', requireAuth, asyncHandler(async (req, res) => {
@@ -1336,7 +1398,13 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
   }
 
   if (body.standingsTiebreak && typeof body.standingsTiebreak === 'object') {
-    for (const key of ['exactCountEnabled', 'goalDiffOnThreeEnabled', 'goalDiffOnZeroEnabled']) {
+    for (const key of [
+      'exactCountEnabled',
+      'goalDiffOnThreeEnabled',
+      'goalDiffOnZeroEnabled',
+      'exactPlusAdvancerCountEnabled',
+      'goalDiffOnSixEnabled'
+    ]) {
       if (body.standingsTiebreak[key] !== undefined) {
         if (typeof body.standingsTiebreak[key] !== 'boolean') {
           return res.status(400).json({ error: `standingsTiebreak.${key} must be a boolean.` });
@@ -1344,6 +1412,14 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
         merged.standingsTiebreak[key] = body.standingsTiebreak[key];
       }
     }
+  }
+
+  if (body.standingsPhaseScope !== undefined) {
+    const value = String(body.standingsPhaseScope).trim().toLowerCase();
+    if (value !== 'all' && value !== 'groups' && value !== 'knockout') {
+      return res.status(400).json({ error: 'standingsPhaseScope must be "all", "groups", or "knockout".' });
+    }
+    merged.standingsPhaseScope = value;
   }
 
   if (merged.lockoutResetMs < merged.lockoutDurationMs) {
@@ -1358,6 +1434,7 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
 
 app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => {
   const userId = String(req.params.userId || '');
+  const phaseScope = normalizeStandingsPhaseScope(req.query.phase);
 
   const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
@@ -1366,11 +1443,19 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
     readJson('picks.json'),
     readJson('scorers.json')
   ]);
-  const user = users.find((candidate) => candidate.id === userId && candidate.role !== 'admin' && candidate.active !== false);
+  const userIdsWithPhasePredictions = computeUserIdsWithPhasePredictions(fixtures, predictions, phaseScope);
+  const user = users.find((candidate) => candidate.id === userId && candidate.role !== 'admin'
+    && (candidate.active !== false || userIdsWithPhasePredictions.has(candidate.id)));
   if (!user) return res.status(404).json({ error: 'User not found.' });
 
   const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-  const details = fixtures.map((match) => {
+  const scopedFixtures = fixtures.filter((match) => {
+    const isKnockout = KNOCKOUT_PHASES.has(match.phase);
+    if (phaseScope === 'groups') return !isKnockout;
+    if (phaseScope === 'knockout') return isKnockout;
+    return true;
+  });
+  const details = scopedFixtures.map((match) => {
     const prediction = userPredictions.find((candidate) => candidate.matchId === match.id) || null;
     const points = prediction ? calculatePredictionPoints(prediction, match) : 0;
     return {
@@ -1388,14 +1473,20 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       points
     };
   });
-  const { standings } = buildStandingsRows(users, fixtures, predictions, picks, scorers);
+  const { standings } = buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope);
   const standingRow = standings.find((row) => row.userId === user.id);
   const matchPoints = details.reduce((total, detail) => total + detail.points, 0);
   const bonusPoints = standingRow?.bonusPoints || 0;
   const totalPoints = matchPoints + bonusPoints;
   await recordAuditLog(req, 'standing_detail_viewed', { targetUserId: user.id, targetUsername: user.username });
-  res.json({ user: sanitizeUser(user), matchPoints, bonusPoints, totalPoints, details });
+  res.json({ user: sanitizeUser(user), matchPoints, bonusPoints, totalPoints, details, phaseScope });
 }));
+
+function normalizeStandingsPhaseScope(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (value === 'groups' || value === 'knockout') return value;
+  return 'all';
+}
 
 app.get('/api/rules', requireAuth, (req, res) => {
   const tiebreak = settingsCache.standingsTiebreak || SETTINGS_DEFAULTS.standingsTiebreak;
