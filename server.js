@@ -35,9 +35,11 @@ const SETTINGS_DEFAULTS = {
     goalDiffOnThreeEnabled: true,
     goalDiffOnZeroEnabled: true,
     exactPlusAdvancerCountEnabled: true,
-    goalDiffOnSixEnabled: true
+    goalDiffOnKnockoutEnabled: true
   },
-  standingsPhaseScope: 'all'
+  standingsPhaseScope: 'all',
+  visibilityGroupDetail: true,
+  visibilityKnockoutDetail: true
 };
 
 let settingsCache = { ...SETTINGS_DEFAULTS };
@@ -56,7 +58,7 @@ const rules = [
   { title: 'Desempate 2 (fase de grupos): diferencia de gol en aciertos de 3 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde acertó ganador o empate sin el resultado exacto.', settingsKey: 'goalDiffOnThreeEnabled', phaseScope: 'groups' },
   { title: 'Desempate 3 (fase de grupos): diferencia de gol en partidos sin acierto', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos de fase de grupos donde no sumó puntos.', settingsKey: 'goalDiffOnZeroEnabled', phaseScope: 'groups' },
   { title: 'Desempate 4 (16vos en adelante): aciertos exacto + clasificado (8 pts)', description: 'Una vez que empieza la fase eliminatoria, este set de reglas reemplaza a las 3 anteriores. Gana quien tenga más partidos de 16vos/8vos/4tos/semifinal/final donde acertó marcador exacto Y equipo clasificado (8 puntos: 5 base + 3 bonus).', settingsKey: 'exactPlusAdvancerCountEnabled', phaseScope: 'knockout' },
-  { title: 'Desempate 5 (16vos en adelante): diferencia de gol en aciertos de 6 puntos', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos eliminatorios donde acertó ganador y clasificado, pero no el resultado exacto (6 puntos: 3 base + 3 bonus).', settingsKey: 'goalDiffOnSixEnabled', phaseScope: 'knockout' },
+  { title: 'Desempate 5 (16vos en adelante): diferencia de gol acumulada', description: 'Si persiste el empate, gana quien tenga menor diferencia de gol acumulada en los partidos eliminatorios. Para cada partido de 16vos/8vos/4tos/semifinal/final se suma la diferencia absoluta entre su predicción y el resultado real; si el usuario NO presentó predicción para ese partido, se suma la cantidad total de goles reales del partido (suma del marcador final).', settingsKey: 'goalDiffOnKnockoutEnabled', phaseScope: 'knockout' },
   { title: 'Desempate final: división del premio', description: 'Si el empate persiste después de aplicar las reglas activas de la fase actual, el monto correspondiente se divide en partes iguales entre los usuarios empatados.' }
 ];
 
@@ -507,6 +509,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     return userIdsWithPhasePredictions.has(user.id);
   }).map((user) => {
     const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
+    const userPredictionByMatchId = new Map(userPredictions.map((prediction) => [prediction.matchId, prediction]));
     let points = 0;
     let exactCount = 0;
     let threeCount = 0;
@@ -515,7 +518,8 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     let goalDiffOnZero = 0;
     let exactPlusAdvancerCount = 0;
     let sixCount = 0;
-    let goalDiffOnSix = 0;
+    let goalDiffOnKnockout = 0;
+    let fiveCount = 0;
 
     userPredictions.forEach((prediction) => {
       const match = fixtures.find((candidate) => candidate.id === prediction.matchId);
@@ -523,7 +527,8 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
       if (!includePhase(match)) return;
       const predictionPoints = calculatePredictionPoints(prediction, match);
       const advancerBonus = calculateAdvancerBonus(prediction, match);
-      points += predictionPoints + advancerBonus;
+      const totalMatchPoints = predictionPoints + advancerBonus;
+      points += totalMatchPoints;
       if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
       const isKnockout = KNOCKOUT_PHASES.has(match.phase);
       if (!isKnockout) {
@@ -537,12 +542,34 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
           goalDiffOnZero += predictionGoalDiff(prediction, match);
         }
       } else {
-        if (predictionPoints === 5 && advancerBonus === 3) {
+        if (totalMatchPoints === 8) {
           exactPlusAdvancerCount += 1;
-        } else if (predictionPoints === 3 && advancerBonus === 3) {
+        } else if (totalMatchPoints === 6) {
           sixCount += 1;
-          goalDiffOnSix += predictionGoalDiff(prediction, match);
+        } else if (totalMatchPoints === 5) {
+          fiveCount += 1;
+        } else if (totalMatchPoints === 3) {
+          threeCount += 1;
+        } else {
+          zeroCount += 1;
         }
+      }
+    });
+
+    // R5 (16vos en adelante): lower accumulated goal difference across ALL
+    // knockout matches in scope. For each final knockout match the user
+    // predicted, add the absolute difference between prediction and actual
+    // result on each side. For each final knockout match the user did NOT
+    // predict, add the total real goals scored (home + away) in that match.
+    fixtures.forEach((match) => {
+      if (!includePhase(match)) return;
+      if (!KNOCKOUT_PHASES.has(match.phase)) return;
+      if (match.status !== 'final' || match.homeScore === null || match.awayScore === null) return;
+      const prediction = userPredictionByMatchId.get(match.id);
+      if (prediction) {
+        goalDiffOnKnockout += predictionGoalDiff(prediction, match);
+      } else {
+        goalDiffOnKnockout += match.homeScore + match.awayScore;
       }
     });
 
@@ -566,7 +593,8 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
       goalDiffOnZero,
       exactPlusAdvancerCount,
       sixCount,
-      goalDiffOnSix,
+      goalDiffOnKnockout,
+      fiveCount,
       livePredictions,
       pick
     };
@@ -582,7 +610,7 @@ function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseS
     if (currentPhase === 'knockout') {
       return (
         (tiebreak.exactPlusAdvancerCountEnabled ? b.exactPlusAdvancerCount - a.exactPlusAdvancerCount : 0) ||
-        (tiebreak.goalDiffOnSixEnabled ? a.goalDiffOnSix - b.goalDiffOnSix : 0)
+        (tiebreak.goalDiffOnKnockoutEnabled ? a.goalDiffOnKnockout - b.goalDiffOnKnockout : 0)
       );
     }
     return (
@@ -738,13 +766,24 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.post('/api/audit/navigation', requireAuth, asyncHandler(async (req, res) => {
   const view = String(req.body.view || '').trim();
-  const publicViews = ['fixturesView', 'predictionsView', 'picksView', 'standingsView', 'standingsDetailView', 'rulesView', 'activityView', 'scorersView'];
+  const publicViews = ['fixturesView', 'predictionsView', 'picksView', 'standingsView', 'standingsDetailView', 'standingsDetailKnockoutView', 'rulesView', 'activityView', 'scorersView'];
   const adminViews = ['usersView', 'auditView', 'settingsView'];
   if (!publicViews.includes(view) && !adminViews.includes(view)) {
     return res.status(400).json({ error: 'Invalid view.' });
   }
   if (adminViews.includes(view) && req.session.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
+  }
+  // Mirror the data-enforcement guard so a non-admin cannot fire audit
+  // events for a detail table that the admin has hidden. Admins are always
+  // allowed, matching the data path.
+  if (req.session.user.role !== 'admin') {
+    if (view === 'standingsDetailView' && settingsCache.visibilityGroupDetail === false) {
+      return res.status(403).json({ error: 'This standings table is not available for your account.' });
+    }
+    if (view === 'standingsDetailKnockoutView' && settingsCache.visibilityKnockoutDetail === false) {
+      return res.status(403).json({ error: 'This standings table is not available for your account.' });
+    }
   }
   await recordAuditLog(req, 'menu_viewed', { view });
   res.json({ ok: true });
@@ -1276,6 +1315,13 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
   const phaseScope = req.query.phase !== undefined
     ? normalizeStandingsPhaseScope(req.query.phase)
     : (settingsCache.standingsPhaseScope || SETTINGS_DEFAULTS.standingsPhaseScope);
+  // Only the explicit `?phase=groups` and `?phase=knockout` requests are the
+  // detail-table data path. The main standings view either omits the
+  // parameter (falls back to `standingsPhaseScope`) or sends `?phase=all`,
+  // both of which must remain available to every authenticated user.
+  if (!isStandingsDetailPhaseAllowed(req, phaseScope)) {
+    return res.status(403).json({ error: 'This standings table is not available for your account.' });
+  }
   const [users, fixtures, predictions, picks, scorers] = await Promise.all([
     readJson('users.json'),
     readJson('fixtures.json'),
@@ -1319,6 +1365,13 @@ app.put('/api/prize-pool', requireAdmin, asyncHandler(async (req, res) => {
 
 app.get('/api/settings', requireAdmin, (req, res) => {
   res.json(settingsCache);
+});
+
+app.get('/api/visibility', requireAuth, (req, res) => {
+  res.json({
+    groupDetail: settingsCache.visibilityGroupDetail !== false,
+    knockoutDetail: settingsCache.visibilityKnockoutDetail !== false
+  });
 });
 
 app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
@@ -1403,7 +1456,7 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
       'goalDiffOnThreeEnabled',
       'goalDiffOnZeroEnabled',
       'exactPlusAdvancerCountEnabled',
-      'goalDiffOnSixEnabled'
+      'goalDiffOnKnockoutEnabled'
     ]) {
       if (body.standingsTiebreak[key] !== undefined) {
         if (typeof body.standingsTiebreak[key] !== 'boolean') {
@@ -1420,6 +1473,20 @@ app.put('/api/settings', requireAdmin, asyncHandler(async (req, res) => {
       return res.status(400).json({ error: 'standingsPhaseScope must be "all", "groups", or "knockout".' });
     }
     merged.standingsPhaseScope = value;
+  }
+
+  if (body.visibilityGroupDetail !== undefined) {
+    if (typeof body.visibilityGroupDetail !== 'boolean') {
+      return res.status(400).json({ error: 'visibilityGroupDetail must be a boolean.' });
+    }
+    merged.visibilityGroupDetail = body.visibilityGroupDetail;
+  }
+
+  if (body.visibilityKnockoutDetail !== undefined) {
+    if (typeof body.visibilityKnockoutDetail !== 'boolean') {
+      return res.status(400).json({ error: 'visibilityKnockoutDetail must be a boolean.' });
+    }
+    merged.visibilityKnockoutDetail = body.visibilityKnockoutDetail;
   }
 
   if (merged.lockoutResetMs < merged.lockoutDurationMs) {
@@ -1502,6 +1569,19 @@ function normalizeStandingsPhaseScope(raw) {
   const value = String(raw || '').trim().toLowerCase();
   if (value === 'groups' || value === 'knockout') return value;
   return 'all';
+}
+
+// Server-side guard for the two detail tables behind `/api/standings?phase=`.
+// Admins always see both detail tables. Non-admins are blocked when the
+// corresponding admin setting is false. The main standings view (phase "all"
+// or no explicit phase) is never blocked, and the per-user detail endpoint
+// is intentionally not gated here — the per-user modal is reached from the
+// main standings view and is not one of the "hidden detail tables".
+function isStandingsDetailPhaseAllowed(req, phase) {
+  if (req.session?.user?.role === 'admin') return true;
+  if (phase === 'groups') return settingsCache.visibilityGroupDetail !== false;
+  if (phase === 'knockout') return settingsCache.visibilityKnockoutDetail !== false;
+  return true;
 }
 
 app.get('/api/rules', requireAuth, (req, res) => {

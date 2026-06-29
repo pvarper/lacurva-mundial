@@ -129,22 +129,22 @@ Tiebreakers are split into two phase-scoped sets, and only the set matching the 
 **Knockout set (active from the round of 16 onward, replacing the group-stage set):**
 
 - Rule 4 — more `exact + advancer` hits (8 pts: 5 base + 3 bonus) across knockout matches.
-- Rule 5 — lower accumulated goal difference on knockout matches where the user got the winner and the advancer right but missed the exact score (6 pts).
+- Rule 5 — lower accumulated goal difference across ALL knockout matches (`16vos` onward). For each final knockout match the user predicted, the rule adds the absolute goal difference on each side (`|pred_home - actual_home| + |pred_away - actual_actual|`). For each final knockout match the user did NOT predict, the rule adds the total number of real goals scored in that match (`home + away`). Matches still in progress contribute nothing. Example: a real `3-1` match with no prediction contributes `4` to the user's accumulator for that match.
 
-Each rule is independently toggleable by the admin in `data/settings.json` under `standingsTiebreak`. The persisted keys are: `exactCountEnabled`, `goalDiffOnThreeEnabled`, `goalDiffOnZeroEnabled`, `exactPlusAdvancerCountEnabled`, `goalDiffOnSixEnabled`. If a tie persists after the active set is exhausted, the prize is split equally among the tied users.
+Each rule is independently toggleable by the admin in `data/settings.json` under `standingsTiebreak`. The persisted keys are: `exactCountEnabled`, `goalDiffOnThreeEnabled`, `goalDiffOnZeroEnabled`, `exactPlusAdvancerCountEnabled`, `goalDiffOnKnockoutEnabled`. If a tie persists after the active set is exhausted, the prize is split equally among the tied users.
 
 #### Phase-scoped standings detail views
 
 `GET /api/standings` and `GET /api/standings/:userId` accept an optional `?phase=` query parameter with values `groups` or `knockout` (default `all`, which preserves legacy behaviour).
 
-- `?phase=knockout` filters every `userPredictions` iteration, every `liveMatches` slice, and the `details` array to knockout-phase fixtures only (`16vos`, `8vos`, `4vos`, `Semifinal`, `Final`). The `matchPoints`, `points`, `bonusPoints`, and all four knockout counters (`exactPlusAdvancerCount`, `sixCount`, `goalDiffOnSix`) are computed on that filtered set.
+- `?phase=knockout` filters every `userPredictions` iteration, every `liveMatches` slice, the `details` array, and the new R5 accumulator (`goalDiffOnKnockout`) to knockout-phase fixtures only (`16vos`, `8vos`, `4vos`, `Semifinal`, `Final`). The `matchPoints`, `points`, `bonusPoints`, and the knockout counters (`exactPlusAdvancerCount`, `sixCount`, `goalDiffOnKnockout`) are computed on that filtered set. Note: `goalDiffOnKnockout` iterates over final knockout fixtures, NOT over `userPredictions` — unpredicted matches still contribute (the total real goals) so the ranking reflects the full knockout slate.
 - `?phase=groups` mirrors the same filter for the group-stage set, exposing `exactCount`, `threeCount`, `zeroCount`, `goalDiffOnThree`, and `goalDiffOnZero` (recomputed over group fixtures only).
 - The active scope is echoed back as `phaseScope` in the response so the client can confirm what the server filtered on.
 
 The frontend ships two parallel detail views so users can audit each phase set in isolation:
 
 - **Tabla Acumulada Detalle** (`standingsDetailView`, the legacy view) — sums points from the group stage only and shows the R1/R2/R3 columns: exact hits (5 pts), winner/draw hits (3 pts), zero-point misses, and the two group-stage goal-difference columns.
-- **Tabla Acumulada Detalle — 16vos en adelante** (`standingsDetailKnockoutView`, new) — sums points from `16vos` onward and shows the R4/R5 columns: `exact + advancer` (8 pts) count, `winner + advancer` (6 pts) count, and the single `goal difference on +6 pts` column. The `dif. goles sin acierto` and `cantidad fallos` columns are intentionally absent because there is no equivalent zero-point tiebreaker in the knockout set.
+- **Tabla Acumulada Detalle — 16vos en adelante** (`standingsDetailKnockoutView`, new) — sums points from `16vos` onward and shows the R4/R5 columns: `exact + advancer` (8 pts) count, `winner + advancer` (6 pts) count, and the single `goal difference accumulated` column (lower wins). The accumulator covers every final knockout match the user faced: predicted matches contribute the absolute per-side difference, unpredicted matches contribute the total real goals. The `dif. goles sin acierto` and `cantidad fallos` columns are intentionally absent because there is no equivalent zero-point tiebreaker in the knockout set.
 
 #### Admin phase-scope selector on the main standings view
 
