@@ -1439,7 +1439,12 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   align-items: center;
   justify-content: center;
   min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
   color: #f2b705;
+  font: inherit;
+  cursor: pointer;
 }
 .fixture-bracket-pair-arrow i {
   width: 1.95rem;
@@ -1453,11 +1458,20 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   color: #f2b705;
   font-size: 0.95rem;
   box-shadow: 0 0 14px rgba(242, 183, 5, 0.28);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
-.fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
+.fixture-bracket-pair-arrow:hover i,
+.fixture-bracket-pair-arrow:focus-visible i {
   transform: translateX(2px);
   box-shadow: 0 0 18px rgba(242, 183, 5, 0.45);
+  background: rgba(242, 183, 5, 0.22);
+}
+.fixture-bracket-pair-arrow:focus-visible {
+  outline: none;
+}
+.fixture-bracket-pair-arrow:focus-visible i {
+  outline: 2px solid #f2b705;
+  outline-offset: 3px;
 }
 .fixture-bracket-pair.single .fixture-bracket-pair-arrow {
   display: none;

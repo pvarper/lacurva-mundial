@@ -694,13 +694,17 @@ function renderFixtureBracket(fixtures, predMap) {
     return;
   }
 
+  const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) + 1] || null;
   const groupsHtml = groups.map((group, index) => {
     const cardsHtml = group.map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null)).join('');
     const showArrow = activePhase !== 'Final' && index < groups.length;
+    const arrowHtml = showArrow && nextPhase
+      ? `<button type="button" class="fixture-bracket-pair-arrow" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
+      : '';
     return `
       <div class="fixture-bracket-pair${group.length === 1 ? ' single' : ''}">
         <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
-        ${showArrow ? '<span class="fixture-bracket-pair-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>' : ''}
+        ${arrowHtml}
       </div>`;
   }).join('');
 
@@ -2138,6 +2142,15 @@ elements.fixtureBracketTabs.addEventListener('click', (event) => {
 });
 
 elements.fixtureBracketBoard.addEventListener('click', (event) => {
+  const nextBtn = event.target.closest('[data-bracket-next]');
+  if (nextBtn) {
+    const nextPhase = nextBtn.dataset.bracketNextPhase;
+    if (nextPhase && KNOCKOUT_PHASES.has(nextPhase)) {
+      state.fixtureBracketPhase = nextPhase;
+      renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    }
+    return;
+  }
   const round = event.target.closest('[data-bracket-round]');
   if (round && !event.target.closest('.predict-open-btn, .admin-toggle-btn, .fixture-update-form')) {
     state.fixtureBracketPhase = round.dataset.bracketRound;
