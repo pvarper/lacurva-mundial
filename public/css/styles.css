@@ -1435,51 +1435,37 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   pointer-events: none;
 }
 .fixture-bracket-pair-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   min-width: 2.6rem;
-  align-self: stretch;
   color: #f2b705;
 }
-/* Vertical spine on the left edge: full height of the arrow cell,
-   marking the bracket junction for the two match cards. Using
-   top:0 / bottom:0 makes it match the cell height regardless of
-   individual card sizes (the pair grid uses align-items: stretch). */
-.fixture-bracket-pair-arrow::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: linear-gradient(180deg,
-    rgba(242, 183, 5, 0.35),
-    rgba(242, 183, 5, 0.95) 50%,
-    rgba(242, 183, 5, 0.35));
-}
-/* Horizontal feed line from the spine to the icon, centered on
-   the pair. Fades out before the icon so the icon reads as the
-   terminus. Full cell width with a gradient keeps it correct at
-   any cell width. */
+/* Stem lines anchor the arrow to each match card in the pair.
+   The pair-stack contains 2 equal-height cards separated by 0.4rem,
+   so their vertical centers sit at ~25% and ~75% of the pair height.
+   The arrow cell stretches to match the pair height (align-items: stretch). */
+.fixture-bracket-pair-arrow::before,
 .fixture-bracket-pair-arrow::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  right: 100%;
+  width: 0.7rem;
   height: 2px;
-  top: 50%;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(242, 183, 5, 0.75), rgba(242, 183, 5, 1));
+}
+.fixture-bracket-pair-arrow::before {
+  top: 25%;
   transform: translateY(-50%);
-  background: linear-gradient(90deg,
-    rgba(242, 183, 5, 0.95) 0%,
-    rgba(242, 183, 5, 0.95) 30%,
-    rgba(242, 183, 5, 0) 100%);
-  z-index: 1;
+}
+.fixture-bracket-pair-arrow::after {
+  top: 75%;
+  transform: translateY(-50%);
 }
 .fixture-bracket-pair-arrow i {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
   z-index: 2;
   width: 1.95rem;
   height: 1.95rem;
@@ -1495,7 +1481,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
-  transform: translateY(-50%) translateX(2px);
+  transform: translateX(2px);
   box-shadow: 0 0 18px rgba(242, 183, 5, 0.45);
 }
 .fixture-bracket-pair.single .fixture-bracket-pair-arrow {
@@ -2039,7 +2025,6 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     width: 2.3rem;
     height: 2.3rem;
     min-width: 0;
-    align-self: center;
     margin: 0.2rem auto;
     border-radius: 999px;
   }
@@ -2047,17 +2032,14 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   .fixture-bracket-pair-arrow::after {
     display: none;
   }
-  /* The chevron-right icon ALWAYS points right (never rotated),
-     in every viewport — desktop and mobile. */
   .fixture-bracket-pair-arrow i {
-    position: static;
-    transform: none;
-    width: 2.3rem;
-    height: 2.3rem;
-    font-size: 1rem;
+    transform: rotate(90deg);
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.9rem;
   }
   .fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
-    transform: translateX(2px);
+    transform: rotate(90deg) translateX(2px);
   }
   .bracket-team-line {
     padding: 0.45rem 0.15rem;
