@@ -571,6 +571,49 @@ function sortBracketMatches(matches, phase) {
   });
 }
 
+function extractBracketReference(value) {
+  const match = String(value || '').trim().match(/^[WL](\d+)$/i);
+  return match ? Number(match[1]) : null;
+}
+
+function buildBracketGroups(fixtures, phase) {
+  const phaseMatches = sortBracketMatches(fixtures.filter((match) => match.phase === phase), phase);
+  if (!phaseMatches.length) return [];
+  if (phase === 'Final') return phaseMatches.map((match) => [match]);
+
+  const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(phase) + 1];
+  if (!nextPhase) return phaseMatches.map((match) => [match]);
+
+  const phaseMatchMap = new Map(phaseMatches.map((match) => [Number(match.matchNumber), match]));
+  const nextPhaseMatches = sortBracketMatches(fixtures.filter((match) => match.phase === nextPhase), nextPhase);
+  const orderedRefs = [];
+  const seenRefs = new Set();
+
+  nextPhaseMatches.forEach((nextMatch) => {
+    [nextMatch.homeTeam, nextMatch.awayTeam].forEach((teamRef) => {
+      const ref = extractBracketReference(teamRef);
+      if (!ref || seenRefs.has(ref) || !phaseMatchMap.has(ref)) return;
+      seenRefs.add(ref);
+      orderedRefs.push(ref);
+    });
+  });
+
+  phaseMatches.forEach((match) => {
+    const ref = Number(match.matchNumber);
+    if (seenRefs.has(ref)) return;
+    orderedRefs.push(ref);
+  });
+
+  const groupedRefs = [];
+  for (let index = 0; index < orderedRefs.length; index += 2) {
+    groupedRefs.push(orderedRefs.slice(index, index + 2));
+  }
+
+  return groupedRefs
+    .map((pair) => pair.map((ref) => phaseMatchMap.get(ref)).filter(Boolean))
+    .filter((pair) => pair.length);
+}
+
 function renderFixtureBracketTabs() {
   elements.fixtureBracketTabs.innerHTML = KNOCKOUT_PHASE_ORDER
     .map((phase) => {
@@ -636,37 +679,39 @@ function renderFixtureBracketMatch(match, pred) {
 }
 
 function renderFixtureBracket(fixtures, predMap) {
-  const knockoutMatches = fixtures.filter((match) => KNOCKOUT_PHASES.has(match.phase));
   renderFixtureBracketTabs();
+  const knockoutMatches = fixtures.filter((match) => KNOCKOUT_PHASES.has(match.phase));
   if (!knockoutMatches.length) {
     elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos eliminatorios disponibles.</p>';
     return;
   }
+  const activePhase = KNOCKOUT_PHASES.has(state.fixtureBracketPhase) ? state.fixtureBracketPhase : KNOCKOUT_PHASE_ORDER[0];
+  const groups = buildBracketGroups(knockoutMatches, activePhase);
+  const totalMatches = groups.reduce((count, group) => count + group.length, 0);
 
-  elements.fixtureBracketBoard.innerHTML = KNOCKOUT_PHASE_ORDER.map((phase) => {
-    const matches = sortBracketMatches(knockoutMatches.filter((match) => match.phase === phase), phase);
-    const isActive = state.fixtureBracketPhase === phase;
-    const cardsHtml = matches.length
-      ? matches.map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null)).join('')
-      : '<p class="fixture-bracket-empty">No hay partidos cargados en esta fase.</p>';
+  if (!groups.length) {
+    elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos cargados en esta fase.</p>';
+    return;
+  }
 
+  const groupsHtml = groups.map((group, index) => {
+    const cardsHtml = group.map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null)).join('');
+    const showArrow = activePhase !== 'Final' && index < groups.length;
     return `
-      <section class="fixture-bracket-round${isActive ? ' active' : ''}" data-bracket-round="${escapeHtml(phase)}">
-        <div class="fixture-bracket-round-header">
-          <p class="fixture-bracket-round-title">${escapeHtml(phase)}</p>
-          <span class="fixture-bracket-round-count">${matches.length} partido${matches.length === 1 ? '' : 's'}</span>
-        </div>
-        <div class="fixture-bracket-round-stack">${cardsHtml}</div>
-      </section>`;
+      <div class="fixture-bracket-pair${group.length === 1 ? ' single' : ''}">
+        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
+        ${showArrow ? '<span class="fixture-bracket-pair-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>' : ''}
+      </div>`;
   }).join('');
 
-  const activeRound = [...elements.fixtureBracketBoard.querySelectorAll('[data-bracket-round]')]
-    .find((round) => round.dataset.bracketRound === state.fixtureBracketPhase);
-  if (activeRound) {
-    requestAnimationFrame(() => {
-      activeRound.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    });
-  }
+  elements.fixtureBracketBoard.innerHTML = `
+    <section class="fixture-bracket-stage" data-bracket-round="${escapeHtml(activePhase)}">
+      <div class="fixture-bracket-round-header">
+        <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
+        <span class="fixture-bracket-round-count">${totalMatches} partido${totalMatches === 1 ? '' : 's'}</span>
+      </div>
+      <div class="fixture-bracket-stage-stack">${groupsHtml}</div>
+    </section>`;
 }
 
 function renderFixturesList(fixtures, predMap) {
