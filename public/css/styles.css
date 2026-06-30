@@ -1442,27 +1442,21 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   min-width: 2.6rem;
   color: #f2b705;
 }
-/* Stem lines anchor the arrow to each match card in the pair.
-   The pair-stack contains 2 equal-height cards separated by 0.4rem,
-   so their vertical centers sit at ~25% and ~75% of the pair height.
-   The arrow cell stretches to match the pair height (align-items: stretch). */
 .fixture-bracket-pair-arrow::before,
 .fixture-bracket-pair-arrow::after {
   content: '';
   position: absolute;
   right: 100%;
-  width: 0.7rem;
-  height: 2px;
+  width: 0.6rem;
+  height: 1.5px;
   border-radius: 1px;
-  background: linear-gradient(90deg, rgba(242, 183, 5, 0.75), rgba(242, 183, 5, 1));
+  background: linear-gradient(90deg, rgba(242, 183, 5, 0.55), rgba(242, 183, 5, 0.85));
 }
 .fixture-bracket-pair-arrow::before {
-  top: 25%;
-  transform: translateY(-50%);
+  top: calc(50% - 0.55rem);
 }
 .fixture-bracket-pair-arrow::after {
-  top: 75%;
-  transform: translateY(-50%);
+  top: calc(50% + 0.55rem - 1.5px);
 }
 .fixture-bracket-pair-arrow i {
   position: relative;
