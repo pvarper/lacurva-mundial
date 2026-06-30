@@ -1400,7 +1400,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 }
 .fixture-bracket-pair {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 3rem;
   align-items: stretch;
   gap: 0.5rem;
   position: relative;
@@ -1438,29 +1438,10 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  min-width: 2.6rem;
+  min-width: 0;
   color: #f2b705;
 }
-.fixture-bracket-pair-arrow::before,
-.fixture-bracket-pair-arrow::after {
-  content: '';
-  position: absolute;
-  right: 100%;
-  width: 0.6rem;
-  height: 1.5px;
-  border-radius: 1px;
-  background: linear-gradient(90deg, rgba(242, 183, 5, 0.55), rgba(242, 183, 5, 0.85));
-}
-.fixture-bracket-pair-arrow::before {
-  top: calc(50% - 0.55rem);
-}
-.fixture-bracket-pair-arrow::after {
-  top: calc(50% + 0.55rem - 1.5px);
-}
 .fixture-bracket-pair-arrow i {
-  position: relative;
-  z-index: 2;
   width: 1.95rem;
   height: 1.95rem;
   display: flex;
@@ -2013,27 +1994,12 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     gap: 0.9rem;
   }
   .fixture-bracket-pair {
-    grid-template-columns: 1fr;
-  }
-  .fixture-bracket-pair-arrow {
-    width: 2.3rem;
-    height: 2.3rem;
-    min-width: 0;
-    margin: 0.2rem auto;
-    border-radius: 999px;
-  }
-  .fixture-bracket-pair-arrow::before,
-  .fixture-bracket-pair-arrow::after {
-    display: none;
+    grid-template-columns: minmax(0, 1fr) 2.5rem;
   }
   .fixture-bracket-pair-arrow i {
-    transform: rotate(90deg);
     width: 1.8rem;
     height: 1.8rem;
     font-size: 0.9rem;
-  }
-  .fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
-    transform: rotate(90deg) translateX(2px);
   }
   .bracket-team-line {
     padding: 0.45rem 0.15rem;
