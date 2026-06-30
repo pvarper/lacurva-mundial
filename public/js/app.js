@@ -5,6 +5,10 @@ const state = {
   inactivityTimer: null,
   fixtureRefreshTimer: null,
   currentView: null,
+  fixtureMode: 'list',
+  fixtureBracketPhase: '16vos',
+  fixtureEntries: [],
+  fixturePredMap: {},
   predictions: [],
   picks: { pick: null, picks: [], locked: false, lockAt: null, firstR8Kickoff: null },
   scorers: { source: 'manual', scorers: [] },
@@ -24,7 +28,8 @@ const fixtureStatusLabels = {
   final: 'FINALIZADO'
 };
 
-const KNOCKOUT_PHASES = new Set(['16vos', '8vos', '4vos', 'Semifinal', 'Final']);
+const KNOCKOUT_PHASE_ORDER = ['16vos', '8vos', '4vos', 'Semifinal', 'Final'];
+const KNOCKOUT_PHASES = new Set(KNOCKOUT_PHASE_ORDER);
 
 const TEAM_FLAGS = {
   'Alemania': 'de',
@@ -105,6 +110,11 @@ const elements = {
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   fixtureGroupFilter: document.querySelector('#fixtureGroupFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
+  fixtureBracketToggle: document.querySelector('#fixtureBracketToggle'),
+  fixtureBracketPanel: document.querySelector('#fixtureBracketPanel'),
+  fixtureBracketTabs: document.querySelector('#fixtureBracketTabs'),
+  fixtureBracketBoard: document.querySelector('#fixtureBracketBoard'),
+  fixtureBracketBack: document.querySelector('#fixtureBracketBack'),
   predictionsList: document.querySelector('#predictionsList'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
@@ -293,6 +303,25 @@ function showView(viewId) {
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
+}
+
+function syncFixtureModeUI() {
+  const isBracketMode = state.fixtureMode === 'bracket';
+  elements.fixturesList.classList.toggle('hidden', isBracketMode);
+  elements.fixtureBracketPanel.classList.toggle('hidden', !isBracketMode);
+  elements.fixturePhaseFilter.disabled = isBracketMode;
+  if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.disabled = isBracketMode;
+  elements.clearFixtureFilters.disabled = isBracketMode;
+  elements.fixtureBracketToggle.classList.toggle('active', isBracketMode);
+  elements.fixtureBracketToggle.setAttribute('aria-pressed', String(isBracketMode));
+}
+
+function setFixtureMode(mode) {
+  const nextMode = mode === 'bracket' ? 'bracket' : 'list';
+  if (state.fixtureMode === nextMode) return;
+  state.fixtureMode = nextMode;
+  syncFixtureModeUI();
+  if (state.currentView === 'fixturesView') loadFixtures().catch(() => {});
 }
 
 function recordNavigation(viewId) {
@@ -531,18 +560,118 @@ function renderGroupSection(groupName, matches, predMap = {}) {
     </section>`;
 }
 
-async function loadFixtures() {
-  const params = new URLSearchParams();
-  if (elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
-  const [fixtures, userPreds] = await Promise.all([
-    api(`/api/fixtures?${params}`),
-    api('/api/predictions').catch(() => [])
-  ]);
-  const predMap = Object.fromEntries(
-    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
-  );
+function sortBracketMatches(matches, phase) {
+  return matches.slice().sort((a, b) => {
+    if (phase === 'Final') {
+      const priority = (match) => (match.roundName === 'Final' ? 0 : 1);
+      const priorityDiff = priority(a) - priority(b);
+      if (priorityDiff !== 0) return priorityDiff;
+    }
+    return Number(a.matchNumber) - Number(b.matchNumber);
+  });
+}
+
+function renderFixtureBracketTabs() {
+  elements.fixtureBracketTabs.innerHTML = KNOCKOUT_PHASE_ORDER
+    .map((phase) => {
+      const isActive = state.fixtureBracketPhase === phase;
+      return `<button type="button" class="fixture-bracket-tab${isActive ? ' active' : ''}" role="tab" aria-selected="${isActive}" data-bracket-phase="${escapeHtml(phase)}">${escapeHtml(phase)}</button>`;
+    })
+    .join('');
+}
+
+function renderFixtureBracketMatch(match, pred) {
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const hasPrediction = pred && pred.homeScore !== null && pred.homeScore !== undefined;
+  const title = match.roundName === 'Final' || match.roundName === 'Tercer Puesto'
+    ? match.roundName
+    : `${match.roundName || match.phase} · #${match.matchNumber}`;
+  const predBadge = hasPrediction
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}${pred.advancer ? ` · ${escapeHtml(pred.advancer)}` : ''}</span>`
+    : '';
+  const predAction = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Predicciones cerradas</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${hasPrediction ? pred.homeScore : ''}"
+        data-away-score="${hasPrediction ? pred.awayScore : ''}"
+        data-advancer="${hasPrediction && pred.advancer ? escapeHtml(pred.advancer) : ''}"
+        data-raw-phase="${escapeHtml(match.phase)}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
+
+  return `
+    <article class="match-card bracket-match-card${isLive ? ' live-card' : ''}">
+      <div class="match-header">
+        <span class="match-phase">${escapeHtml(title)}</span>
+        <div class="match-header-right">${fixtureStatusBadge(match)}</div>
+      </div>
+      <div class="bracket-team-lines">
+        <div class="bracket-team-line">
+          <span class="bracket-team-name">${teamFlag(match.homeTeam)}${escapeHtml(match.homeTeam)}</span>
+          <strong class="bracket-team-score">${hasScore ? match.homeScore : '—'}</strong>
+        </div>
+        <div class="bracket-team-line">
+          <span class="bracket-team-name">${teamFlag(match.awayTeam)}${escapeHtml(match.awayTeam)}</span>
+          <strong class="bracket-team-score">${hasScore ? match.awayScore : '—'}</strong>
+        </div>
+      </div>
+      ${renderKnockoutResultInfo(match)}
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      <div class="card-footer">
+        ${predBadge}
+        ${predAction}
+      </div>
+      ${renderFixtureAdminForm(match)}
+    </article>`;
+}
+
+function renderFixtureBracket(fixtures, predMap) {
+  const knockoutMatches = fixtures.filter((match) => KNOCKOUT_PHASES.has(match.phase));
+  renderFixtureBracketTabs();
+  if (!knockoutMatches.length) {
+    elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos eliminatorios disponibles.</p>';
+    return;
+  }
+
+  elements.fixtureBracketBoard.innerHTML = KNOCKOUT_PHASE_ORDER.map((phase) => {
+    const matches = sortBracketMatches(knockoutMatches.filter((match) => match.phase === phase), phase);
+    const isActive = state.fixtureBracketPhase === phase;
+    const cardsHtml = matches.length
+      ? matches.map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null)).join('')
+      : '<p class="fixture-bracket-empty">No hay partidos cargados en esta fase.</p>';
+
+    return `
+      <section class="fixture-bracket-round${isActive ? ' active' : ''}" data-bracket-round="${escapeHtml(phase)}">
+        <div class="fixture-bracket-round-header">
+          <p class="fixture-bracket-round-title">${escapeHtml(phase)}</p>
+          <span class="fixture-bracket-round-count">${matches.length} partido${matches.length === 1 ? '' : 's'}</span>
+        </div>
+        <div class="fixture-bracket-round-stack">${cardsHtml}</div>
+      </section>`;
+  }).join('');
+
+  const activeRound = [...elements.fixtureBracketBoard.querySelectorAll('[data-bracket-round]')]
+    .find((round) => round.dataset.bracketRound === state.fixtureBracketPhase);
+  if (activeRound) {
+    requestAnimationFrame(() => {
+      activeRound.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  }
+}
+
+function renderFixturesList(fixtures, predMap) {
   const groupFilter = elements.fixtureGroupFilter ? elements.fixtureGroupFilter.value : '';
-  const filtered = groupFilter ? fixtures.filter(m => m.group === groupFilter) : fixtures;
+  const filtered = groupFilter ? fixtures.filter((m) => m.group === groupFilter) : fixtures;
   if (!filtered.length) {
     elements.fixturesList.classList.add('cards-grid');
     elements.fixturesList.innerHTML = '<p>No hay partidos para ese filtro.</p>';
@@ -562,19 +691,118 @@ async function loadFixtures() {
       .map(([g, ms]) => renderGroupSection(g, ms.slice().sort((a, b) => `${a.boliviaDate} ${a.boliviaTime}`.localeCompare(`${b.boliviaDate} ${b.boliviaTime}`)), predMap))
       .join('');
     const knockoutHtml = ungrouped.length
-      ? `<div class="cards-grid knockout-grid">${ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
+      ? `<div class="cards-grid knockout-grid">${ungrouped.map((m) => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
       : '';
     elements.fixturesList.innerHTML = groupsHtml + knockoutHtml;
   } else {
     elements.fixturesList.classList.add('cards-grid');
-    elements.fixturesList.innerHTML = ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
+    elements.fixturesList.innerHTML = ungrouped.map((m) => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
   }
+}
+
+function renderFixturesView() {
+  syncFixtureModeUI();
+  if (state.fixtureMode === 'bracket') {
+    renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    return;
+  }
+  renderFixturesList(state.fixtureEntries, state.fixturePredMap);
+}
+
+async function loadFixtures() {
+  const params = new URLSearchParams();
+  if (state.fixtureMode !== 'bracket' && elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
+  const [fixtures, userPreds] = await Promise.all([
+    api(`/api/fixtures?${params}`),
+    api('/api/predictions').catch(() => [])
+  ]);
+  const predMap = Object.fromEntries(
+    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
+  );
+  state.fixtureEntries = fixtures;
+  state.fixturePredMap = predMap;
+  renderFixturesView();
 }
 
 function clearFixtureFilters() {
   elements.fixturePhaseFilter.value = '';
   if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.value = '';
   loadFixtures();
+}
+
+function bindFixtureInteractions(container) {
+  container.addEventListener('click', (event) => {
+    const toggleBtn = event.target.closest('.group-toggle-btn');
+    if (toggleBtn) {
+      const section = toggleBtn.closest('.group-section');
+      const collapsed = section.classList.toggle('collapsed');
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      return;
+    }
+    const btn = event.target.closest('.admin-toggle-btn');
+    if (!btn) return;
+    const card = btn.closest('.match-card');
+    const form = card?.querySelector('.fixture-update-form');
+    if (!form) return;
+    const isOpen = !form.classList.contains('hidden');
+    form.classList.toggle('hidden', isOpen);
+    btn.innerHTML = isOpen
+      ? '<i class="bi bi-pencil-square"></i> Editar resultado'
+      : '<i class="bi bi-x-lg"></i> Cerrar';
+  });
+
+  container.addEventListener('input', (event) => {
+    const form = event.target.closest('.fixture-update-form');
+    if (!form || form.dataset.isKnockout !== 'true') return;
+    const homeScore = form.elements.homeScore.value;
+    const awayScore = form.elements.awayScore.value;
+    const status = form.elements.status.value;
+    const isDraw = homeScore !== '' && awayScore !== '' && Number(homeScore) === Number(awayScore);
+    const show = isDraw && status === 'final';
+    const advancerSelect = form.querySelector('.advancer-select');
+    if (advancerSelect) {
+      advancerSelect.classList.toggle('hidden', !show);
+      if (!show) advancerSelect.value = '';
+    }
+    const penaltyLabel = form.querySelector('.penalty-checkbox-label');
+    if (penaltyLabel) {
+      penaltyLabel.classList.toggle('hidden', !show);
+      if (!show) {
+        const cb = form.elements.hasPenalties;
+        if (cb) cb.checked = false;
+        form.querySelectorAll('.penalty-input, .penalty-sep').forEach((el) => {
+          el.classList.add('hidden');
+          if (el.tagName === 'INPUT') el.value = '';
+        });
+      }
+    }
+  });
+
+  container.addEventListener('change', (event) => {
+    const cb = event.target;
+    if (cb.name !== 'hasPenalties') return;
+    const form = cb.closest('.fixture-update-form');
+    if (!form) return;
+    form.querySelectorAll('.penalty-input, .penalty-sep').forEach((el) => {
+      el.classList.toggle('hidden', !cb.checked);
+      if (!cb.checked && el.tagName === 'INPUT') el.value = '';
+    });
+  });
+
+  container.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    if (!form.classList.contains('fixture-update-form')) return;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      await updateFixtureResult(form);
+    } catch (error) {
+      setMessage(elements.fixturesMessage, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function updateFixtureResult(form) {
@@ -1789,78 +2017,8 @@ elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
 
-elements.fixturesList.addEventListener('click', (event) => {
-  const toggleBtn = event.target.closest('.group-toggle-btn');
-  if (toggleBtn) {
-    const section = toggleBtn.closest('.group-section');
-    const collapsed = section.classList.toggle('collapsed');
-    toggleBtn.setAttribute('aria-expanded', String(!collapsed));
-    return;
-  }
-  const btn = event.target.closest('.admin-toggle-btn');
-  if (!btn) return;
-  const card = btn.closest('.match-card');
-  const form = card?.querySelector('.fixture-update-form');
-  if (!form) return;
-  const isOpen = !form.classList.contains('hidden');
-  form.classList.toggle('hidden', isOpen);
-  btn.innerHTML = isOpen
-    ? '<i class="bi bi-pencil-square"></i> Editar resultado'
-    : '<i class="bi bi-x-lg"></i> Cerrar';
-});
-
-elements.fixturesList.addEventListener('input', (event) => {
-  const form = event.target.closest('.fixture-update-form');
-  if (!form || form.dataset.isKnockout !== 'true') return;
-  const homeScore = form.elements.homeScore.value;
-  const awayScore = form.elements.awayScore.value;
-  const status = form.elements.status.value;
-  const isDraw = homeScore !== '' && awayScore !== '' && Number(homeScore) === Number(awayScore);
-  const show = isDraw && status === 'final';
-  const advancerSelect = form.querySelector('.advancer-select');
-  if (advancerSelect) {
-    advancerSelect.classList.toggle('hidden', !show);
-    if (!show) advancerSelect.value = '';
-  }
-  const penaltyLabel = form.querySelector('.penalty-checkbox-label');
-  if (penaltyLabel) {
-    penaltyLabel.classList.toggle('hidden', !show);
-    if (!show) {
-      const cb = form.elements.hasPenalties;
-      if (cb) cb.checked = false;
-      form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
-        el.classList.add('hidden');
-        if (el.tagName === 'INPUT') el.value = '';
-      });
-    }
-  }
-});
-
-elements.fixturesList.addEventListener('change', (event) => {
-  const cb = event.target;
-  if (cb.name !== 'hasPenalties') return;
-  const form = cb.closest('.fixture-update-form');
-  if (!form) return;
-  form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
-    el.classList.toggle('hidden', !cb.checked);
-    if (!cb.checked && el.tagName === 'INPUT') el.value = '';
-  });
-});
-
-elements.fixturesList.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = event.target;
-  if (!form.classList.contains('fixture-update-form')) return;
-  const button = form.querySelector('button[type="submit"]');
-  button.disabled = true;
-  try {
-    await updateFixtureResult(form);
-  } catch (error) {
-    setMessage(elements.fixturesMessage, error.message);
-  } finally {
-    button.disabled = false;
-  }
-});
+bindFixtureInteractions(elements.fixturesList);
+bindFixtureInteractions(elements.fixtureBracketBoard);
 
 // Prediction modal helpers
 const predModal = {
@@ -1925,6 +2083,32 @@ elements.predictionsList.addEventListener('click', (event) => {
 elements.fixturesList.addEventListener('click', (event) => {
   const btn = event.target.closest('.predict-open-btn');
   if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixtureBracketTabs.addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-bracket-phase]');
+  if (!tab) return;
+  state.fixtureBracketPhase = tab.dataset.bracketPhase;
+  renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+});
+
+elements.fixtureBracketBoard.addEventListener('click', (event) => {
+  const round = event.target.closest('[data-bracket-round]');
+  if (round && !event.target.closest('.predict-open-btn, .admin-toggle-btn, .fixture-update-form')) {
+    state.fixtureBracketPhase = round.dataset.bracketRound;
+    renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    return;
+  }
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixtureBracketToggle.addEventListener('click', () => {
+  setFixtureMode(state.fixtureMode === 'bracket' ? 'list' : 'bracket');
+});
+
+elements.fixtureBracketBack.addEventListener('click', () => {
+  setFixtureMode('list');
 });
 
 document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());
