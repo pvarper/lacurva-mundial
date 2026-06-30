@@ -1270,6 +1270,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   padding: 1.15rem;
   margin-bottom: 0.5rem;
   overflow: hidden;
+  box-shadow: 0 18px 40px rgba(2, 8, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .fixture-bracket-toolbar {
   display: flex;
@@ -1297,68 +1298,112 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .fixture-bracket-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  margin-bottom: 1rem;
+  gap: 0.45rem;
+  margin-bottom: 1.1rem;
+  padding: 0.4rem;
+  background: rgba(8, 19, 31, 0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
 }
 .fixture-bracket-tab {
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(15, 31, 51, 0.9);
+  border: 1px solid transparent;
+  background: transparent;
   color: #94a3b8;
-  border-radius: 999px;
-  padding: 0.5rem 0.8rem;
-  font-size: 0.76rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.15s;
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
 }
 .fixture-bracket-tab:hover {
   color: #e2e8f0;
-  border-color: rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.04);
 }
 .fixture-bracket-tab.active {
   color: #03131d;
   background: #f2b705;
   border-color: #f2b705;
+  box-shadow: 0 6px 18px rgba(242, 183, 5, 0.25);
 }
 .fixture-bracket-board {
   padding-top: 0.2rem;
 }
 .fixture-bracket-stage {
-  background: rgba(15, 31, 51, 0.7);
+  position: relative;
+  background: linear-gradient(180deg, rgba(15, 31, 51, 0.85), rgba(11, 25, 40, 0.7));
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 18px;
-  padding: 0.95rem;
+  padding: 1rem 1rem 1.1rem;
+  overflow: hidden;
+}
+.fixture-bracket-stage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 183, 5, 0.45), transparent);
+  pointer-events: none;
 }
 .fixture-bracket-round-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.95rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .fixture-bracket-round-title {
   margin: 0;
   color: #f8fafc;
   font-size: 0.95rem;
   font-weight: 800;
+  letter-spacing: 0.02em;
+  position: relative;
+  padding-left: 0.7rem;
+  line-height: 1;
+}
+.fixture-bracket-round-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f2b705, #f59e0b);
+  box-shadow: 0 0 8px rgba(242, 183, 5, 0.45);
 }
 .fixture-bracket-round-count {
-  color: #64748b;
-  font-size: 0.7rem;
+  color: #94a3b8;
+  font-size: 0.68rem;
   font-weight: 700;
   white-space: nowrap;
+  background: rgba(255,255,255,0.04);
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  letter-spacing: 0.03em;
 }
 .fixture-bracket-stage-stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 .fixture-bracket-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.9rem;
+  align-items: stretch;
+  gap: 0.5rem;
+  position: relative;
 }
 .fixture-bracket-pair.single {
   grid-template-columns: minmax(0, 1fr);
@@ -1366,33 +1411,72 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .fixture-bracket-pair-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.4rem;
+  position: relative;
+  min-width: 0;
+}
+/* The two matches in a pair read as one knockout tie (llave) */
+.fixture-bracket-pair-stack .match-card {
+  background: linear-gradient(180deg, #152a40, #102235);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.fixture-bracket-pair-stack .match-card + .match-card {
+  position: relative;
+}
+.fixture-bracket-pair-stack .match-card + .match-card::before {
+  content: '';
+  position: absolute;
+  top: -0.2rem;
+  left: 1.1rem;
+  right: 1.1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 183, 5, 0.4) 50%, transparent);
+  pointer-events: none;
 }
 .fixture-bracket-pair-arrow {
-  width: 2.75rem;
-  height: 2.75rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  background: rgba(148, 163, 184, 0.18);
-  color: #e2e8f0;
-  font-size: 1.35rem;
   position: relative;
+  min-width: 2.6rem;
+  color: #f2b705;
 }
 .fixture-bracket-pair-arrow::before,
 .fixture-bracket-pair-arrow::after {
   content: '';
   position: absolute;
-  right: calc(100% + 0.25rem);
-  width: 0.65rem;
-  border-top: 2px solid rgba(148, 163, 184, 0.24);
+  right: 100%;
+  width: 0.6rem;
+  height: 1.5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(242, 183, 5, 0.55), rgba(242, 183, 5, 0.85));
 }
 .fixture-bracket-pair-arrow::before {
-  top: 0.95rem;
+  top: calc(50% - 0.55rem);
 }
 .fixture-bracket-pair-arrow::after {
-  bottom: 0.95rem;
+  top: calc(50% + 0.55rem - 1.5px);
+}
+.fixture-bracket-pair-arrow i {
+  position: relative;
+  z-index: 2;
+  width: 1.95rem;
+  height: 1.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(242, 183, 5, 0.14);
+  border: 1px solid rgba(242, 183, 5, 0.55);
+  color: #f2b705;
+  font-size: 0.95rem;
+  box-shadow: 0 0 14px rgba(242, 183, 5, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
+  transform: translateX(2px);
+  box-shadow: 0 0 18px rgba(242, 183, 5, 0.45);
 }
 .fixture-bracket-pair.single .fixture-bracket-pair-arrow {
   display: none;
@@ -1403,29 +1487,39 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .bracket-team-lines {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 .bracket-team-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.55rem 0;
+  padding: 0.5rem 0.2rem;
 }
 .bracket-team-line + .bracket-team-line {
   border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 0.45rem;
+  margin-top: 0.05rem;
 }
 .bracket-team-name {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   color: #e2e8f0;
   font-weight: 700;
+  font-size: 0.92rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bracket-team-score {
   color: #f8fafc;
   font-size: 1.05rem;
   font-weight: 900;
+  flex-shrink: 0;
+  min-width: 1.4rem;
+  text-align: center;
 }
 .fixture-bracket-empty {
   margin: 0;
@@ -1786,8 +1880,11 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     padding-top: 0.1rem;
   }
   .fixture-bracket-pair {
-    grid-template-columns: minmax(0, 1fr) 2.35rem;
-    gap: 0.7rem;
+    grid-template-columns: minmax(0, 1fr) 2.5rem;
+    gap: 0.55rem;
+  }
+  .fixture-bracket-pair-stack {
+    gap: 0.35rem;
   }
 }
 
@@ -1886,28 +1983,66 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     border-radius: 12px;
   }
   .fixture-bracket-panel {
-    padding: 0.95rem;
+    padding: 0.9rem;
     border-radius: 18px;
   }
   .fixture-bracket-tabs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    padding: 0.35rem;
   }
   .fixture-bracket-tab {
     width: 100%;
     text-align: center;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.7rem;
+  }
+  .fixture-bracket-stage {
+    padding: 0.9rem 0.8rem 1rem;
+    border-radius: 16px;
+  }
+  .fixture-bracket-stage::before {
+    left: 0.8rem;
+    right: 0.8rem;
+  }
+  .fixture-bracket-round-title {
+    font-size: 0.9rem;
+  }
+  .fixture-bracket-stage-stack {
+    gap: 0.9rem;
   }
   .fixture-bracket-pair {
     grid-template-columns: 1fr;
   }
   .fixture-bracket-pair-arrow {
-    width: 100%;
-    height: 2.35rem;
-    border-radius: 12px;
+    width: 2.3rem;
+    height: 2.3rem;
+    min-width: 0;
+    margin: 0.2rem auto;
+    border-radius: 999px;
   }
   .fixture-bracket-pair-arrow::before,
   .fixture-bracket-pair-arrow::after {
     display: none;
+  }
+  .fixture-bracket-pair-arrow i {
+    transform: rotate(90deg);
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.9rem;
+  }
+  .fixture-bracket-pair:hover .fixture-bracket-pair-arrow i {
+    transform: rotate(90deg) translateX(2px);
+  }
+  .bracket-team-line {
+    padding: 0.45rem 0.15rem;
+  }
+  .bracket-team-name {
+    font-size: 0.88rem;
+  }
+  .bracket-team-score {
+    font-size: 1rem;
   }
   .prize-split { grid-template-columns: 1fr; }
   .prize-edit-form { grid-template-columns: 1fr; }
