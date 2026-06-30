@@ -694,9 +694,21 @@ function renderFixtureBracket(fixtures, predMap) {
     return;
   }
 
+  const prevPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) - 1] || null;
   const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) + 1] || null;
+  const backArrowHtml = prevPhase
+    ? `<button type="button" class="fixture-bracket-back-phase" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
+    : '';
   const groupsHtml = groups.map((group, index) => {
-    const cardsHtml = group.map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null)).join('');
+    const connectorHtml = group.length === 2
+      ? '<span class="fixture-bracket-pair-connector" aria-hidden="true"></span>'
+      : '';
+    const cardsHtml = group
+      .map((match, matchIdx) => {
+        const card = renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null);
+        return matchIdx === 1 ? `${connectorHtml}${card}` : card;
+      })
+      .join('');
     const showArrow = activePhase !== 'Final' && index < groups.length;
     const arrowHtml = showArrow && nextPhase
       ? `<button type="button" class="fixture-bracket-pair-arrow" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
@@ -711,7 +723,10 @@ function renderFixtureBracket(fixtures, predMap) {
   elements.fixtureBracketBoard.innerHTML = `
     <section class="fixture-bracket-stage" data-bracket-round="${escapeHtml(activePhase)}">
       <div class="fixture-bracket-round-header">
-        <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
+        <div class="fixture-bracket-round-title-group">
+          ${backArrowHtml}
+          <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
+        </div>
         <span class="fixture-bracket-round-count">${totalMatches} partido${totalMatches === 1 ? '' : 's'}</span>
       </div>
       <div class="fixture-bracket-stage-stack">${groupsHtml}</div>
@@ -2142,6 +2157,15 @@ elements.fixtureBracketTabs.addEventListener('click', (event) => {
 });
 
 elements.fixtureBracketBoard.addEventListener('click', (event) => {
+  const prevBtn = event.target.closest('[data-bracket-prev]');
+  if (prevBtn) {
+    const prevPhase = prevBtn.dataset.bracketPrevPhase;
+    if (prevPhase && KNOCKOUT_PHASES.has(prevPhase)) {
+      state.fixtureBracketPhase = prevPhase;
+      renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    }
+    return;
+  }
   const nextBtn = event.target.closest('[data-bracket-next]');
   if (nextBtn) {
     const nextPhase = nextBtn.dataset.bracketNextPhase;
