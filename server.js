@@ -1548,6 +1548,8 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       homeScore: match.homeScore,
       awayScore: match.awayScore,
       status: match.status,
+      advancer: match.advancer || null,
+      advancerShort: match.advancer ? abbreviateTeamName(match.advancer) : null,
       prediction,
       predictedAdvancer,
       predictedAdvancerShort: predictedAdvancer ? abbreviateTeamName(predictedAdvancer) : null,

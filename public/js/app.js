@@ -819,15 +819,33 @@ function calcPredPoints(match) {
   if (!match.prediction || match.status !== 'final' || match.homeScore === null || match.awayScore === null) return null;
   const p = match.prediction;
   const getOutcome = (h, a) => h > a ? 'home' : h < a ? 'away' : 'draw';
-  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) {
-    const base = 5;
-    const advancerBonus = KNOCKOUT_PHASES.has(match.phase) && getOutcome(match.homeScore, match.awayScore) === 'draw' && p.advancer && match.advancer && p.advancer === match.advancer ? 3 : 0;
-    return base + advancerBonus;
-  }
   const predictedOutcome = getOutcome(p.homeScore, p.awayScore);
   const actualOutcome = getOutcome(match.homeScore, match.awayScore);
-  if (predictedOutcome !== actualOutcome) return 0;
-  const advancerBonus = KNOCKOUT_PHASES.has(match.phase) && predictedOutcome === 'draw' && p.advancer && match.advancer && p.advancer === match.advancer ? 3 : 0;
+  let advancerBonus = 0;
+
+  if (KNOCKOUT_PHASES.has(match.phase)) {
+    if (!(actualOutcome === 'draw' && !match.advancer)) {
+      const actualAdvancer = match.advancer || (actualOutcome === 'home' ? match.homeTeam : match.awayTeam);
+      let predictedAdvancer = null;
+
+      if (predictedOutcome === 'draw') {
+        predictedAdvancer = p.advancer || null;
+      } else {
+        predictedAdvancer = predictedOutcome === 'home' ? match.homeTeam : match.awayTeam;
+      }
+
+      advancerBonus = predictedAdvancer && predictedAdvancer === actualAdvancer ? 3 : 0;
+    }
+  }
+
+  if (p.homeScore === match.homeScore && p.awayScore === match.awayScore) {
+    return 5 + advancerBonus;
+  }
+
+  if (predictedOutcome !== actualOutcome) {
+    return advancerBonus;
+  }
+
   return 3 + advancerBonus;
 }
 
@@ -1335,8 +1353,10 @@ function canViewStandingDetail() {
   return true;
 }
 
-function formatScore(homeScore, awayScore) {
-  return homeScore === null || awayScore === null ? 'Pendiente' : `${homeScore} - ${awayScore}`;
+function formatScore(homeScore, awayScore, advancerShort) {
+  if (homeScore === null || awayScore === null) return 'Pendiente';
+  const base = `${homeScore} - ${awayScore}`;
+  return advancerShort ? `${base} · ${advancerShort}` : base;
 }
 
 function formatPrediction(prediction, predictedAdvancerShort) {
@@ -1367,21 +1387,23 @@ async function loadStandingDetail(userId) {
       <tbody>
         ${data.details.map((detail) => {
           const pts = detail.points;
-          const ptsColor = pts === 8
-            ? '#22c55e'
-            : pts === 6 || pts === 5
-              ? '#f2b705'
-              : pts === 3
-                ? '#f97316'
-                : '#475569';
+          const ptsHtml = pts !== null && pts !== undefined
+            ? `<span class="pred-feed-pts pts-${pts}">${pts}</span>`
+            : '<span class="pred-feed-pts">—</span>';
+          const showActualAdvancer = detail.phase
+            && KNOCKOUT_PHASES.has(detail.phase)
+            && detail.homeScore !== null
+            && detail.awayScore !== null
+            && detail.homeScore === detail.awayScore
+            && detail.advancerShort;
           return `
             <tr>
               <td>${detail.matchNumber}</td>
               <td>${escapeHtml(detail.boliviaDate)}</td>
               <td>${escapeHtml(detail.homeTeam)} vs ${escapeHtml(detail.awayTeam)}</td>
-              <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore))}</td>
+              <td>${escapeHtml(formatScore(detail.homeScore, detail.awayScore, showActualAdvancer ? detail.advancerShort : null))}</td>
               <td>${escapeHtml(formatPrediction(detail.prediction, detail.predictedAdvancerShort))}</td>
-              <td><strong style="color:${ptsColor}">${pts}</strong></td>
+              <td>${ptsHtml}</td>
             </tr>
           `;
         }).join('')}
