@@ -5,6 +5,10 @@ const state = {
   inactivityTimer: null,
   fixtureRefreshTimer: null,
   currentView: null,
+  fixtureMode: 'list',
+  fixtureBracketPhase: '16vos',
+  fixtureEntries: [],
+  fixturePredMap: {},
   predictions: [],
   picks: { pick: null, picks: [], locked: false, lockAt: null, firstR8Kickoff: null },
   scorers: { source: 'manual', scorers: [] },
@@ -24,7 +28,8 @@ const fixtureStatusLabels = {
   final: 'FINALIZADO'
 };
 
-const KNOCKOUT_PHASES = new Set(['16vos', '8vos', '4vos', 'Semifinal', 'Final']);
+const KNOCKOUT_PHASE_ORDER = ['16vos', '8vos', '4vos', 'Semifinal', 'Final'];
+const KNOCKOUT_PHASES = new Set(KNOCKOUT_PHASE_ORDER);
 
 const TEAM_FLAGS = {
   'Alemania': 'de',
@@ -105,6 +110,11 @@ const elements = {
   fixturePhaseFilter: document.querySelector('#fixturePhaseFilter'),
   fixtureGroupFilter: document.querySelector('#fixtureGroupFilter'),
   clearFixtureFilters: document.querySelector('#clearFixtureFilters'),
+  fixtureBracketToggle: document.querySelector('#fixtureBracketToggle'),
+  fixtureBracketPanel: document.querySelector('#fixtureBracketPanel'),
+  fixtureBracketTabs: document.querySelector('#fixtureBracketTabs'),
+  fixtureBracketBoard: document.querySelector('#fixtureBracketBoard'),
+  fixtureBracketBack: document.querySelector('#fixtureBracketBack'),
   predictionsList: document.querySelector('#predictionsList'),
   predictionPhaseFilter: document.querySelector('#predictionPhaseFilter'),
   clearPredictionFilters: document.querySelector('#clearPredictionFilters'),
@@ -112,6 +122,7 @@ const elements = {
   picksLockBanner: document.querySelector('#picksLockBanner'),
   picksFormContainer: document.querySelector('#picksFormContainer'),
   picksCommunityTableBody: document.querySelector('#picksCommunityTableBody'),
+  picksCommunityNote: document.querySelector('#picksCommunityNote'),
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
@@ -293,6 +304,25 @@ function showView(viewId) {
   if (viewId === 'rulesView') loadRules();
   if (viewId === 'auditView') loadAuditLog();
   if (viewId === 'settingsView') loadSettings();
+}
+
+function syncFixtureModeUI() {
+  const isBracketMode = state.fixtureMode === 'bracket';
+  elements.fixturesList.classList.toggle('hidden', isBracketMode);
+  elements.fixtureBracketPanel.classList.toggle('hidden', !isBracketMode);
+  elements.fixturePhaseFilter.disabled = isBracketMode;
+  if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.disabled = isBracketMode;
+  elements.clearFixtureFilters.disabled = isBracketMode;
+  elements.fixtureBracketToggle.classList.toggle('active', isBracketMode);
+  elements.fixtureBracketToggle.setAttribute('aria-pressed', String(isBracketMode));
+}
+
+function setFixtureMode(mode) {
+  const nextMode = mode === 'bracket' ? 'bracket' : 'list';
+  if (state.fixtureMode === nextMode) return;
+  state.fixtureMode = nextMode;
+  syncFixtureModeUI();
+  if (state.currentView === 'fixturesView') loadFixtures().catch(() => {});
 }
 
 function recordNavigation(viewId) {
@@ -531,18 +561,209 @@ function renderGroupSection(groupName, matches, predMap = {}) {
     </section>`;
 }
 
-async function loadFixtures() {
-  const params = new URLSearchParams();
-  if (elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
-  const [fixtures, userPreds] = await Promise.all([
-    api(`/api/fixtures?${params}`),
-    api('/api/predictions').catch(() => [])
-  ]);
-  const predMap = Object.fromEntries(
-    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
-  );
+function sortBracketMatches(matches, phase) {
+  return matches.slice().sort((a, b) => {
+    if (phase === 'Final') {
+      const priority = (match) => (match.roundName === 'Final' ? 0 : 1);
+      const priorityDiff = priority(a) - priority(b);
+      if (priorityDiff !== 0) return priorityDiff;
+    }
+    return Number(a.matchNumber) - Number(b.matchNumber);
+  });
+}
+
+function extractBracketReference(value) {
+  const match = String(value || '').trim().match(/^[WL](\d+)$/i);
+  return match ? Number(match[1]) : null;
+}
+
+function bracketRefFromMatch(nextMatch, side) {
+  // The backend exposes the upstream match number on each placeholder slot
+  // (homeTeamRef / awayTeamRef) so the bracket view can build its
+  // connector layout even when the resolved name is shown in the card.
+  // Fall back to parsing the canonical token for older payloads.
+  const refField = side === 'home' ? nextMatch.homeTeamRef : nextMatch.awayTeamRef;
+  if (Number.isInteger(refField)) return refField;
+  return extractBracketReference(side === 'home' ? nextMatch.homeTeam : nextMatch.awayTeam);
+}
+
+function buildBracketGroups(fixtures, phase) {
+  const phaseMatches = sortBracketMatches(fixtures.filter((match) => match.phase === phase), phase);
+  if (!phaseMatches.length) return [];
+  if (phase === 'Final') return phaseMatches.map((match) => [match]);
+
+  const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(phase) + 1];
+  if (!nextPhase) return phaseMatches.map((match) => [match]);
+
+  const phaseMatchMap = new Map(phaseMatches.map((match) => [Number(match.matchNumber), match]));
+  const nextPhaseMatches = sortBracketMatches(fixtures.filter((match) => match.phase === nextPhase), nextPhase);
+  const orderedRefs = [];
+  const seenRefs = new Set();
+
+  nextPhaseMatches.forEach((nextMatch) => {
+    ['home', 'away'].forEach((side) => {
+      const ref = bracketRefFromMatch(nextMatch, side);
+      if (!ref || seenRefs.has(ref) || !phaseMatchMap.has(ref)) return;
+      seenRefs.add(ref);
+      orderedRefs.push(ref);
+    });
+  });
+
+  phaseMatches.forEach((match) => {
+    const ref = Number(match.matchNumber);
+    if (seenRefs.has(ref)) return;
+    orderedRefs.push(ref);
+  });
+
+  const groupedRefs = [];
+  for (let index = 0; index < orderedRefs.length; index += 2) {
+    groupedRefs.push(orderedRefs.slice(index, index + 2));
+  }
+
+  return groupedRefs
+    .map((pair) => pair.map((ref) => phaseMatchMap.get(ref)).filter(Boolean))
+    .filter((pair) => pair.length);
+}
+
+function renderFixtureBracketTabs() {
+  elements.fixtureBracketTabs.innerHTML = KNOCKOUT_PHASE_ORDER
+    .map((phase) => {
+      const isActive = state.fixtureBracketPhase === phase;
+      return `<button type="button" class="fixture-bracket-tab${isActive ? ' active' : ''}" role="tab" aria-selected="${isActive}" data-bracket-phase="${escapeHtml(phase)}">${escapeHtml(phase)}</button>`;
+    })
+    .join('');
+}
+
+function renderFixtureBracketMatch(match, pred) {
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+  const isLive = (match.status || 'scheduled') === 'live';
+  const hasPrediction = pred && pred.homeScore !== null && pred.homeScore !== undefined;
+  const title = match.roundName === 'Final' || match.roundName === 'Tercer Puesto'
+    ? match.roundName
+    : `${match.roundName || match.phase} · #${match.matchNumber}`;
+  const predBadge = hasPrediction
+    ? `<span class="status final-status"><i class="bi bi-check2"></i> Mi predicción: ${pred.homeScore} — ${pred.awayScore}${pred.advancer ? ` · ${escapeHtml(pred.advancer)}` : ''}</span>`
+    : '';
+  const predAction = match.locked
+    ? `<span class="locked"><i aria-hidden="true" class="bi bi-lock-fill"></i> Predicciones cerradas</span>`
+    : `<button type="button" class="predict-open-btn"
+        data-match-id="${escapeHtml(String(match.id))}"
+        data-home-team="${escapeHtml(match.homeTeam)}"
+        data-away-team="${escapeHtml(match.awayTeam)}"
+        data-home-score="${hasPrediction ? pred.homeScore : ''}"
+        data-away-score="${hasPrediction ? pred.awayScore : ''}"
+        data-advancer="${hasPrediction && pred.advancer ? escapeHtml(pred.advancer) : ''}"
+        data-raw-phase="${escapeHtml(match.phase)}"
+        data-phase="${escapeHtml(match.roundName || match.phase)}"
+        data-match-number="${match.matchNumber}">
+        <i aria-hidden="true" class="bi bi-pencil-square"></i>
+        ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
+      </button>`;
+
+  return `
+    <article class="match-card bracket-match-card${isLive ? ' live-card' : ''}">
+      <div class="match-header">
+        <span class="match-phase">${escapeHtml(title)}</span>
+        <div class="match-header-right">${fixtureStatusBadge(match)}</div>
+      </div>
+      <div class="bracket-team-lines">
+        <div class="bracket-team-line">
+          <span class="bracket-team-name">${teamFlag(match.homeTeam)}${escapeHtml(match.homeTeam)}</span>
+          <strong class="bracket-team-score">${hasScore ? match.homeScore : '—'}</strong>
+        </div>
+        <div class="bracket-team-line">
+          <span class="bracket-team-name">${teamFlag(match.awayTeam)}${escapeHtml(match.awayTeam)}</span>
+          <strong class="bracket-team-score">${hasScore ? match.awayScore : '—'}</strong>
+        </div>
+      </div>
+      ${renderKnockoutResultInfo(match)}
+      <div class="match-meta-row">
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-clock"></i> ${escapeHtml(match.boliviaDate)} ${escapeHtml(match.boliviaTime)} BOL</span>
+        <span class="meta-item"><i aria-hidden="true" class="bi bi-geo-alt"></i> ${escapeHtml(match.city)}</span>
+      </div>
+      <div class="card-footer">
+        ${predBadge}
+        ${predAction}
+      </div>
+      ${renderFixtureAdminForm(match)}
+    </article>`;
+}
+
+function renderFixtureBracket(fixtures, predMap) {
+  renderFixtureBracketTabs();
+  const knockoutMatches = fixtures.filter((match) => KNOCKOUT_PHASES.has(match.phase));
+  if (!knockoutMatches.length) {
+    elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos eliminatorios disponibles.</p>';
+    return;
+  }
+  const activePhase = KNOCKOUT_PHASES.has(state.fixtureBracketPhase) ? state.fixtureBracketPhase : KNOCKOUT_PHASE_ORDER[0];
+  const groups = buildBracketGroups(knockoutMatches, activePhase);
+  const totalMatches = groups.reduce((count, group) => count + group.length, 0);
+
+  if (!groups.length) {
+    elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos cargados en esta fase.</p>';
+    return;
+  }
+
+  const prevPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) - 1] || null;
+  const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) + 1] || null;
+
+  const backArrowHtml = prevPhase
+    ? `<button type="button" class="fixture-bracket-pair-arrow prev" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
+  const forwardArrowHtml = nextPhase
+    ? `<button type="button" class="fixture-bracket-pair-arrow next" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
+
+  // Each pair is a compact bracket unit: 2 cards stacked in the middle
+  // column, with the prev/next phase arrows on the OUTSIDE (left/right)
+  // centered vertically between the two cards. The grid keeps a fixed
+  // 3-column layout (side | stack | side) so the arrows stay aligned
+  // with the cards regardless of bracket depth.
+  const groupsHtml = groups.map((group) => {
+    const isSingle = group.length === 1;
+    const cardsHtml = group
+      .map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null))
+      .join('');
+
+    if (isSingle) {
+      // Single-card phase (Final): the right side rail is an empty
+      // grid cell that exists only to keep the 3rem column for visual
+      // symmetry with the multi-card pairs.
+      return `<div class="fixture-bracket-pair single">
+        <div class="fixture-bracket-side fixture-bracket-side-left">
+          ${backArrowHtml}
+        </div>
+        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
+        <div class="fixture-bracket-side fixture-bracket-side-right"></div>
+      </div>`;
+    }
+
+    return `
+      <div class="fixture-bracket-pair">
+        <div class="fixture-bracket-side fixture-bracket-side-left">
+          ${backArrowHtml}
+        </div>
+        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
+        <div class="fixture-bracket-side fixture-bracket-side-right">
+          ${forwardArrowHtml}
+        </div>
+      </div>`;
+  }).join('');
+
+  elements.fixtureBracketBoard.innerHTML = `
+    <section class="fixture-bracket-stage" data-bracket-round="${escapeHtml(activePhase)}">
+      <div class="fixture-bracket-round-header">
+        <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
+        <span class="fixture-bracket-round-count">${totalMatches} partido${totalMatches === 1 ? '' : 's'}</span>
+      </div>
+      <div class="fixture-bracket-stage-stack">${groupsHtml}</div>
+    </section>`;
+}
+
+function renderFixturesList(fixtures, predMap) {
   const groupFilter = elements.fixtureGroupFilter ? elements.fixtureGroupFilter.value : '';
-  const filtered = groupFilter ? fixtures.filter(m => m.group === groupFilter) : fixtures;
+  const filtered = groupFilter ? fixtures.filter((m) => m.group === groupFilter) : fixtures;
   if (!filtered.length) {
     elements.fixturesList.classList.add('cards-grid');
     elements.fixturesList.innerHTML = '<p>No hay partidos para ese filtro.</p>';
@@ -562,19 +783,118 @@ async function loadFixtures() {
       .map(([g, ms]) => renderGroupSection(g, ms.slice().sort((a, b) => `${a.boliviaDate} ${a.boliviaTime}`.localeCompare(`${b.boliviaDate} ${b.boliviaTime}`)), predMap))
       .join('');
     const knockoutHtml = ungrouped.length
-      ? `<div class="cards-grid knockout-grid">${ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
+      ? `<div class="cards-grid knockout-grid">${ungrouped.map((m) => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('')}</div>`
       : '';
     elements.fixturesList.innerHTML = groupsHtml + knockoutHtml;
   } else {
     elements.fixturesList.classList.add('cards-grid');
-    elements.fixturesList.innerHTML = ungrouped.map(m => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
+    elements.fixturesList.innerHTML = ungrouped.map((m) => renderFixtureCard(m, { prediction: predMap[String(m.id)] ?? null })).join('');
   }
+}
+
+function renderFixturesView() {
+  syncFixtureModeUI();
+  if (state.fixtureMode === 'bracket') {
+    renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    return;
+  }
+  renderFixturesList(state.fixtureEntries, state.fixturePredMap);
+}
+
+async function loadFixtures() {
+  const params = new URLSearchParams();
+  if (state.fixtureMode !== 'bracket' && elements.fixturePhaseFilter.value) params.set('phase', elements.fixturePhaseFilter.value);
+  const [fixtures, userPreds] = await Promise.all([
+    api(`/api/fixtures?${params}`),
+    api('/api/predictions').catch(() => [])
+  ]);
+  const predMap = Object.fromEntries(
+    userPreds.filter(m => m.prediction).map(m => [String(m.id), m.prediction])
+  );
+  state.fixtureEntries = fixtures;
+  state.fixturePredMap = predMap;
+  renderFixturesView();
 }
 
 function clearFixtureFilters() {
   elements.fixturePhaseFilter.value = '';
   if (elements.fixtureGroupFilter) elements.fixtureGroupFilter.value = '';
   loadFixtures();
+}
+
+function bindFixtureInteractions(container) {
+  container.addEventListener('click', (event) => {
+    const toggleBtn = event.target.closest('.group-toggle-btn');
+    if (toggleBtn) {
+      const section = toggleBtn.closest('.group-section');
+      const collapsed = section.classList.toggle('collapsed');
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      return;
+    }
+    const btn = event.target.closest('.admin-toggle-btn');
+    if (!btn) return;
+    const card = btn.closest('.match-card');
+    const form = card?.querySelector('.fixture-update-form');
+    if (!form) return;
+    const isOpen = !form.classList.contains('hidden');
+    form.classList.toggle('hidden', isOpen);
+    btn.innerHTML = isOpen
+      ? '<i class="bi bi-pencil-square"></i> Editar resultado'
+      : '<i class="bi bi-x-lg"></i> Cerrar';
+  });
+
+  container.addEventListener('input', (event) => {
+    const form = event.target.closest('.fixture-update-form');
+    if (!form || form.dataset.isKnockout !== 'true') return;
+    const homeScore = form.elements.homeScore.value;
+    const awayScore = form.elements.awayScore.value;
+    const status = form.elements.status.value;
+    const isDraw = homeScore !== '' && awayScore !== '' && Number(homeScore) === Number(awayScore);
+    const show = isDraw && status === 'final';
+    const advancerSelect = form.querySelector('.advancer-select');
+    if (advancerSelect) {
+      advancerSelect.classList.toggle('hidden', !show);
+      if (!show) advancerSelect.value = '';
+    }
+    const penaltyLabel = form.querySelector('.penalty-checkbox-label');
+    if (penaltyLabel) {
+      penaltyLabel.classList.toggle('hidden', !show);
+      if (!show) {
+        const cb = form.elements.hasPenalties;
+        if (cb) cb.checked = false;
+        form.querySelectorAll('.penalty-input, .penalty-sep').forEach((el) => {
+          el.classList.add('hidden');
+          if (el.tagName === 'INPUT') el.value = '';
+        });
+      }
+    }
+  });
+
+  container.addEventListener('change', (event) => {
+    const cb = event.target;
+    if (cb.name !== 'hasPenalties') return;
+    const form = cb.closest('.fixture-update-form');
+    if (!form) return;
+    form.querySelectorAll('.penalty-input, .penalty-sep').forEach((el) => {
+      el.classList.toggle('hidden', !cb.checked);
+      if (!cb.checked && el.tagName === 'INPUT') el.value = '';
+    });
+  });
+
+  container.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    if (!form.classList.contains('fixture-update-form')) return;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      await updateFixtureResult(form);
+    } catch (error) {
+      setMessage(elements.fixturesMessage, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function updateFixtureResult(form) {
@@ -958,6 +1278,11 @@ function picksTeams() {
   return [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
+function picksEliminatedTeams() {
+  const eliminated = Array.isArray(state.picks.eliminatedTeams) ? state.picks.eliminatedTeams : [];
+  return new Set(eliminated.map((name) => String(name || '').trim()).filter(Boolean));
+}
+
 function buildPicksOptions({ allowed, current, exclude }) {
   const allowedList = Array.isArray(allowed) ? allowed : [];
   const currentValue = String(current || '').trim();
@@ -1008,17 +1333,42 @@ function refreshRunnerUpOptions() {
   });
 }
 
+function renderPicksEliminatedCell(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '<span class="muted-text">—</span>';
+  const eliminated = picksEliminatedTeams();
+  const isEliminated = eliminated.has(trimmed);
+  const className = isEliminated ? 'pick-cell pick-cell-eliminated' : 'pick-cell';
+  const title = isEliminated
+    ? ` title="${escapeHtml(`${trimmed} fue eliminado del mundial`)}"`
+    : '';
+  return `<span class="${className}"${title}>${escapeHtml(trimmed)}</span>`;
+}
+
 function renderPicksCommunityTable() {
   const rows = state.picks.picks || [];
   if (!elements.picksCommunityTableBody) return;
-  elements.picksCommunityTableBody.innerHTML = rows.map((pick) => `
+  const tableHtml = rows.map((pick) => `
     <tr>
       <td>${escapeHtml(pick.user)}</td>
-      <td>${escapeHtml(pick.champion || '—')}</td>
-      <td>${escapeHtml(pick.runnerUp || '—')}</td>
+      <td>${renderPicksEliminatedCell(pick.champion)}</td>
+      <td>${renderPicksEliminatedCell(pick.runnerUp)}</td>
       <td>${escapeHtml(pick.topScorer || '—')}</td>
     </tr>
   `).join('') || '<tr><td colspan="4" class="muted-text">Todavía no hay picks guardados.</td></tr>';
+  elements.picksCommunityTableBody.innerHTML = tableHtml;
+  // Toggle the explanatory note under the community table based on whether
+  // any pick currently points at an eliminated team. Toggling keeps the
+  // table from showing a permanent note that adds visual noise during the
+  // group stage, when no team can be eliminated yet.
+  const hasEliminated = (state.picks.picks || []).some((pick) => {
+    const eliminated = picksEliminatedTeams();
+    return (pick.champion && eliminated.has(String(pick.champion).trim()))
+      || (pick.runnerUp && eliminated.has(String(pick.runnerUp).trim()));
+  });
+  if (elements.picksCommunityNote) {
+    elements.picksCommunityNote.classList.toggle('hidden', !hasEliminated);
+  }
 }
 
 function renderPicksView() {
@@ -1064,7 +1414,11 @@ async function loadPicks() {
 }
 
 function renderScorersView() {
-  const scorers = state.scorers.scorers || [];
+  const scorers = (state.scorers.scorers || []).slice().sort((a, b) => {
+    const goalDiff = (b.goals || 0) - (a.goals || 0);
+    if (goalDiff !== 0) return goalDiff;
+    return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'es', { sensitivity: 'base' });
+  });
   const isAdmin = state.user?.role === 'admin';
   elements.scorersBanner.textContent = state.scorers.source === 'manual' ? 'Admin-maintained' : state.scorers.source;
   elements.scorersTableBody.innerHTML = scorers.map((scorer) => `
@@ -1789,78 +2143,8 @@ elements.auditUserFilter.addEventListener('input', renderAuditLog);
 elements.auditActionFilter.addEventListener('change', renderAuditLog);
 elements.clearAuditFilters.addEventListener('click', clearAuditFilters);
 
-elements.fixturesList.addEventListener('click', (event) => {
-  const toggleBtn = event.target.closest('.group-toggle-btn');
-  if (toggleBtn) {
-    const section = toggleBtn.closest('.group-section');
-    const collapsed = section.classList.toggle('collapsed');
-    toggleBtn.setAttribute('aria-expanded', String(!collapsed));
-    return;
-  }
-  const btn = event.target.closest('.admin-toggle-btn');
-  if (!btn) return;
-  const card = btn.closest('.match-card');
-  const form = card?.querySelector('.fixture-update-form');
-  if (!form) return;
-  const isOpen = !form.classList.contains('hidden');
-  form.classList.toggle('hidden', isOpen);
-  btn.innerHTML = isOpen
-    ? '<i class="bi bi-pencil-square"></i> Editar resultado'
-    : '<i class="bi bi-x-lg"></i> Cerrar';
-});
-
-elements.fixturesList.addEventListener('input', (event) => {
-  const form = event.target.closest('.fixture-update-form');
-  if (!form || form.dataset.isKnockout !== 'true') return;
-  const homeScore = form.elements.homeScore.value;
-  const awayScore = form.elements.awayScore.value;
-  const status = form.elements.status.value;
-  const isDraw = homeScore !== '' && awayScore !== '' && Number(homeScore) === Number(awayScore);
-  const show = isDraw && status === 'final';
-  const advancerSelect = form.querySelector('.advancer-select');
-  if (advancerSelect) {
-    advancerSelect.classList.toggle('hidden', !show);
-    if (!show) advancerSelect.value = '';
-  }
-  const penaltyLabel = form.querySelector('.penalty-checkbox-label');
-  if (penaltyLabel) {
-    penaltyLabel.classList.toggle('hidden', !show);
-    if (!show) {
-      const cb = form.elements.hasPenalties;
-      if (cb) cb.checked = false;
-      form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
-        el.classList.add('hidden');
-        if (el.tagName === 'INPUT') el.value = '';
-      });
-    }
-  }
-});
-
-elements.fixturesList.addEventListener('change', (event) => {
-  const cb = event.target;
-  if (cb.name !== 'hasPenalties') return;
-  const form = cb.closest('.fixture-update-form');
-  if (!form) return;
-  form.querySelectorAll('.penalty-input, .penalty-sep').forEach(el => {
-    el.classList.toggle('hidden', !cb.checked);
-    if (!cb.checked && el.tagName === 'INPUT') el.value = '';
-  });
-});
-
-elements.fixturesList.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = event.target;
-  if (!form.classList.contains('fixture-update-form')) return;
-  const button = form.querySelector('button[type="submit"]');
-  button.disabled = true;
-  try {
-    await updateFixtureResult(form);
-  } catch (error) {
-    setMessage(elements.fixturesMessage, error.message);
-  } finally {
-    button.disabled = false;
-  }
-});
+bindFixtureInteractions(elements.fixturesList);
+bindFixtureInteractions(elements.fixtureBracketBoard);
 
 // Prediction modal helpers
 const predModal = {
@@ -1925,6 +2209,50 @@ elements.predictionsList.addEventListener('click', (event) => {
 elements.fixturesList.addEventListener('click', (event) => {
   const btn = event.target.closest('.predict-open-btn');
   if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixtureBracketTabs.addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-bracket-phase]');
+  if (!tab) return;
+  state.fixtureBracketPhase = tab.dataset.bracketPhase;
+  renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+});
+
+elements.fixtureBracketBoard.addEventListener('click', (event) => {
+  const prevBtn = event.target.closest('[data-bracket-prev]');
+  if (prevBtn) {
+    const prevPhase = prevBtn.dataset.bracketPrevPhase;
+    if (prevPhase && KNOCKOUT_PHASES.has(prevPhase)) {
+      state.fixtureBracketPhase = prevPhase;
+      renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    }
+    return;
+  }
+  const nextBtn = event.target.closest('[data-bracket-next]');
+  if (nextBtn) {
+    const nextPhase = nextBtn.dataset.bracketNextPhase;
+    if (nextPhase && KNOCKOUT_PHASES.has(nextPhase)) {
+      state.fixtureBracketPhase = nextPhase;
+      renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    }
+    return;
+  }
+  const round = event.target.closest('[data-bracket-round]');
+  if (round && !event.target.closest('.predict-open-btn, .admin-toggle-btn, .fixture-update-form')) {
+    state.fixtureBracketPhase = round.dataset.bracketRound;
+    renderFixtureBracket(state.fixtureEntries, state.fixturePredMap);
+    return;
+  }
+  const btn = event.target.closest('.predict-open-btn');
+  if (btn) openPredModalFromBtn(btn);
+});
+
+elements.fixtureBracketToggle.addEventListener('click', () => {
+  setFixtureMode(state.fixtureMode === 'bracket' ? 'list' : 'bracket');
+});
+
+elements.fixtureBracketBack.addEventListener('click', () => {
+  setFixtureMode('list');
 });
 
 document.querySelector('#predictionModalClose').addEventListener('click', () => predModal.close());

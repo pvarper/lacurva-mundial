@@ -1,1 +1,189 @@
-[]
+[
+  {
+    "id": "5657361c-ac24-45cf-a679-a77c565e8785",
+    "playerName": "Lionel Messi",
+    "team": "Argentina",
+    "goals": 6,
+    "matchesPlayed": 3,
+    "source": "manual",
+    "createdAt": "2026-06-26T15:29:21.210Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "798639bd-6df3-47cb-85c3-624d96e70a07",
+    "playerName": "Kylian Mbappé",
+    "team": "Francia",
+    "goals": 6,
+    "matchesPlayed": 4,
+    "source": "yahoo-sports",
+    "createdAt": "2026-06-26T15:29:30.409Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "bf6767ce-215c-427a-b871-8b0264970eb4",
+    "playerName": "Vinícius Júnior",
+    "team": "Brasil",
+    "goals": 4,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "d1fe7bc6-23d6-4cbb-b7bc-584e7a839e9b",
+    "playerName": "Ousmane Dembélé",
+    "team": "Francia",
+    "goals": 4,
+    "matchesPlayed": 4,
+    "source": "yahoo-sports",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "2c3847d6-bb4e-45cb-abc8-97f520ce3071",
+    "playerName": "Erling Haaland",
+    "team": "Noruega",
+    "goals": 5,
+    "matchesPlayed": 4,
+    "source": "yahoo-sports",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "2cf1ae21-a946-4a58-97a3-f9fb79efd5ac",
+    "playerName": "Deniz Undav",
+    "team": "Alemania",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "a86fba30-3ba4-4183-ab5e-e0290e8d35aa",
+    "playerName": "Jonathan David",
+    "team": "Canadá",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "7c1f2a83-4d5e-4b6a-9c8d-1e2f3a4b5c6d",
+    "playerName": "Matheus Cunha",
+    "team": "Brasil",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-06-28T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "d0b2e47b-53a7-4b9b-a4f0-88974788f69b",
+    "playerName": "Brian Brobbey",
+    "team": "Países Bajos",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-06-26T19:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "8d2e3b94-5e6f-4c7b-ad9e-2f3a4b5c6d7e",
+    "playerName": "Harry Kane",
+    "team": "Inglaterra",
+    "goals": 3,
+    "matchesPlayed": 3,
+    "source": "manual",
+    "createdAt": "2026-06-28T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c",
+    "playerName": "Kai Havertz",
+    "team": "Alemania",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d",
+    "playerName": "Cody Gakpo",
+    "team": "Países Bajos",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "b3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7e",
+    "playerName": "Ismael Saibari",
+    "team": "Marruecos",
+    "goals": 3,
+    "matchesPlayed": 4,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "c4d5e6f7-a8b9-4c0d-1e2f-3a4b5c6d7e8f",
+    "playerName": "Johan Manzambi",
+    "team": "Suiza",
+    "goals": 3,
+    "matchesPlayed": 3,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "d5e6f7a8-b9c0-4d1e-2f3a-4b5c6d7e8f9a",
+    "playerName": "Ismaïla Sarr",
+    "team": "Senegal",
+    "goals": 3,
+    "matchesPlayed": 3,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "e6f7a8b9-c0d1-4e2f-3a4b-5c6d7e8f9a0b",
+    "playerName": "Elijiah Just",
+    "team": "Nueva Zelanda",
+    "goals": 3,
+    "matchesPlayed": 3,
+    "source": "manual",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  },
+  {
+    "id": "f7a8b9c0-d1e2-4f3a-4b5c-6d7e8f9a0b1c",
+    "playerName": "Yoane Wissa",
+    "team": "R.D. Congo",
+    "goals": 3,
+    "matchesPlayed": 3,
+    "source": "yahoo-sports",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "lastUpdated": "2026-07-01T10:00:00.000Z",
+    "updatedBy": "admin:u-admin"
+  }
+]

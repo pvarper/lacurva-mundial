@@ -236,7 +236,28 @@
                 </button>
               </div>
             </div>
+            <button id="fixtureBracketToggle" class="fixture-bracket-toggle mb-4" type="button" aria-pressed="false">
+              <span class="fixture-bracket-toggle-icon" aria-hidden="true"><i class="bi bi-diagram-3"></i></span>
+              <span class="fixture-bracket-toggle-copy">
+                <strong>Cuadro</strong>
+                <small>Ver llaves eliminatorias</small>
+              </span>
+              <span class="fixture-bracket-toggle-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+            </button>
             <p id="fixturesMessage" class="message mb-3 text-sm font-bold text-red-400 min-h-[1.25rem]"></p>
+            <div id="fixtureBracketPanel" class="fixture-bracket-panel hidden" aria-live="polite" aria-atomic="false">
+              <div class="fixture-bracket-toolbar">
+                <div>
+                  <p class="fixture-bracket-eyebrow">Cuadro Mundial</p>
+                  <p class="fixture-bracket-note">Llaves eliminatorias usando las fases actuales del sistema.</p>
+                </div>
+                <button id="fixtureBracketBack" class="secondary-button fixture-bracket-back" type="button">
+                  <i aria-hidden="true" class="bi bi-arrow-left"></i> Volver al fixture
+                </button>
+              </div>
+              <div id="fixtureBracketTabs" class="fixture-bracket-tabs" role="tablist" aria-label="Fases del cuadro"></div>
+              <div id="fixtureBracketBoard" class="fixture-bracket-board"></div>
+            </div>
             <div id="fixturesList" class="cards-grid" aria-live="polite" aria-atomic="false"></div>
           </section>
 
@@ -304,6 +325,10 @@
                   <tbody id="picksCommunityTableBody"></tbody>
                 </table>
               </div>
+              <p id="picksCommunityNote" class="picks-community-note hidden">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                Los equipos marcados en rojo y tachados ya fueron eliminados del mundial.
+              </p>
             </div>
           </section>
 
