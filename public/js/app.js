@@ -1383,7 +1383,11 @@ async function loadPicks() {
 }
 
 function renderScorersView() {
-  const scorers = state.scorers.scorers || [];
+  const scorers = (state.scorers.scorers || []).slice().sort((a, b) => {
+    const goalDiff = (b.goals || 0) - (a.goals || 0);
+    if (goalDiff !== 0) return goalDiff;
+    return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'es', { sensitivity: 'base' });
+  });
   const isAdmin = state.user?.role === 'admin';
   elements.scorersBanner.textContent = state.scorers.source === 'manual' ? 'Admin-maintained' : state.scorers.source;
   elements.scorersTableBody.innerHTML = scorers.map((scorer) => `
