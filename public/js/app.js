@@ -633,7 +633,7 @@ function renderFixtureBracketTabs() {
     .join('');
 }
 
-function renderFixtureBracketMatch(match, pred, { hasPrevPhase, hasNextPhase } = {}) {
+function renderFixtureBracketMatch(match, pred) {
   const hasScore = match.homeScore !== null && match.awayScore !== null;
   const isLive = (match.status || 'scheduled') === 'live';
   const hasPrediction = pred && pred.homeScore !== null && pred.homeScore !== undefined;
@@ -658,21 +658,9 @@ function renderFixtureBracketMatch(match, pred, { hasPrevPhase, hasNextPhase } =
         <i aria-hidden="true" class="bi bi-pencil-square"></i>
         ${hasPrediction ? 'Editar predicción' : 'Ingresar predicción'}
       </button>`;
-  // Horizontal connector stubs. Each stub is anchored to the card's
-  // own vertical center (top: 50%) and extends across the pair's gap to
-  // meet the side rail, so the bracket tracks the real card position
-  // even when the two cards in a pair end up with different heights.
-  const leftStub = hasPrevPhase
-    ? '<span class="bracket-card-stub left" aria-hidden="true"></span>'
-    : '';
-  const rightStub = hasNextPhase
-    ? '<span class="bracket-card-stub right" aria-hidden="true"></span>'
-    : '';
 
   return `
     <article class="match-card bracket-match-card${isLive ? ' live-card' : ''}">
-      ${leftStub}
-      ${rightStub}
       <div class="match-header">
         <span class="match-phase">${escapeHtml(title)}</span>
         <div class="match-header-right">${fixtureStatusBadge(match)}</div>
@@ -728,34 +716,21 @@ function renderFixtureBracket(fixtures, predMap) {
 
   // Each pair is a compact bracket unit: 2 cards stacked in the middle
   // column, with the prev/next phase arrows on the OUTSIDE (left/right)
-  // centered vertically between the two cards. The connector is built
-  // from two real pieces: a vertical "rail" line on the outer edge of
-  // each side rail (full rail height) plus a horizontal "stub" on each
-  // card anchored to the card's own center. The arrow (z-index: 1) sits
-  // on top of the rail, so the line appears to pass through the
-  // navigation chip on its way to the next round.
-  const leftRailHtml = prevPhase
-    ? '<span class="fixture-bracket-rail" aria-hidden="true"></span>'
-    : '';
-  const rightRailHtml = nextPhase
-    ? '<span class="fixture-bracket-rail" aria-hidden="true"></span>'
-    : '';
-  const cardPhaseContext = { hasPrevPhase: !!prevPhase, hasNextPhase: !!nextPhase };
-
+  // centered vertically between the two cards. The grid keeps a fixed
+  // 3-column layout (side | stack | side) so the arrows stay aligned
+  // with the cards regardless of bracket depth.
   const groupsHtml = groups.map((group) => {
     const isSingle = group.length === 1;
     const cardsHtml = group
-      .map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null, cardPhaseContext))
+      .map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null))
       .join('');
 
     if (isSingle) {
       // Single-card phase (Final): the right side rail is an empty
       // grid cell that exists only to keep the 3rem column for visual
-      // symmetry with the multi-card pairs — no arrow, no rail, no
-      // stub. The card carries a single left stub to the back arrow.
+      // symmetry with the multi-card pairs.
       return `<div class="fixture-bracket-pair single">
         <div class="fixture-bracket-side fixture-bracket-side-left">
-          ${leftRailHtml}
           ${backArrowHtml}
         </div>
         <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
@@ -766,12 +741,10 @@ function renderFixtureBracket(fixtures, predMap) {
     return `
       <div class="fixture-bracket-pair">
         <div class="fixture-bracket-side fixture-bracket-side-left">
-          ${leftRailHtml}
           ${backArrowHtml}
         </div>
         <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
         <div class="fixture-bracket-side fixture-bracket-side-right">
-          ${rightRailHtml}
           ${forwardArrowHtml}
         </div>
       </div>`;
