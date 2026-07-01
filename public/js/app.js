@@ -698,31 +698,42 @@ function renderFixtureBracket(fixtures, predMap) {
   const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) + 1] || null;
 
   const backArrowHtml = prevPhase
-    ? `<button type="button" class="fixture-bracket-gap-arrow prev" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
-    : '<span class="fixture-bracket-gap-arrow-spacer" aria-hidden="true"></span>';
+    ? `<button type="button" class="fixture-bracket-pair-arrow prev" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
   const forwardArrowHtml = nextPhase
-    ? `<button type="button" class="fixture-bracket-gap-arrow next" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
-    : '<span class="fixture-bracket-gap-arrow-spacer" aria-hidden="true"></span>';
+    ? `<button type="button" class="fixture-bracket-pair-arrow next" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
 
-  // Flatten groups into a single ordered list of matches, then interleave
-  // each match with a gap row that carries the back/forward arrows and the
-  // gold connector lines linking the card above to the forward arrow and the
-  // card below to the back arrow.
-  const orderedMatches = groups.flat();
-  const cardsAndGaps = [];
-  orderedMatches.forEach((match, index) => {
-    cardsAndGaps.push(renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null));
-    if (index < orderedMatches.length - 1) {
-      cardsAndGaps.push(`
-        <div class="fixture-bracket-gap" aria-hidden="false">
-          <div class="fixture-bracket-gap-side left">${backArrowHtml}</div>
-          <div class="fixture-bracket-gap-line left" aria-hidden="true"></div>
-          <div class="fixture-bracket-gap-line right" aria-hidden="true"></div>
-          <div class="fixture-bracket-gap-side right">${forwardArrowHtml}</div>
-        </div>
-      `);
+  // Each pair is a compact bracket unit: 2 cards stacked in the middle
+  // column, with the prev/next phase arrows on the OUTSIDE (left/right)
+  // centered vertically between the two cards. Thin gold "}" / "{" bracket
+  // lines link the top card to the forward arrow and the bottom card to the
+  // back arrow, so the pair reads as one knockout tie (llave).
+  const groupsHtml = groups.map((group) => {
+    const isSingle = group.length === 1;
+    const cardsHtml = group
+      .map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null))
+      .join('');
+
+    if (isSingle) {
+      return `<div class="fixture-bracket-pair single">
+        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
+      </div>`;
     }
-  });
+
+    return `
+      <div class="fixture-bracket-pair">
+        <div class="fixture-bracket-side fixture-bracket-side-left">
+          ${prevPhase ? '<span class="fixture-bracket-bracket-line left" aria-hidden="true"></span>' : ''}
+          ${backArrowHtml}
+        </div>
+        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
+        <div class="fixture-bracket-side fixture-bracket-side-right">
+          ${nextPhase ? '<span class="fixture-bracket-bracket-line right" aria-hidden="true"></span>' : ''}
+          ${forwardArrowHtml}
+        </div>
+      </div>`;
+  }).join('');
 
   elements.fixtureBracketBoard.innerHTML = `
     <section class="fixture-bracket-stage" data-bracket-round="${escapeHtml(activePhase)}">
@@ -730,7 +741,7 @@ function renderFixtureBracket(fixtures, predMap) {
         <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
         <span class="fixture-bracket-round-count">${totalMatches} partido${totalMatches === 1 ? '' : 's'}</span>
       </div>
-      <div class="fixture-bracket-stage-stack">${cardsAndGaps.join('')}</div>
+      <div class="fixture-bracket-stage-stack">${groupsHtml}</div>
     </section>`;
 }
 
