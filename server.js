@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { startWorldcupSync, stopWorldcupSync } = require('./lib/worldcup-sync');
 const { abbreviateTeamName } = require('./lib/team-abbrev');
 const { propagateKnockoutWinner, decorateFixturesForResponse } = require('./lib/knockout-propagation');
+const { getEliminatedTeams } = require('./lib/eliminated-teams');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -318,6 +319,12 @@ function getPicksOptions(fixtures, scorers) {
       if (value) teams.add(value);
     }
   }
+  // Teams that have already lost a knockout match (16vos onward) are no
+  // longer eligible picks. The frontend uses this same set to render the
+  // community table with a "strikethrough + red" marker, so we surface
+  // it as part of the response instead of recomputing it on the client.
+  const eliminatedTeams = getEliminatedTeams(fixtures || []);
+  for (const eliminated of eliminatedTeams) teams.delete(eliminated);
   const scorerNames = new Set();
   for (const scorer of scorers || []) {
     const name = String(scorer && scorer.playerName || '').trim();
@@ -325,7 +332,8 @@ function getPicksOptions(fixtures, scorers) {
   }
   return {
     teams: [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
-    scorerNames: [...scorerNames].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+    scorerNames: [...scorerNames].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
+    eliminatedTeams: [...eliminatedTeams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
   };
 }
 
@@ -1107,12 +1115,13 @@ app.get('/api/picks', requireAuth, asyncHandler(async (req, res) => {
         updatedAt: pick?.updatedAt || null
       });
     });
-  const { teams } = getPicksOptions(fixtures, scorers);
+  const { teams, eliminatedTeams } = getPicksOptions(fixtures, scorers);
 
   res.json({
     pick: currentPick,
     picks: rows,
     teams,
+    eliminatedTeams,
     ...lockState
   });
 }));
@@ -1165,6 +1174,7 @@ app.post('/api/picks', requireAuth, asyncHandler(async (req, res) => {
     pick,
     picks: picks.map(formatPopupPickRow),
     teams: options.teams,
+    eliminatedTeams: options.eliminatedTeams,
     ...lockState
   });
 }));
@@ -1211,6 +1221,7 @@ app.put('/api/picks', requireAuth, asyncHandler(async (req, res) => {
     pick,
     picks: picks.map(formatPopupPickRow),
     teams: options.teams,
+    eliminatedTeams: options.eliminatedTeams,
     ...lockState
   });
 }));

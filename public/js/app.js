@@ -122,6 +122,7 @@ const elements = {
   picksLockBanner: document.querySelector('#picksLockBanner'),
   picksFormContainer: document.querySelector('#picksFormContainer'),
   picksCommunityTableBody: document.querySelector('#picksCommunityTableBody'),
+  picksCommunityNote: document.querySelector('#picksCommunityNote'),
   dateCarouselTrack: document.querySelector('#dateCarouselTrack'),
   dateCarouselPrev: document.querySelector('#dateCarouselPrev'),
   dateCarouselNext: document.querySelector('#dateCarouselNext'),
@@ -1277,6 +1278,11 @@ function picksTeams() {
   return [...teams].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
+function picksEliminatedTeams() {
+  const eliminated = Array.isArray(state.picks.eliminatedTeams) ? state.picks.eliminatedTeams : [];
+  return new Set(eliminated.map((name) => String(name || '').trim()).filter(Boolean));
+}
+
 function buildPicksOptions({ allowed, current, exclude }) {
   const allowedList = Array.isArray(allowed) ? allowed : [];
   const currentValue = String(current || '').trim();
@@ -1327,17 +1333,42 @@ function refreshRunnerUpOptions() {
   });
 }
 
+function renderPicksEliminatedCell(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '<span class="muted-text">—</span>';
+  const eliminated = picksEliminatedTeams();
+  const isEliminated = eliminated.has(trimmed);
+  const className = isEliminated ? 'pick-cell pick-cell-eliminated' : 'pick-cell';
+  const title = isEliminated
+    ? ` title="${escapeHtml(`${trimmed} fue eliminado del mundial`)}"`
+    : '';
+  return `<span class="${className}"${title}>${escapeHtml(trimmed)}</span>`;
+}
+
 function renderPicksCommunityTable() {
   const rows = state.picks.picks || [];
   if (!elements.picksCommunityTableBody) return;
-  elements.picksCommunityTableBody.innerHTML = rows.map((pick) => `
+  const tableHtml = rows.map((pick) => `
     <tr>
       <td>${escapeHtml(pick.user)}</td>
-      <td>${escapeHtml(pick.champion || '—')}</td>
-      <td>${escapeHtml(pick.runnerUp || '—')}</td>
+      <td>${renderPicksEliminatedCell(pick.champion)}</td>
+      <td>${renderPicksEliminatedCell(pick.runnerUp)}</td>
       <td>${escapeHtml(pick.topScorer || '—')}</td>
     </tr>
   `).join('') || '<tr><td colspan="4" class="muted-text">Todavía no hay picks guardados.</td></tr>';
+  elements.picksCommunityTableBody.innerHTML = tableHtml;
+  // Toggle the explanatory note under the community table based on whether
+  // any pick currently points at an eliminated team. Toggling keeps the
+  // table from showing a permanent note that adds visual noise during the
+  // group stage, when no team can be eliminated yet.
+  const hasEliminated = (state.picks.picks || []).some((pick) => {
+    const eliminated = picksEliminatedTeams();
+    return (pick.champion && eliminated.has(String(pick.champion).trim()))
+      || (pick.runnerUp && eliminated.has(String(pick.runnerUp).trim()));
+  });
+  if (elements.picksCommunityNote) {
+    elements.picksCommunityNote.classList.toggle('hidden', !hasEliminated);
+  }
 }
 
 function renderPicksView() {

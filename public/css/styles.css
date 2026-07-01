@@ -1827,6 +1827,29 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .picks-lock-banner.admin-open { border-color: rgba(242,183,5,0.22); background: rgba(242,183,5,0.08); }
 .picks-lock-banner.admin-open strong { color: #f2b705; }
 .picks-lock-banner.muted strong { color: #cbd5e1; }
+
+/* ── Special picks: eliminated-team marker ── */
+.pick-cell-eliminated {
+  color: #f87171;
+  text-decoration: line-through;
+  text-decoration-color: rgba(248,113,113,0.65);
+  text-decoration-thickness: 1.5px;
+  cursor: help;
+}
+.picks-community-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(127,29,29,0.18);
+  border: 1px solid rgba(248,113,113,0.22);
+  color: #fca5a5;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.picks-community-note i { color: #f87171; }
 .scorers-admin-form {
   display: grid;
   gap: 0.85rem;
