@@ -686,10 +686,13 @@ function renderFixtureBracket(fixtures, predMap) {
     return;
   }
   const activePhase = KNOCKOUT_PHASES.has(state.fixtureBracketPhase) ? state.fixtureBracketPhase : KNOCKOUT_PHASE_ORDER[0];
-  const groups = buildBracketGroups(knockoutMatches, activePhase);
-  const totalMatches = groups.reduce((count, group) => count + group.length, 0);
+  const phaseMatches = sortBracketMatches(
+    knockoutMatches.filter((match) => match.phase === activePhase),
+    activePhase
+  );
+  const totalMatches = phaseMatches.length;
 
-  if (!groups.length) {
+  if (!totalMatches) {
     elements.fixtureBracketBoard.innerHTML = '<p class="fixture-bracket-empty">No hay partidos cargados en esta fase.</p>';
     return;
   }
@@ -698,37 +701,30 @@ function renderFixtureBracket(fixtures, predMap) {
   const nextPhase = KNOCKOUT_PHASE_ORDER[KNOCKOUT_PHASE_ORDER.indexOf(activePhase) + 1] || null;
 
   const backArrowHtml = prevPhase
-    ? `<button type="button" class="fixture-bracket-pair-arrow prev" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
-    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
+    ? `<button type="button" class="fixture-bracket-gap-arrow prev" data-bracket-prev data-bracket-prev-phase="${escapeHtml(prevPhase)}" aria-label="Volver a ${escapeHtml(prevPhase)}" title="Volver a ${escapeHtml(prevPhase)}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-gap-arrow-spacer" aria-hidden="true"></span>';
   const forwardArrowHtml = nextPhase
-    ? `<button type="button" class="fixture-bracket-pair-arrow next" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
-    : '<span class="fixture-bracket-pair-arrow-spacer" aria-hidden="true"></span>';
+    ? `<button type="button" class="fixture-bracket-gap-arrow next" data-bracket-next data-bracket-next-phase="${escapeHtml(nextPhase)}" aria-label="Avanzar a ${escapeHtml(nextPhase)}" title="Avanzar a ${escapeHtml(nextPhase)}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>`
+    : '<span class="fixture-bracket-gap-arrow-spacer" aria-hidden="true"></span>';
 
-  const groupsHtml = groups.map((group) => {
-    const isSingle = group.length === 1;
-    const cardsHtml = group
-      .map((match) => renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null))
-      .join('');
-
-    if (isSingle) {
-      return `<div class="fixture-bracket-pair single">
-        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
-      </div>`;
+  // Each match is rendered individually as a full-width card.
+  // Between every two consecutive cards a gap row carries the back arrow
+  // (left edge) and forward arrow (right edge) connected by two real DOM
+  // gold connector lines — these read as the bracket between the cards.
+  const rows = [];
+  phaseMatches.forEach((match, index) => {
+    rows.push(renderFixtureBracketMatch(match, predMap[String(match.id)] ?? null));
+    if (index < phaseMatches.length - 1) {
+      rows.push(`
+        <div class="fixture-bracket-gap">
+          <div class="fixture-bracket-gap-side fixture-bracket-gap-side-left">${backArrowHtml}</div>
+          <div class="fixture-bracket-gap-line left" aria-hidden="true"></div>
+          <div class="fixture-bracket-gap-line right" aria-hidden="true"></div>
+          <div class="fixture-bracket-gap-side fixture-bracket-gap-side-right">${forwardArrowHtml}</div>
+        </div>
+      `);
     }
-
-    return `
-      <div class="fixture-bracket-pair">
-        <div class="fixture-bracket-side fixture-bracket-side-left">
-          ${prevPhase ? '<span class="fixture-bracket-bracket-line left" aria-hidden="true"></span>' : ''}
-          ${backArrowHtml}
-        </div>
-        <div class="fixture-bracket-pair-stack">${cardsHtml}</div>
-        <div class="fixture-bracket-side fixture-bracket-side-right">
-          ${nextPhase ? '<span class="fixture-bracket-bracket-line right" aria-hidden="true"></span>' : ''}
-          ${forwardArrowHtml}
-        </div>
-      </div>`;
-  }).join('');
+  });
 
   elements.fixtureBracketBoard.innerHTML = `
     <section class="fixture-bracket-stage" data-bracket-round="${escapeHtml(activePhase)}">
@@ -736,7 +732,7 @@ function renderFixtureBracket(fixtures, predMap) {
         <p class="fixture-bracket-round-title">${escapeHtml(activePhase)}</p>
         <span class="fixture-bracket-round-count">${totalMatches} partido${totalMatches === 1 ? '' : 's'}</span>
       </div>
-      <div class="fixture-bracket-stage-stack">${groupsHtml}</div>
+      <div class="fixture-bracket-stage-stack">${rows.join('')}</div>
     </section>`;
 }
 
