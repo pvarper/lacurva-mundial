@@ -1494,45 +1494,41 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   flex-shrink: 0;
   pointer-events: none;
 }
-/* Bracket connector lines — gold "}" / "{" shapes linking cards to arrows */
+/* Bracket connector lines — gold "}" / "{" shapes linking cards to arrows.
+   Each line is a single real DOM element anchored to the side column.
+   The pair is a 3-column grid; top card center sits at 25% of the pair
+   height, bottom card center at 75%, and the arrow at 50%. */
 .fixture-bracket-bracket-line {
   position: absolute;
-  inset: 0;
+  left: 0;
+  width: 100%;
   pointer-events: none;
   z-index: 0;
-  filter: drop-shadow(0 0 3px rgba(242, 183, 5, 0.35));
+  filter: drop-shadow(0 0 2px rgba(242, 183, 5, 0.4));
 }
-/* Right side: vertical segment from top to center + horizontal stub at top */
+/* Right side: top-card-center → arrow. Element spans 25%–50% of the pair.
+   Drawn as a horizontal stub at the top + a vertical segment on the right edge. */
 .fixture-bracket-bracket-line.right {
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(242, 183, 5, 0.9) 0%,
-      rgba(245, 158, 11, 0.9) 50%,
-      transparent 50%
-    ) 50% 0 / 2px 50% no-repeat,
-    linear-gradient(
-      to right,
-      rgba(242, 183, 5, 0.9) 0%,
-      rgba(245, 158, 11, 0.9) 100%,
-      transparent 100%
-    ) 0 0 / 50% 2px no-repeat;
+  top: 25%;
+  height: 25%;
+  background-image:
+    linear-gradient(90deg, #f2b705 0%, #f59e0b 100%),
+    linear-gradient(180deg, #f2b705 0%, #f59e0b 100%);
+  background-size: 100% 2px, 2px 100%;
+  background-position: 0 0, 100% 0;
+  background-repeat: no-repeat;
 }
-/* Left side: vertical segment from center to bottom + horizontal stub at bottom */
+/* Left side: arrow → bottom-card-center. Element spans 50%–75% of the pair.
+   Drawn as a vertical segment on the left edge + a horizontal stub at the bottom. */
 .fixture-bracket-bracket-line.left {
-  background:
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(242, 183, 5, 0.9) 50%,
-      rgba(245, 158, 11, 0.9) 100%
-    ) 50% 50% / 2px 50% no-repeat,
-    linear-gradient(
-      to right,
-      transparent 0%,
-      rgba(242, 183, 5, 0.9) 50%,
-      rgba(245, 158, 11, 0.9) 100%
-    ) 0 100% / 50% 2px no-repeat;
+  top: 50%;
+  height: 25%;
+  background-image:
+    linear-gradient(90deg, #f2b705 0%, #f59e0b 100%),
+    linear-gradient(180deg, #f2b705 0%, #f59e0b 100%);
+  background-size: 100% 2px, 2px 100%;
+  background-position: 0 100%, 0 0;
+  background-repeat: no-repeat;
 }
 .bracket-match-card {
   min-height: 0;
