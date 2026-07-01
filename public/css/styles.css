@@ -1399,17 +1399,18 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   gap: 1.1rem;
 }
 /* Each pair is a compact bracket unit: 3-column grid
-   [3rem side | stack of 2 cards | 3rem side]. The two cards read as one
-   knockout tie (llave). Single-card pairs collapse to a single column. */
+   [rail | stack of 2 cards | rail]. The two cards read as one
+   knockout tie (llave). Rail width and gap are exposed as custom
+   properties so the card-anchored connector stubs can track them
+   without hard-coded magic numbers. */
 .fixture-bracket-pair {
+  --bracket-rail-width: 3rem;
+  --bracket-pair-gap: 0.5rem;
   display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr) 3rem;
+  grid-template-columns: var(--bracket-rail-width) minmax(0, 1fr) var(--bracket-rail-width);
   align-items: stretch;
-  gap: 0.5rem;
+  gap: var(--bracket-pair-gap);
   position: relative;
-}
-.fixture-bracket-pair.single {
-  grid-template-columns: minmax(0, 1fr);
 }
 .fixture-bracket-side {
   position: relative;
@@ -1417,9 +1418,6 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   align-items: center;
   justify-content: center;
   min-width: 0;
-}
-.fixture-bracket-pair.single .fixture-bracket-side {
-  display: none;
 }
 .fixture-bracket-pair-stack {
   display: flex;
@@ -1430,12 +1428,10 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 }
 /* The two matches in a pair read as one knockout tie (llave) */
 .fixture-bracket-pair-stack .match-card {
+  position: relative;
   background: linear-gradient(180deg, #152a40, #102235);
   border: 1px solid rgba(56, 189, 248, 0.12);
   box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
-}
-.fixture-bracket-pair:not(.single) .fixture-bracket-pair-stack .match-card:last-of-type {
-  position: relative;
 }
 .fixture-bracket-pair:not(.single) .fixture-bracket-pair-stack .match-card:last-of-type::before {
   content: '';
@@ -1497,44 +1493,53 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   flex-shrink: 0;
   pointer-events: none;
 }
-/* Bracket connector lines — gold "}" / "{" shapes linking cards to arrows.
-   Each line is a single real DOM element anchored to the side column. The
-   pair is a 3-column grid; with the cards roughly equal in height, the top
-   card center sits near 25% of the pair, the arrow at 50%, and the bottom
-   card center near 75%. The right line draws an L (top card center → right
-   edge → down to arrow); the left line draws a mirrored L (arrow → left
-   edge → down to bottom card center). */
-.fixture-bracket-bracket-line {
+/* Bracket connector — two real pieces that together form the gold
+   "{" / "}" shape:
+
+   1. .fixture-bracket-rail is a vertical line on the OUTER edge of the
+      side rail, spanning the full rail height (top: 0; bottom: 0). It
+      does not depend on card heights or any 25%/75% assumption.
+   2. .bracket-card-stub is a horizontal stub on the card itself,
+      anchored to top: 50% of the card (the actual card center) and
+      extending through the pair's gap to the rail. Each card carries
+      a left and a right stub so it can connect to the back arrow and
+      the forward arrow regardless of the other card's height.
+
+   The arrow button (z-index: 1) sits on top of the vertical rail, so
+   the line appears to pass through the navigation chip on its way to
+   the next round. */
+.fixture-bracket-rail {
   position: absolute;
-  left: 0;
-  width: 100%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #f2b705 0%, #f59e0b 100%);
   pointer-events: none;
   z-index: 0;
   filter: drop-shadow(0 0 2px rgba(242, 183, 5, 0.4));
 }
-/* Right side: horizontal stub at the top + vertical segment on the right
-   edge connecting the top-card center down to the right arrow. */
-.fixture-bracket-bracket-line.right {
-  top: 25%;
-  height: 25%;
-  background-image:
-    linear-gradient(90deg, #f2b705 0%, #f59e0b 100%),
-    linear-gradient(180deg, #f2b705 0%, #f59e0b 100%);
-  background-size: 100% 2px, 2px 100%;
-  background-position: 0 0, 100% 0;
-  background-repeat: no-repeat;
+.fixture-bracket-side-left .fixture-bracket-rail {
+  left: 0;
 }
-/* Left side: vertical segment on the left edge + horizontal stub at the
-   bottom connecting the left arrow down to the bottom-card center. */
-.fixture-bracket-bracket-line.left {
+.fixture-bracket-side-right .fixture-bracket-rail {
+  right: 0;
+}
+.bracket-card-stub {
+  position: absolute;
   top: 50%;
-  height: 25%;
-  background-image:
-    linear-gradient(90deg, #f2b705 0%, #f59e0b 100%),
-    linear-gradient(180deg, #f2b705 0%, #f59e0b 100%);
-  background-size: 100% 2px, 2px 100%;
-  background-position: 0 100%, 0 0;
-  background-repeat: no-repeat;
+  height: 2px;
+  width: calc(var(--bracket-pair-gap) + var(--bracket-rail-width));
+  background: linear-gradient(90deg, #f2b705 0%, #f59e0b 100%);
+  pointer-events: none;
+  z-index: 0;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 2px rgba(242, 183, 5, 0.4));
+}
+.bracket-card-stub.left {
+  right: 100%;
+}
+.bracket-card-stub.right {
+  left: 100%;
 }
 .bracket-match-card {
   min-height: 0;
@@ -1938,6 +1943,8 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     padding-top: 0.1rem;
   }
   .fixture-bracket-pair {
+    --bracket-rail-width: 2.5rem;
+    --bracket-pair-gap: 0.55rem;
     grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
     gap: 0.55rem;
   }
@@ -2082,6 +2089,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     gap: 0.9rem;
   }
   .fixture-bracket-pair {
+    --bracket-rail-width: 2.2rem;
     grid-template-columns: 2.2rem minmax(0, 1fr) 2.2rem;
   }
   .fixture-bracket-pair-arrow {

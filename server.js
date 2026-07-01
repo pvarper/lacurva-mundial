@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { startWorldcupSync, stopWorldcupSync } = require('./lib/worldcup-sync');
 const { abbreviateTeamName } = require('./lib/team-abbrev');
+const { propagateKnockoutWinner, decorateFixturesForResponse } = require('./lib/knockout-propagation');
 
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET environment variable is required in production.');
@@ -477,6 +478,11 @@ function calculatePickBonus(pick, outcome) {
   return bonusPoints;
 }
 
+// Resolves winner/loser placeholder tokens in every fixture and stamps the
+// upstream match-number reference on each knockout slot. The implementation
+// lives in lib/knockout-propagation.js so the response shape is tested in
+// isolation and stays in sync with the write-time snapshot logic.
+
 function buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope = 'all') {
   const includePhase = (match) => {
     const isKnockout = KNOCKOUT_PHASES.has(match.phase);
@@ -912,10 +918,11 @@ app.patch('/api/users/:id/unblock', requireAdmin, asyncHandler(async (req, res) 
 
 app.get('/api/fixtures', requireAuth, asyncHandler(async (req, res) => {
   const fixtures = await readJson('fixtures.json');
+  const decorated = decorateFixturesForResponse(fixtures);
   const date = String(req.query.date || '').trim();
   const team = String(req.query.team || '').trim().toLowerCase();
   const phase = String(req.query.phase || '').trim();
-  const filtered = fixtures.filter((match) => {
+  const filtered = decorated.filter((match) => {
     const matchesDate = !date || match.boliviaDate === date;
     const matchesTeam = !team || match.homeTeam.toLowerCase().includes(team) || match.awayTeam.toLowerCase().includes(team);
     const matchesPhase = !phase || match.phase === phase;
@@ -975,6 +982,16 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
   match.advancer = advancer;
   match.penaltyHomeScore = penaltyHomeScore;
   match.penaltyAwayScore = penaltyAwayScore;
+  // Snapshots the resolved team name into the saved match's homeTeam /
+  // awayTeam when this save is the moment the match becomes final and
+  // those fields were still placeholders. It also stamps homeTeamRef /
+  // awayTeamRef from the pre-snapshot placeholder so the bracket view
+  // keeps the upstream linkage after finalization. Downstream
+  // placeholders are deliberately NOT rewritten here — they stay as live
+  // references so a later correction to an upstream result auto-propagates
+  // on the next read. See lib/knockout-propagation.js for the full
+  // rationale.
+  const propagatedUpdates = propagateKnockoutWinner(fixtures, match);
   await writeJson('fixtures.json', fixtures);
   await recordAuditLog(req, 'fixture_updated', {
     matchId,
@@ -989,13 +1006,22 @@ app.put('/api/fixtures/:id', requireAdmin, asyncHandler(async (req, res) => {
     penaltyAwayScore,
     status
   });
+  if (propagatedUpdates.length > 0) {
+    await recordAuditLog(req, 'knockout_winner_propagated', {
+      sourceMatchId: matchId,
+      sourceMatchNumber: match.matchNumber,
+      advancer: match.advancer || (homeScore > awayScore ? match.homeTeam : homeScore < awayScore ? match.awayTeam : null),
+      propagatedTo: propagatedUpdates
+    });
+  }
   res.json({ match: { ...match, locked: isPredictionLocked(match) } });
 }));
 
 app.get('/api/predictions', requireAuth, asyncHandler(async (req, res) => {
   const [fixtures, predictions] = await Promise.all([readJson('fixtures.json'), readJson('predictions.json')]);
   const userPredictions = predictions.filter((prediction) => prediction.userId === req.session.user.id);
-  const merged = fixtures.map((match) => ({
+  const decorated = decorateFixturesForResponse(fixtures);
+  const merged = decorated.map((match) => ({
     ...match,
     locked: isPredictionLocked(match),
     prediction: userPredictions.find((prediction) => prediction.matchId === match.id) || null
@@ -1289,10 +1315,11 @@ app.get('/api/recent-predictions', requireAuth, asyncHandler(async (req, res) =>
     readJson('predictions.json')
   ]);
   const activeUsers = users.filter(u => u.active !== false);
+  const decoratedById = new Map(decorateFixturesForResponse(fixtures).map((m) => [m.id, m]));
   const feed = predictions
     .map(p => {
       const user = activeUsers.find(u => u.id === p.userId);
-      const match = fixtures.find(f => f.id === p.matchId);
+      const match = decoratedById.get(p.matchId);
       if (!user || !match) return null;
       return {
         id: p.id,
@@ -1329,7 +1356,10 @@ app.get('/api/standings', requireAuth, asyncHandler(async (req, res) => {
     readJson('picks.json'),
     readJson('scorers.json')
   ]);
-  const { standings, liveMatches } = buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope);
+  // Resolve placeholders so scoring and the liveMatches preview use
+  // concrete team names even for non-final downstream knockout matches.
+  const resolvedFixtures = decorateFixturesForResponse(fixtures);
+  const { standings, liveMatches } = buildStandingsRows(users, resolvedFixtures, predictions, picks, scorers, phaseScope);
   res.json({ standings, liveMatches, phaseScope });
 }));
 
@@ -1515,8 +1545,12 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
     && (candidate.active !== false || userIdsWithPhasePredictions.has(candidate.id)));
   if (!user) return res.status(404).json({ error: 'User not found.' });
 
+  // Resolve placeholders so the detail view, scoring and abbreviation all
+  // work against concrete team names (a final match's homeTeam/awayTeam is
+  // already snapshotted, but a non-final downstream may still hold "W74").
+  const resolvedFixtures = decorateFixturesForResponse(fixtures);
   const userPredictions = predictions.filter((prediction) => prediction.userId === user.id);
-  const scopedFixtures = fixtures.filter((match) => {
+  const scopedFixtures = resolvedFixtures.filter((match) => {
     const isKnockout = KNOCKOUT_PHASES.has(match.phase);
     if (phaseScope === 'groups') return !isKnockout;
     if (phaseScope === 'knockout') return isKnockout;
@@ -1545,6 +1579,8 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       awayTeam: match.awayTeam,
       homeTeamShort: abbreviateTeamName(match.homeTeam),
       awayTeamShort: abbreviateTeamName(match.awayTeam),
+      homeTeamRef: match.homeTeamRef,
+      awayTeamRef: match.awayTeamRef,
       homeScore: match.homeScore,
       awayScore: match.awayScore,
       status: match.status,
@@ -1558,7 +1594,7 @@ app.get('/api/standings/:userId', requireAuth, asyncHandler(async (req, res) => 
       points
     };
   });
-  const { standings } = buildStandingsRows(users, fixtures, predictions, picks, scorers, phaseScope);
+  const { standings } = buildStandingsRows(users, resolvedFixtures, predictions, picks, scorers, phaseScope);
   const standingRow = standings.find((row) => row.userId === user.id);
   const matchPoints = details.reduce((total, detail) => total + detail.points, 0);
   const bonusPoints = standingRow?.bonusPoints || 0;
